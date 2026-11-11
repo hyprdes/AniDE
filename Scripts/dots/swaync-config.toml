@@ -7,8 +7,3 @@
     target_root = "${XDG_CONFIG_HOME}"
     paths       = ["swaync"]
 
-[[swaync_config.files]]
-    action      = "sync"
-    source_root = "Configs/.local/share/waybar"
-    target_root = "${XDG_DATA_HOME}/waybar"
-    paths       = ["menus/swaync.xml"]

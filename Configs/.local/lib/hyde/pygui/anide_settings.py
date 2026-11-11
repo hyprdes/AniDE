@@ -61,12 +61,15 @@ def theme_colors(path):
         return colors
     for name, value in re.findall(r"(?m)^\s*@define-color\s+(main-bg|main-fg|wb-act-bg|wb-act-fg)\s+(#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3})\s*;", text):
         colors[name] = value
+    json_map = {"mainBg": "main-bg", "mainFg": "main-fg", "actBg": "wb-act-bg", "actFg": "wb-act-fg"}
+    for key, value in re.findall(r'"(mainBg|mainFg|actBg|actFg)"\s*:\s*"(#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3})"', text):
+        colors[json_map[key]] = value
     return colors
 
 
 def apply_theme(app):
     palette = app.palette()
-    colors = theme_colors(xdg_config_home() / "waybar" / "theme.css")
+    colors = theme_colors(xdg_config_home() / "quickshell" / "theme.json")
     # Keep the platform palette when no compatible theme colors are available.
     bg = colors.get("main-bg", palette.color(QtGui.QPalette.ColorRole.Window).name())
     fg = colors.get("main-fg", palette.color(QtGui.QPalette.ColorRole.WindowText).name())

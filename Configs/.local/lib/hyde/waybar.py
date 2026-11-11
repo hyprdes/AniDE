@@ -1408,4 +1408,18 @@ def main():
 
 
 if __name__ == "__main__":
+    qs_script = Path(__file__).resolve().parent / "quickshell.sh"
+    if qs_script.is_file():
+        flag = "--watch"
+        if any(a in sys.argv[1:] for a in ("-G", "--hide")):
+            flag = "--hide"
+        elif any(a in sys.argv[1:] for a in ("-k", "--kill")):
+            flag = "--kill"
+        elif any(a in sys.argv[1:] for a in ("-u", "--update")):
+            flag = "--update"
+        elif any(a in sys.argv[1:] for a in ("-w", "--watch")):
+            flag = "--watch"
+        else:
+            flag = "--reload"
+        os.execv("/bin/bash", ["/bin/bash", str(qs_script), flag])
     main()

@@ -18,7 +18,6 @@
         "../dots/hyprland.toml",
         "../dots/wallbash.toml",
         "../dots/quickshell.toml",
-        "../dots/waybar.toml",
         "../dots/rofi.toml",
         "../dots/dunst.toml",
         "../dots/wlogout.toml",

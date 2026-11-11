@@ -2,13 +2,15 @@ import QtQuick
 
 Canvas {
     id: root
-    property int cornerSize: 16
-    property color fillColor: "#101419"
+    property int cornerSize: 18
+    property color fillColor: "#0d1117"
     // "top-left" | "top-right" | "bottom-left" | "bottom-right"
     property string corner: "top-left"
 
     width: cornerSize
     height: cornerSize
+    antialiasing: true
+    smooth: true
 
     onFillColorChanged: requestPaint()
     onCornerSizeChanged: requestPaint()

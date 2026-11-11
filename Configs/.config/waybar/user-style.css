@@ -1,8 +1,0 @@
-/* User custom styles */
-window#waybar {
-    margin-top: 0px;
-    margin-left: 0px;
-    margin-right: 0px;
-    background-color: @main-bg;
-}
-

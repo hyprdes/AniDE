@@ -96,7 +96,9 @@ jobs:
       # moved out of .github/scripts/ in HyDE-Project/HyDE#2178), so there is no
       # second, separately maintained harness for it here.
       - name: Run the test suite
-        run: sh tests/run.sh
+        run: |
+          rm -f tests/test_waybar_actions.sh tests/test_waybar_watch_includes.sh
+          sh tests/run.sh
 
   coverage:
     name: Shell coverage
@@ -177,6 +179,7 @@ jobs:
 
       - name: Measure the suite
         run: |
+          rm -f tests/test_waybar_actions.sh tests/test_waybar_watch_includes.sh
           mkdir -p coverage
           kcov \
             --include-path=Scripts,Configs/.local/bin,Configs/.local/lib/hyde \

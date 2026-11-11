@@ -1,5 +1,6 @@
 hl.config({
 	decoration = {
+		rounding = 16,
 		dim_special = 0.3,
 		active_opacity = 0.90,
 		inactive_opacity = 0.75,
@@ -30,6 +31,9 @@ hl.config({
 		force_zero_scaling = true,
 	},
 	general = {
+		border_size = 2,
+		gaps_in = 4,
+		gaps_out = 0,
 		snap = {
 			enabled = true,
 			respect_gaps = true,

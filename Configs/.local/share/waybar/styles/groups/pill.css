@@ -16,7 +16,10 @@ window#waybar.right #pill button {
     /* border-width: 0; */ /*Causes black on edge*/
 }
 
-window#waybar.top #pill,
+window#waybar.top #pill {
+    margin: 0em 0.5em 0.2em 0.5em;
+}
+
 window#waybar.bottom #pill {
     margin: 0.3em 1em 0.3em 1em;
 }

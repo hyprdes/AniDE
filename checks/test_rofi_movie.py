@@ -482,6 +482,27 @@ class AppFinderEntryTest(unittest.TestCase):
                 f"style_{idx}.rasi must set display-anisub icon",
             )
 
+        # style_1.rasi (and side-panel styles 9, 11, 12) must expose a visible
+        # search entry and icon-current-entry inside the preview panel so movie
+        # posters render in the left wallpaper panel of SUPER+A.
+        for idx in (1, 9, 11, 12):
+            rasi = (themes_dir / f"style_{idx}.rasi").read_text()
+            self.assertRegex(
+                rasi,
+                r'inputbar\s*\{[^}]*children:\s*\[\s*"entry"\s*,\s*"icon-current-entry"\s*\]',
+                f"style_{idx}.rasi must place entry and icon-current-entry in inputbar",
+            )
+            self.assertRegex(
+                rasi,
+                r"entry\s*\{[^}]*enabled:\s*true",
+                f"style_{idx}.rasi must enable the search entry box",
+            )
+            self.assertRegex(
+                rasi,
+                r"icon-current-entry\s*\{[^}]*enabled:\s*true",
+                f"style_{idx}.rasi must enable icon-current-entry for poster preview",
+            )
+
     def test_rofi_script_mode_browses_searches_and_plays_in_tab(self):
         workdir = pathlib.Path(tempfile.mkdtemp())
         mpv_log = workdir / "mpv.log"
@@ -497,6 +518,7 @@ class AppFinderEntryTest(unittest.TestCase):
         base_env = {
             **os.environ,
             "PATH": f"{workdir}{os.pathsep}{os.environ['PATH']}",
+            "XDG_CONFIG_HOME": str(workdir / "config"),
             "XDG_STATE_HOME": str(workdir / "state"),
             "XDG_CACHE_HOME": str(workdir / "cache"),
             "ROFI_MOVIE_PLAYER": "mpv",
@@ -504,7 +526,8 @@ class AppFinderEntryTest(unittest.TestCase):
         }
         try:
             # 1. Initial call (ROFI_RETV=0) returns home menu immediately with
-            #    no network calls and without overriding the mode-switcher icon.
+            #    no network calls, without overriding the mode-switcher icon,
+            #    and with the permanent search row at the top.
             rc, out, err = run_bash(
                 f"bash {SCRIPT} --rofi-script",
                 env={**base_env, "ROFI_RETV": "0"},
@@ -512,7 +535,35 @@ class AppFinderEntryTest(unittest.TestCase):
             self.assertEqual(rc, 0, err)
             self.assertNotIn("\0prompt\x1f", out)
             self.assertIn("🆕 Phim mới cập nhật\0info\x1flist|phim-moi-cap-nhat|1||", out)
-            self.assertIn("\0info\x1fsearch_input\x1ficon\x1fsystem-search\x1fpermanent\x1ftrue", out)
+            self.assertIn("🔎 Tìm phim (gõ tên phim rồi Enter)…\0info\x1fsearch_input\x1fpermanent\x1ftrue", out)
+
+            # 1b. Clicking the search row with empty ROFI_INPUT opens the in-tab
+            #     search prompt instead of spawning a separate Rofi window.
+            rc, out, err = run_bash(
+                f"source <(sed '/^main \"\\$@\"$/d' {SCRIPT}); {mock_funcs} movie_script_mode",
+                env={
+                    **base_env,
+                    "ROFI_RETV": "1",
+                    "ROFI_INFO": "search_input",
+                    "ROFI_INPUT": "",
+                },
+            )
+            self.assertEqual(rc, 0, err)
+            self.assertIn("\0data\x1fsearch_prompt\n", out)
+            self.assertIn("🔎 Gõ tên phim vào ô tìm kiếm rồi nhấn Enter…\0info\x1fsearch_input\x1fpermanent\x1ftrue", out)
+
+            # 1c. Opening settings stays in-tab and persists changes to config.toml.
+            rc, out, err = run_bash(
+                f"source <(sed '/^main \"\\$@\"$/d' {SCRIPT}); {mock_funcs} movie_script_mode",
+                env={
+                    **base_env,
+                    "ROFI_RETV": "1",
+                    "ROFI_INFO": "settings",
+                },
+            )
+            self.assertEqual(rc, 0, err)
+            self.assertIn("\0data\x1fsettings\n", out)
+            self.assertIn("▶ Trình phát video: mpv\0info\x1fsettings_player", out)
 
             # 2. Selecting a category row (ROFI_RETV=1) lists movies in-tab.
             rc, out, err = run_bash(
@@ -526,13 +577,21 @@ class AppFinderEntryTest(unittest.TestCase):
             self.assertEqual(rc, 0, err)
             self.assertIn("\0data\x1flist|phim-bo|1||\n", out)
             self.assertIn("Gấp Ánh Trăng (2026)", out)
-            self.assertIn("\0info\x1fmovie|gap-anh-trang|Gấp Ánh Trăng (2026)|", out)
+            self.assertIn("\0info\x1fmovie|gap-anh-trang|Gấp Ánh Trăng (2026)||", out)
 
-            # 3. Typing a keyword on the permanent search row searches in-tab.
+            # 3. Typing a keyword on the permanent search row searches in-tab
+            #    and attaches the cached poster file to each movie row when
+            #    ROFI_MOVIE_POSTER=true.
+            poster_env = {**base_env, "ROFI_MOVIE_POSTER": "true"}
+            poster_mock = (
+                f"{mock_funcs} "
+                "movie_poster_fetch() { local p; p=$(movie_poster_path \"$1\") && mkdir -p \"$(dirname \"$p\")\" && printf 'PNG' >\"$p\"; }; "
+                "movie_prefetch_posters() { local u; while IFS= read -r u; do [[ $u == http* ]] && movie_poster_fetch \"$u\"; done < <(awk -F'|' '{print $4}' <<<\"$1\"); }; "
+            )
             rc, out, err = run_bash(
-                f"source <(sed '/^main \"\\$@\"$/d' {SCRIPT}); {mock_funcs} movie_script_mode",
+                f"source <(sed '/^main \"\\$@\"$/d' {SCRIPT}); {poster_mock} movie_script_mode",
                 env={
-                    **base_env,
+                    **poster_env,
                     "ROFI_RETV": "1",
                     "ROFI_INFO": "search_input",
                     "ROFI_INPUT": "naruto",
@@ -540,15 +599,18 @@ class AppFinderEntryTest(unittest.TestCase):
             )
             self.assertEqual(rc, 0, err)
             self.assertIn("Naruto Shippuden (2007)", out)
-            self.assertIn("\0info\x1fmovie|naruto-shippuden|Naruto Shippuden (2007)|", out)
+            self.assertIn("\0info\x1fmovie|naruto-shippuden|Naruto Shippuden (2007)||", out)
+            self.assertRegex(out, r"\x1ficon\x1f[^\n]*posters/[^\n]*-lg\.png")
 
-            # 4. Selecting a movie lists its episodes and servers in-tab.
+            # 4. Selecting a movie lists its episodes and servers in-tab and
+            #    attaches the movie poster icon to episode rows so the left
+            #    preview panel stays populated.
             rc, out, err = run_bash(
-                f"source <(sed '/^main \"\\$@\"$/d' {SCRIPT}); {mock_funcs} movie_script_mode",
+                f"source <(sed '/^main \"\\$@\"$/d' {SCRIPT}); {poster_mock} movie_script_mode",
                 env={
-                    **base_env,
+                    **poster_env,
                     "ROFI_RETV": "1",
-                    "ROFI_INFO": "movie|naruto-shippuden|Naruto Shippuden (2007)|",
+                    "ROFI_INFO": "movie|naruto-shippuden|Naruto Shippuden (2007)||",
                     "ROFI_DATA": "search|naruto|1",
                 },
             )
@@ -558,6 +620,7 @@ class AppFinderEntryTest(unittest.TestCase):
                 "\0info\x1fplay|naruto-shippuden|Naruto Shippuden (2007)|0|Tập 001",
                 out,
             )
+            self.assertRegex(out, r"Tập 001[^\n]*\x1ficon\x1f[^\n]*posters/[^\n]*-lg\.png")
             self.assertIn("🔉 Đổi nguồn: Thuyết Minh (1 tập)", out)
 
             # 5. Selecting an episode starts playback in the background and

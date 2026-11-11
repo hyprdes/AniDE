@@ -104,7 +104,7 @@ MOVIE_STATE_DIR="${HYDE_STATE_HOME}/movie"
 MOVIE_HISTORY_FILE="${MOVIE_STATE_DIR}/history"
 MOVIE_QUERY_FILE="${MOVIE_STATE_DIR}/last-query"
 MOVIE_HISTORY_MAX=40
-MOVIE_POSTER_ROWS=8
+MOVIE_POSTER_ROWS=24
 
 # ── Small helpers ─────────────────────────────────────────────────────────────
 movie_tmp() {
@@ -605,38 +605,78 @@ movie_movie_url() {
     printf '%s/phim/%s' "$MOVIE_SITE_URL" "${1:-}"
 }
 
+movie_poster_url() {
+    local u="${1:-}"
+    [[ -z $u || $u == "null" || $u == "none" ]] && return 1
+    case "$u" in
+        http://* | https://*) printf '%s' "$u" ;;
+        *) printf '%s/%s' "$MOVIE_CDN_URL" "${u#/}" ;;
+    esac
+}
+
 # ── Poster cache ──────────────────────────────────────────────────────────────
 movie_poster_path() {
     local url="${1:-}" name
     [[ -z $url ]] && return 1
     name=$(printf '%s' "$url" | cksum | tr ' ' '-')
-    printf '%s/%s.png' "$MOVIE_POSTER_DIR" "$name"
+    printf '%s/%s-lg.png' "$MOVIE_POSTER_DIR" "$name"
 }
 
-# Download + downscale one poster (once) so Rofi has a small icon to cache.
+# Download + resize one poster to 360x540 so Rofi's icon-current-entry preview
+# panel (and row icons) stay sharp.
 movie_poster_fetch() {
     local url="${1:-}" out tmp
-    [[ $url == http* ]] || return 1
+    url=$(movie_poster_url "$url") || return 1
     [[ $MOVIE_POSTER == "false" || $MOVIE_POSTER == "0" ]] && return 1
     out=$(movie_poster_path "$url") || return 1
     [[ -s $out ]] && return 0
     mkdir -p "$MOVIE_POSTER_DIR" 2>/dev/null || return 1
     tmp=$(movie_tmp)
-    if ! curl -fsSL --max-time 12 -A "$MOVIE_UA" -e "$MOVIE_REFERER" -o "$tmp" "$url" 2>/dev/null; then
+    if ! curl -fsSL --max-time 8 -A "$MOVIE_UA" -e "$MOVIE_REFERER" -o "$tmp" "$url" 2>/dev/null; then
         rm -f "$tmp"
         return 1
     fi
     if [[ -s $tmp ]]; then
         if command -v magick >/dev/null 2>&1; then
-            magick "$tmp" -resize 180x270^ -gravity north -extent 180x270 "$out" 2>/dev/null
+            magick "$tmp" -resize 360x540^ -gravity north -extent 360x540 "$out" 2>/dev/null || true
         elif command -v convert >/dev/null 2>&1; then
-            convert "$tmp" -resize 180x270^ -gravity north -extent 180x270 "$out" 2>/dev/null
-        else
-            cp -f "$tmp" "$out" 2>/dev/null
+            convert "$tmp" -resize 360x540^ -gravity north -extent 360x540 "$out" 2>/dev/null || true
+        fi
+        if [[ ! -s $out ]] && command -v ffmpeg >/dev/null 2>&1; then
+            ffmpeg -nostdin -loglevel error -y -i "$tmp" \
+                -vf "scale=360:540:force_original_aspect_ratio=increase,crop=360:540" \
+                -frames:v 1 "$out" 2>/dev/null || true
+        fi
+        if [[ ! -s $out ]]; then
+            cp -f "$tmp" "$out" 2>/dev/null || true
         fi
     fi
     rm -f "$tmp"
     [[ -s $out ]]
+}
+
+# Resolve a cached poster file for a movie slug from its cached detail JSON
+# without blocking on network I/O.
+movie_cached_slug_poster() {
+    local slug="${1:-}" detail_file poster path legacy_name
+    [[ -z $slug || $MOVIE_POSTER == "false" || $MOVIE_POSTER == "0" ]] && return 1
+    detail_file="${MOVIE_DETAIL_DIR}/$(printf '%s' "$slug" | tr -c 'A-Za-z0-9_-' '_').json"
+    [[ -s $detail_file ]] || return 1
+    poster=$(jq -r "$MOVIE_JQ_MOVIE | (.poster_url // .thumb_url // \"\")" "$detail_file" 2>/dev/null)
+    poster=$(movie_poster_url "$poster") || return 1
+    path=$(movie_poster_path "$poster") || return 1
+    if [[ -s $path ]]; then
+        printf '%s' "$path"
+        return 0
+    fi
+    legacy_name=$(printf '%s' "$poster" | cksum | tr ' ' '-')
+    if [[ -s "${MOVIE_POSTER_DIR}/${legacy_name}.png" ]]; then
+        (movie_poster_fetch "$poster" >/dev/null 2>&1 &)
+        printf '%s' "${MOVIE_POSTER_DIR}/${legacy_name}.png"
+        return 0
+    fi
+    (movie_poster_fetch "$poster" >/dev/null 2>&1 &)
+    return 1
 }
 
 # Wait for the first MOVIE_POSTER_ROWS posters (these become visible icons right
@@ -1460,22 +1500,60 @@ movie_diagnose() {
 #   2. Never emit `\0prompt\x1f…`: Rofi overwrites `sw->display_name` with the
 #      prompt string, which would replace the `` icon in `mode-switcher`.
 #   3. The search action row carries `\x1fpermanent\x1ftrue` so typing a movie
-#      keyword in layouts with a hidden entry box (such as `style_1.rasi`) keeps
-#      the search row matched and hands the typed keyword back in `ROFI_INPUT`.
-movie_spawn_detached() {
-    local self="$_hyde_movie_dir/$(basename -- "${BASH_SOURCE[0]}")"
-    (
-        local i
-        for i in 1 2 3 4 5 6 7 8 9 10; do
-            if [[ -n ${ROFI_OUTSIDE:-} ]] && kill -0 "$ROFI_OUTSIDE" 2>/dev/null; then
-                sleep 0.05
-            else
-                break
-            fi
-        done
-        exec "$self" "$@"
-    ) </dev/null >/dev/null 2>&1 &
-    disown 2>/dev/null || true
+#      keyword in any launcher layout keeps the search row matched at index 0
+#      and hands the typed keyword back in `ROFI_INPUT`.
+#   4. Movie, history, resume and episode rows attach `\x1ficon\x1f<poster>` so
+#      `icon-current-entry` inside the launcher's preview panel renders the
+#      selected movie's poster.
+movie_reload_settings() {
+    local config_file="${XDG_CONFIG_HOME}/hyde/config.toml" k v
+    if [[ -f "$XDG_STATE_HOME/hyde/staterc" ]]; then
+        # shellcheck disable=SC1091
+        source "$XDG_STATE_HOME/hyde/staterc" 2>/dev/null || true
+    fi
+    if [[ -f "$XDG_STATE_HOME/hyde/config" ]]; then
+        # shellcheck disable=SC1091
+        source "$XDG_STATE_HOME/hyde/config" 2>/dev/null || true
+    fi
+    if [[ -f $config_file ]]; then
+        while IFS='=' read -r k v; do
+            [[ -z $k ]] && continue
+            case "$k" in
+                player) ROFI_MOVIE_PLAYER="$v" ;;
+                server_pref) MOVIE_SERVER_PREF="$v" ;;
+                poster) MOVIE_POSTER="$v" ;;
+                limit)
+                    if [[ $v =~ ^[0-9]+$ ]] && ((v >= 1 && v <= 64)); then
+                        MOVIE_LIMIT="$v"
+                    fi
+                    ;;
+                api_url) [[ -n $v ]] && MOVIE_API_URL="${v%/}" ;;
+                site_url)
+                    if [[ -n $v ]]; then
+                        MOVIE_SITE_URL="${v%/}"
+                        MOVIE_REFERER="${MOVIE_SITE_URL}/"
+                        MOVIE_HOST="${MOVIE_SITE_URL#*://}"
+                    fi
+                    ;;
+                cdn_url) [[ -n $v ]] && MOVIE_CDN_URL="${v%/}" ;;
+            esac
+        done < <(awk '
+            /^\[/ { sec = $0; next }
+            sec == "[rofi.movie]" && $0 ~ /^[ \t]*[A-Za-z0-9_]+[ \t]*=/ {
+                line = $0
+                sub(/^[ \t]+/, "", line)
+                key = line
+                sub(/[ \t]*=.*/, "", key)
+                val = line
+                sub(/^[^=]*=[ \t]*/, "", val)
+                sub(/[ \t]*#.*$/, "", val)
+                sub(/[ \t]+$/, "", val)
+                gsub(/^"|"$/, "", val)
+                gsub(/^'\''|'\''$/, "", val)
+                print key "=" val
+            }
+        ' "$config_file" 2>/dev/null)
+    fi
 }
 
 movie_script_headers() {
@@ -1496,41 +1574,68 @@ movie_script_row() {
 }
 
 movie_script_home() {
-    local last slug name ep
+    local last slug name ep poster_icon="" last_query
     movie_script_headers "menu" "🎬 AniSub · KKPhim ($MOVIE_HOST)"
     last=$(movie_history_lines | head -n 1)
     if [[ -n $last ]]; then
         slug=$(printf '%s' "$last" | cut -f2 | movie_clean)
         name=$(printf '%s' "$last" | cut -f3 | movie_clean)
         ep=$(printf '%s' "$last" | cut -f5 | movie_clean)
-        [[ -n $slug && -n $name ]] &&
-            movie_script_row "▶ Tiếp tục: ${name}${ep:+ · $ep}" "movie|${slug}|${name}|" \
-                "media-playback-start" "" "tiep tuc xem resume ${slug//-/ }"
+        poster_icon=$(movie_cached_slug_poster "$slug" 2>/dev/null || true)
+    fi
+    movie_script_row "🔎 Tìm phim (gõ tên phim rồi Enter)…" "search_input" \
+        "$poster_icon" "true" "tim phim search"
+    if [[ -n ${slug:-} && -n ${name:-} ]]; then
+        movie_script_row "▶ Tiếp tục: ${name}${ep:+ · $ep}" "movie|${slug}|${name}||" \
+            "$poster_icon" "" "tiep tuc xem resume ${slug//-/ }"
+    fi
+    last_query=$(movie_last_query | movie_clean)
+    if [[ -n $last_query ]]; then
+        movie_script_row "🕘 Tìm lại: ${last_query}" "search|${last_query}|1" \
+            "" "" "tim lai recent search ${last_query}"
     fi
     movie_script_row "🆕 Phim mới cập nhật" "list|phim-moi-cap-nhat|1||" \
-        "folder-videos" "" "phim moi cap nhat recent"
-    movie_script_row "🔎 Tìm phim (gõ tên phim rồi Enter)…" "search_input" \
-        "system-search" "true" "tim phim search"
+        "" "" "phim moi cap nhat recent"
     movie_script_row "📺 Phim bộ" "list|phim-bo|1||" \
-        "video-x-generic" "" "phim bo series"
+        "" "" "phim bo series"
     movie_script_row "🎬 Phim lẻ" "list|phim-le|1||" \
-        "video-x-generic" "" "phim le movie single"
+        "" "" "phim le movie single"
     movie_script_row "🧚 Hoạt hình (Anime)" "list|hoat-hinh|1||" \
-        "video-x-generic" "" "hoat hinh anime"
+        "" "" "hoat hinh anime"
     movie_script_row "🎥 Phim chiếu rạp" "list|phim-chieu-rap|1||" \
-        "video-x-generic" "" "phim chieu rap cinema"
+        "" "" "phim chieu rap cinema"
     movie_script_row "📼 TV Shows" "list|tv-shows|1||" \
-        "video-x-generic" "" "tv shows"
+        "" "" "tv shows"
     movie_script_row "🎭 Duyệt theo thể loại…" "genres" \
-        "folder-videos" "" "the loai genre"
+        "" "" "the loai genre"
     movie_script_row "🌏 Duyệt theo quốc gia…" "countries" \
-        "applications-internet" "" "quoc gia country"
+        "" "" "quoc gia country"
     if [[ -n $last ]]; then
         movie_script_row "📜 Lịch sử xem" "history" \
-            "document-open-recent" "" "lich su history"
+            "" "" "lich su history"
     fi
     movie_script_row "⚙️ Cài đặt AniSub" "settings" \
-        "preferences-system" "" "cai dat settings"
+        "" "" "cai dat settings"
+}
+
+movie_script_search_prompt() {
+    local notice="${1:-🔎 Gõ tên phim vào ô tìm kiếm bên trái rồi nhấn Enter}"
+    local last_query ts slug name server episode poster_icon
+    movie_script_headers "search_prompt" "$notice"
+    movie_script_row "🔎 Gõ tên phim vào ô tìm kiếm rồi nhấn Enter…" "search_input" "" "true"
+    last_query=$(movie_last_query | movie_clean)
+    if [[ -n $last_query ]]; then
+        movie_script_row "🕘 Tìm lại gần đây: ${last_query}" "search|${last_query}|1"
+    fi
+    while IFS=$'\t' read -r ts slug name server episode; do
+        [[ -z $slug || -z $name ]] && continue
+        name=$(printf '%s' "$name" | movie_clean)
+        episode=$(printf '%s' "$episode" | movie_clean)
+        poster_icon=$(movie_cached_slug_poster "$slug" 2>/dev/null || true)
+        movie_script_row "▶ Xem gần đây: ${name}${episode:+ · $episode}" \
+            "movie|${slug}|${name}|${server}|" "$poster_icon"
+    done < <(movie_history_lines | head -n 5)
+    movie_script_row "🏠 Menu chính AniSub" "menu"
 }
 
 movie_script_emit_movies() {
@@ -1544,10 +1649,12 @@ movie_script_emit_movies() {
         else
             label="$name"
         fi
-        icon="video-x-generic"
-        path=$(movie_poster_path "$poster" 2>/dev/null)
-        [[ -n $path && -s $path ]] && icon="$path"
-        movie_script_row "$label" "movie|${slug}|${name}|" "$icon" "" "${slug//-/ }"
+        icon=""
+        if [[ $MOVIE_POSTER != "false" && $MOVIE_POSTER != "0" && -n $poster ]]; then
+            path=$(movie_poster_path "$poster" 2>/dev/null)
+            [[ -n $path && -s $path ]] && icon="$path"
+        fi
+        movie_script_row "$label" "movie|${slug}|${name}||${poster}" "$icon" "" "${slug//-/ }"
     done <<<"$rows"
 }
 
@@ -1561,15 +1668,15 @@ movie_script_list() {
 
     if ! json=$(movie_list_json "$cat" "$page" "$genre" "$country"); then
         movie_script_headers "menu" "⚠️ Không tải được $label"
-        movie_script_row "⚠️ Không tải được danh mục (HTTP $MOVIE_HTTP_STATUS)" "menu" "dialog-error"
-        movie_script_row "🏠 Menu chính AniSub" "menu" "go-home"
+        movie_script_row "⚠️ Không tải được danh mục (HTTP $MOVIE_HTTP_STATUS)" "menu"
+        movie_script_row "🏠 Menu chính AniSub" "menu"
         return 0
     fi
     rows=$(movie_rows <<<"$json")
     if [[ -z $rows ]]; then
         movie_script_headers "menu" "$label"
-        movie_script_row "⚠️ Danh mục chưa có phim ở trang $page" "menu" "dialog-warning"
-        movie_script_row "🏠 Menu chính AniSub" "menu" "go-home"
+        movie_script_row "⚠️ Danh mục chưa có phim ở trang $page" "menu"
+        movie_script_row "🏠 Menu chính AniSub" "menu"
         return 0
     fi
     pages=$(printf '%s' "$json" | jq -r "$MOVIE_JQ_TOTAL" 2>/dev/null)
@@ -1582,12 +1689,14 @@ movie_script_list() {
     movie_script_emit_movies "$rows"
     ((cur < pages)) &&
         movie_script_row "⏭ Trang sau ($((cur + 1))/$pages) — $label" \
-            "list|${cat}|$((cur + 1))|${genre}|${country}" "go-next"
+            "list|${cat}|$((cur + 1))|${genre}|${country}"
     ((cur > 1)) &&
         movie_script_row "⏮ Trang trước ($((cur - 1))/$pages) — $label" \
-            "list|${cat}|$((cur - 1))|${genre}|${country}" "go-previous"
-    movie_script_row "🔎 Tìm phim khác (gõ tên phim rồi Enter)…" "search_input" "system-search" "true"
-    movie_script_row "🏠 Menu chính AniSub" "menu" "go-home"
+            "list|${cat}|$((cur - 1))|${genre}|${country}"
+    [[ -n $genre ]] && movie_script_row "🎭 Chọn thể loại khác…" "genres"
+    [[ -n $country ]] && movie_script_row "🌏 Chọn quốc gia khác…" "countries"
+    movie_script_row "🔎 Tìm phim khác (gõ tên phim rồi Enter)…" "search_input" "" "true"
+    movie_script_row "🏠 Menu chính AniSub" "menu"
 }
 
 movie_script_search() {
@@ -1595,22 +1704,23 @@ movie_script_search() {
     keyword=$(printf '%s' "$keyword" | movie_clean)
     [[ $page =~ ^[0-9]+$ ]] || page=1
     if [[ ${#keyword} -lt 2 ]]; then
-        movie_spawn_detached search
+        movie_script_search_prompt "⚠️ Nhập ít nhất 2 ký tự để tìm phim"
         return 0
     fi
     movie_save_query "$keyword"
     if ! json=$(movie_search_json "$keyword" "$page"); then
         movie_script_headers "menu" "⚠️ Lỗi tìm kiếm"
-        movie_script_row "⚠️ Không gọi được KKPhim (HTTP $MOVIE_HTTP_STATUS)" "menu" "dialog-error"
-        movie_script_row "🏠 Menu chính AniSub" "menu" "go-home"
+        movie_script_row "⚠️ Không gọi được KKPhim (HTTP $MOVIE_HTTP_STATUS)" "menu"
+        movie_script_row "🔎 Thử tìm lại…" "search_input" "" "true"
+        movie_script_row "🏠 Menu chính AniSub" "menu"
         return 0
     fi
     rows=$(movie_rows <<<"$json")
     if [[ -z $rows ]]; then
-        movie_script_headers "menu" "🔎 $(printf '%s' "$keyword" | movie_markup)"
-        movie_script_row "⚠️ Không tìm thấy phim nào cho \"$keyword\"" "menu" "dialog-warning"
-        movie_script_row "🔎 Tìm từ khóa khác (gõ tên phim rồi Enter)…" "search_input" "system-search" "true"
-        movie_script_row "🏠 Menu chính AniSub" "menu" "go-home"
+        movie_script_headers "search_prompt" "🔎 $(printf '%s' "$keyword" | movie_markup)"
+        movie_script_row "⚠️ Không tìm thấy phim nào cho \"$keyword\"" "search_input"
+        movie_script_row "🔎 Tìm từ khóa khác (gõ tên phim rồi Enter)…" "search_input" "" "true"
+        movie_script_row "🏠 Menu chính AniSub" "menu"
         return 0
     fi
     pages=$(printf '%s' "$json" | jq -r "$MOVIE_JQ_TOTAL" 2>/dev/null)
@@ -1623,36 +1733,38 @@ movie_script_search() {
     movie_script_emit_movies "$rows"
     ((cur < pages)) &&
         movie_script_row "⏭ Trang sau ($((cur + 1))/$pages) — 🔎 $keyword" \
-            "search|${keyword}|$((cur + 1))" "go-next"
+            "search|${keyword}|$((cur + 1))"
     ((cur > 1)) &&
         movie_script_row "⏮ Trang trước ($((cur - 1))/$pages) — 🔎 $keyword" \
-            "search|${keyword}|$((cur - 1))" "go-previous"
-    movie_script_row "🔎 Tìm từ khóa khác (gõ tên phim rồi Enter)…" "search_input" "system-search" "true"
-    movie_script_row "🏠 Menu chính AniSub" "menu" "go-home"
+            "search|${keyword}|$((cur - 1))"
+    movie_script_row "🔎 Tìm từ khóa khác (gõ tên phim rồi Enter)…" "search_input" "" "true"
+    movie_script_row "🏠 Menu chính AniSub" "menu"
 }
 
 movie_script_genres() {
     local label slug
     movie_script_headers "genres" "🎭 Chọn thể loại phim"
+    movie_script_row "🔎 Tìm phim (gõ tên phim rồi Enter)…" "search_input" "" "true"
     while IFS='|' read -r label slug; do
         [[ -z $slug ]] && continue
-        movie_script_row "$label" "list|phim-bo|1|${slug}|" "folder-videos" "" "${slug//-/ }"
+        movie_script_row "$label" "list|phim-bo|1|${slug}|" "" "" "${slug//-/ }"
     done < <(movie_genres)
-    movie_script_row "🏠 Menu chính AniSub" "menu" "go-home"
+    movie_script_row "🏠 Menu chính AniSub" "menu"
 }
 
 movie_script_countries() {
     local label slug
     movie_script_headers "countries" "🌏 Chọn quốc gia"
+    movie_script_row "🔎 Tìm phim (gõ tên phim rồi Enter)…" "search_input" "" "true"
     while IFS='|' read -r label slug; do
         [[ -z $slug ]] && continue
-        movie_script_row "🌏 $label" "list|phim-bo|1||${slug}" "applications-internet" "" "${slug//-/ }"
+        movie_script_row "🌏 $label" "list|phim-bo|1||${slug}" "" "" "${slug//-/ }"
     done < <(movie_countries)
-    movie_script_row "🏠 Menu chính AniSub" "menu" "go-home"
+    movie_script_row "🏠 Menu chính AniSub" "menu"
 }
 
 movie_script_history() {
-    local ts slug name server episode ago count=0
+    local ts slug name server episode ago count=0 poster_icon
     movie_script_headers "history" "📜 Lịch sử xem gần đây"
     while IFS=$'\t' read -r ts slug name server episode; do
         [[ -z $slug ]] && continue
@@ -1667,24 +1779,90 @@ movie_script_history() {
         fi
         name=$(printf '%s' "$name" | movie_clean)
         episode=$(printf '%s' "$episode" | movie_clean)
+        poster_icon=$(movie_cached_slug_poster "$slug" 2>/dev/null || true)
         movie_script_row "${name}${episode:+ · $episode} (${ago})" \
-            "movie|${slug}|${name}|${server}" "document-open-recent" "" "${slug//-/ }"
+            "movie|${slug}|${name}|${server}|" "$poster_icon" "" "${slug//-/ }"
     done < <(movie_history_lines)
     if ((count == 0)); then
-        movie_script_row "⚠️ Chưa có phim nào trong lịch sử xem" "menu" "dialog-information"
+        movie_script_row "⚠️ Chưa có phim nào trong lịch sử xem" "menu"
+    else
+        movie_script_row "🗑 Xóa toàn bộ lịch sử xem" "history_clear"
     fi
-    movie_script_row "🏠 Menu chính AniSub" "menu" "go-home"
+    movie_script_row "🏠 Menu chính AniSub" "menu"
+}
+
+movie_script_settings() {
+    local notice="${1:-⚙️ Cài đặt AniSub · lưu vào ~/.config/hyde/config.toml}"
+    local cur_player="${ROFI_MOVIE_PLAYER:-$(movie_player || echo mpv)}"
+    local cur_srv poster_label
+    cur_srv=$(movie_server_pref_label "$MOVIE_SERVER_PREF")
+    if [[ $MOVIE_POSTER == "false" || $MOVIE_POSTER == "0" ]]; then
+        poster_label="Đang tắt (nhấn để bật)"
+    else
+        poster_label="Đang bật (nhấn để tắt)"
+    fi
+    movie_script_headers "settings" "$notice"
+    [[ $notice != "⚙️"* ]] && movie_script_row "ℹ️ $notice" "settings"
+    movie_script_row "▶ Trình phát video: ${cur_player}" "settings_player"
+    movie_script_row "🔉 Nguồn ưu tiên: ${cur_srv}" "settings_server"
+    movie_script_row "🖼 Ảnh preview poster: ${poster_label}" "settings_poster_toggle"
+    movie_script_row "📄 Số phim mỗi trang: ${MOVIE_LIMIT}" "settings_limit"
+    movie_script_row "🧹 Xóa cache phim và poster" "settings_clear_cache"
+    movie_script_row "🗑 Xóa lịch sử xem phim" "history_clear"
+    movie_script_row "🩺 Chẩn đoán kết nối & hệ thống" "settings_diagnose"
+    movie_script_row "🏠 Menu chính AniSub" "menu"
+}
+
+movie_script_settings_player() {
+    local p cur="${ROFI_MOVIE_PLAYER:-$(movie_player || echo mpv)}" mark
+    movie_script_headers "settings" "▶ Chọn trình phát video"
+    for p in mpv vlc celluloid haruna; do
+        mark=""
+        [[ $p == "$cur" ]] && mark=" (đang dùng)"
+        movie_script_row "▶ ${p}${mark}" "settings_set|player|${p}"
+    done
+    movie_script_row "🔙 Quay lại cài đặt" "settings"
+}
+
+movie_script_settings_server() {
+    local cur="${MOVIE_SERVER_PREF:-auto}"
+    movie_script_headers "settings" "🔉 Chọn nguồn phát ưu tiên"
+    movie_script_row "🔉 Tự động$([[ $cur == auto ]] && printf ' (đang dùng)')" "settings_set|server_pref|auto"
+    movie_script_row "🔉 Vietsub$([[ $cur == vietsub ]] && printf ' (đang dùng)')" "settings_set|server_pref|vietsub"
+    movie_script_row "🔉 Lồng tiếng$([[ $cur == long-tieng ]] && printf ' (đang dùng)')" "settings_set|server_pref|long-tieng"
+    movie_script_row "🔉 Thuyết minh$([[ $cur == thuyet-minh ]] && printf ' (đang dùng)')" "settings_set|server_pref|thuyet-minh"
+    movie_script_row "🔙 Quay lại cài đặt" "settings"
+}
+
+movie_script_settings_limit() {
+    local n
+    movie_script_headers "settings" "📄 Chọn số phim mỗi trang"
+    for n in 12 24 36 48; do
+        movie_script_row "📄 ${n} phim / trang$([[ $n == "$MOVIE_LIMIT" ]] && printf ' (đang dùng)')" "settings_set|limit|${n}"
+    done
+    movie_script_row "🔙 Quay lại cài đặt" "settings"
+}
+
+movie_script_diagnose() {
+    local line
+    movie_script_headers "settings" "🩺 Kết quả chẩn đoán AniSub"
+    while IFS= read -r line; do
+        [[ -z $line ]] && continue
+        movie_script_row "$line" "settings"
+    done < <(movie_diagnose)
+    movie_script_row "🔙 Quay lại cài đặt" "settings"
+    movie_script_row "🏠 Menu chính AniSub" "menu"
 }
 
 movie_script_movie() {
-    local slug="${1:-}" name="${2:-Phim}" server_idx="${3:-}" back_state="${4:-menu}"
-    local json servers server_name episodes last_ep ep_name poster poster_icon="media-playback-start" path
-    [[ -z $back_state ]] && back_state="menu"
+    local slug="${1:-}" name="${2:-Phim}" server_idx="${3:-}" poster_hint="${4:-}" back_state="${5:-menu}"
+    local json servers server_name episodes last_ep ep_name poster poster_icon="" path
+    [[ -z $back_state || $back_state == movie* ]] && back_state="menu"
     if [[ -z $slug ]] || ! json=$(movie_detail_json "$slug") || [[ -z $json ]]; then
         movie_script_headers "$back_state" "⚠️ Không tải được phim"
-        movie_script_row "⚠️ Không lấy được thông tin phim '$name' (HTTP $MOVIE_HTTP_STATUS)" "$back_state" "dialog-error"
-        movie_script_row "🔙 Quay lại" "$back_state" "go-previous"
-        movie_script_row "🏠 Menu chính AniSub" "menu" "go-home"
+        movie_script_row "⚠️ Không lấy được thông tin phim '$name' (HTTP $MOVIE_HTTP_STATUS)" "$back_state"
+        movie_script_row "🔙 Quay lại" "$back_state"
+        movie_script_row "🏠 Menu chính AniSub" "menu"
         return 0
     fi
     if [[ -z $name || $name == "$slug" ]]; then
@@ -1693,8 +1871,8 @@ movie_script_movie() {
     fi
     name=$(printf '%s' "$name" | movie_clean)
     poster=$(printf '%s' "$json" | jq -r "$MOVIE_JQ_MOVIE | (.poster_url // .thumb_url // \"\")" 2>/dev/null)
-    poster=$(movie_poster_url "$poster")
-    if [[ -n $poster ]]; then
+    poster=$(movie_poster_url "$poster" 2>/dev/null || movie_poster_url "$poster_hint" 2>/dev/null || true)
+    if [[ $MOVIE_POSTER != "false" && $MOVIE_POSTER != "0" && -n $poster ]]; then
         movie_poster_fetch "$poster" >/dev/null 2>&1 || true
         path=$(movie_poster_path "$poster" 2>/dev/null)
         [[ -n $path && -s $path ]] && poster_icon="$path"
@@ -1712,9 +1890,9 @@ movie_script_movie() {
 
     movie_script_headers "$back_state" "$(movie_summary "$json")"
     if [[ -z $episodes ]]; then
-        movie_script_row "⚠️ $name chưa có nguồn phát trên KKPhim" "$back_state" "dialog-warning"
-        movie_script_row "🔙 Quay lại" "$back_state" "go-previous"
-        movie_script_row "🏠 Menu chính AniSub" "menu" "go-home"
+        movie_script_row "⚠️ $name chưa có nguồn phát trên KKPhim" "$back_state" "$poster_icon"
+        movie_script_row "🔙 Quay lại" "$back_state" "$poster_icon"
+        movie_script_row "🏠 Menu chính AniSub" "menu"
         return 0
     fi
 
@@ -1734,12 +1912,13 @@ movie_script_movie() {
         [[ -z $srv_idx || $srv_idx == "$server_idx" ]] && continue
         ((srv_count > 0)) || continue
         movie_script_row "🔉 Đổi nguồn: ${srv_name} (${srv_count} tập)" \
-            "movie|${slug}|${name}|${srv_idx}" "audio-volume-high"
+            "movie|${slug}|${name}|${srv_idx}|${poster}" "$poster_icon"
     done <<<"$servers"
 
     [[ $back_state != "menu" ]] &&
-        movie_script_row "🔙 Quay lại danh sách" "$back_state" "go-previous"
-    movie_script_row "🏠 Menu chính AniSub" "menu" "go-home"
+        movie_script_row "🔙 Quay lại danh sách" "$back_state" "$poster_icon"
+    movie_script_row "🔎 Tìm phim khác (gõ tên phim rồi Enter)…" "search_input" "$poster_icon" "true"
+    movie_script_row "🏠 Menu chính AniSub" "menu"
 }
 
 movie_script_play() {
@@ -1772,17 +1951,10 @@ movie_script_play() {
 movie_script_mode() {
     local retv="${ROFI_RETV:-0}" info="${ROFI_INFO:-}" data="${ROFI_DATA:-menu}"
     local input="${ROFI_INPUT:-}" sel="${1:-}"
+    movie_reload_settings
     if [[ $retv -eq 0 ]]; then
         movie_script_home
         return 0
-    fi
-    if [[ -f "$XDG_STATE_HOME/hyde/staterc" ]]; then
-        # shellcheck disable=SC1091
-        source "$XDG_STATE_HOME/hyde/staterc" 2>/dev/null || true
-    fi
-    if [[ -f "$XDG_STATE_HOME/hyde/config" ]]; then
-        # shellcheck disable=SC1091
-        source "$XDG_STATE_HOME/hyde/config" 2>/dev/null || true
     fi
     if [[ $retv -eq 2 || -z $info ]]; then
         local query="${input:-$sel}"
@@ -1791,6 +1963,10 @@ movie_script_mode() {
         else
             movie_script_home
         fi
+        return 0
+    fi
+    if [[ $data == "search_prompt" && -n $input && $info != search* ]]; then
+        movie_script_search "$input" 1
         return 0
     fi
     local action a1 a2 a3 a4
@@ -1803,7 +1979,7 @@ movie_script_mode() {
             if [[ -n $input ]]; then
                 movie_script_search "$input" 1
             else
-                movie_spawn_detached search
+                movie_script_search_prompt
             fi
             ;;
         list)
@@ -1821,17 +1997,50 @@ movie_script_mode() {
         history)
             movie_script_history
             ;;
+        history_clear)
+            rm -f "${MOVIE_HISTORY_FILE:?}" 2>/dev/null || true
+            movie_script_settings "✅ Đã xóa lịch sử xem phim"
+            ;;
         movie)
-            movie_script_movie "${a1:-}" "${a2:-}" "${a3:-}" "$data"
+            movie_script_movie "${a1:-}" "${a2:-}" "${a3:-}" "${a4:-}" "$data"
             ;;
         play)
             movie_script_play "${a1:-}" "${a2:-}" "${a3:-0}" "${a4:-}"
             ;;
         settings)
-            movie_spawn_detached settings
+            movie_script_settings
             ;;
-        standalone)
-            movie_spawn_detached menu
+        settings_player)
+            movie_script_settings_player
+            ;;
+        settings_server)
+            movie_script_settings_server
+            ;;
+        settings_limit)
+            movie_script_settings_limit
+            ;;
+        settings_poster_toggle)
+            if [[ $MOVIE_POSTER == "false" || $MOVIE_POSTER == "0" ]]; then
+                MOVIE_POSTER="true"
+            else
+                MOVIE_POSTER="false"
+            fi
+            movie_set_config "poster" "$MOVIE_POSTER"
+            movie_script_settings "✅ Đã cập nhật hiển thị poster: ${MOVIE_POSTER}"
+            ;;
+        settings_clear_cache)
+            rm -rf "${MOVIE_CACHE_DIR:?}" 2>/dev/null || true
+            movie_script_settings "✅ Đã xóa cache phim và poster"
+            ;;
+        settings_diagnose)
+            movie_script_diagnose
+            ;;
+        settings_set)
+            if [[ -n $a1 && -n $a2 ]]; then
+                movie_set_config "$a1" "$a2"
+                movie_reload_settings
+            fi
+            movie_script_settings "✅ Đã lưu ${a1} = ${a2}"
             ;;
         *)
             movie_script_home

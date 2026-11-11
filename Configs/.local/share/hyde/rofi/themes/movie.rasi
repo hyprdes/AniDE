@@ -114,8 +114,26 @@ entry {
 listbox {
     spacing:                     0em;
     padding:                     0em;
+    orientation:                 horizontal;
+    children:                    [ "previewbox" , "listview" ];
+    background-color:            transparent;
+}
+previewbox {
+    width:                       16em;
+    expand:                      false;
+    spacing:                     0em;
+    padding:                     1em;
     orientation:                 vertical;
-    children:                    [ "listview" ];
+    children:                    [ "icon-current-entry" ];
+    background-color:            transparent;
+    background-image:            url("~/.cache/hyde/wall.thmb", height);
+}
+icon-current-entry {
+    enabled:                     true;
+    expand:                      true;
+    size:                        18em;
+    vertical-align:              0.5;
+    horizontal-align:            0.5;
     background-color:            transparent;
 }
 listview {
@@ -129,7 +147,7 @@ listview {
     scrollbar:                   false;
     fixed-height:                true;
     fixed-columns:               false;
-    expand:                      false;
+    expand:                      true;
     cursor:                      "default";
     background-color:            transparent;
     text-color:                  @main-fg;

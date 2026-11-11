@@ -65,10 +65,14 @@ Check this out for the full note:
 
 ### Vietnamese input
 
-AniDE includes IBus and the Unikey Vietnamese engine in its Arch installation.
-After logging in, add **Vietnamese → Unikey** in `ibus-setup` (also available
-in AniDE Settings). See [IBus Unikey](docs/IBUS-UNIKEY.md) for setup, opt-out,
-and troubleshooting.
+AniDE installs IBus with the Unikey Vietnamese engine and registers that engine
+in IBus at your first login, so **Ctrl+Space** switches to Vietnamese typing
+right away, with no `ibus-setup` step in between. `ibus-setup` (also available
+in AniDE Settings) stays there to pick Telex/VNI or change the switch key, and
+`hyde-shell ibus-start --status` reports what is registered. Your own engines
+are never removed, and what AniDE adds once is not re-added after you delete it.
+See [IBus Unikey](docs/IBUS-UNIKEY.md) for what gets written, opt-out, and
+troubleshooting.
 
 ### Movies on Rofi
 

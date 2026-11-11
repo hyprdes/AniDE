@@ -65,6 +65,27 @@ fi
 # shell
 "${scrDir}/restore_shl.sh"
 
+# input method
+# IBus keeps its engine list in the user's own dconf database, so "ibus-unikey
+# is installed" is not yet "Vietnamese works": the engine has to be registered
+# in that list. The session does it at every login
+# (Configs/.local/lib/hyde/ibus-start.sh), and an install that runs inside a
+# graphical session can do it right away -- a running IBus picks the change up
+# without a re-login. Never fatal: the next login retries it.
+if pkg_installed ibus && [ -f "${HOME}/.local/lib/hyde/ibus-start.sh" ]; then
+    if [ "${flg_DryRun}" -eq 1 ]; then
+        print_log -y "[INPUT] " -b "dry-run :: " "Would register the Vietnamese IBus engine"
+    elif [ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ]; then
+        print_log -y "[INPUT] " -b " :: " "no session bus here; the Vietnamese engine is registered at the next login"
+    else
+        print_log -g "[INPUT] " -b " :: " "registering the Vietnamese IBus engine..."
+        bash "${HOME}/.local/lib/hyde/ibus-start.sh" --seed ||
+            print_log -warn "[INPUT]" "could not register the Vietnamese engine now; the session retries it at the next login"
+    fi
+else
+    print_log -y "[INPUT] " -b " :: " "ibus is not installed..."
+fi
+
 # flatpak
 if pkg_installed flatpak; then
     echo ""

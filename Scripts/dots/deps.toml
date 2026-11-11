@@ -23,6 +23,11 @@ pacman = [
   "brightnessctl", # screen brightness control
   "playerctl", # media controls
   "ibus", # input method framework
+  # Official repo package, so it must not depend on an AUR helper being present:
+  # deez only runs the yay/paru lists for a helper it finds on PATH, and without
+  # one the engine never arrived -- IBus then started with no Vietnamese engine
+  # to switch to, which is what "installed but cannot type Vietnamese" was.
+  "ibus-unikey", # Vietnamese input engine
   "udiskie", # manage removable media
   # Display Manager
   "sddm", # display manager for KDE plasma

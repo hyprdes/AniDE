@@ -37,7 +37,8 @@ SECTIONS = (
     )),
     ("System", "⚙", "Your desktop essentials", (
         ("Lock screen", "Choose an existing Hyprlock preset.", ("hyde-shell", "lockscreen", "--select"), ("hyde-shell", "rofi")),
-        ("Vietnamese input", "Configure IBus and add the Unikey input method.", ("ibus-setup",), ("ibus-setup",)),
+        ("Vietnamese input", "Unikey is registered for you at login; change engines, Telex/VNI and the switch key here.", ("ibus-setup",), ("ibus-setup",)),
+        ("Register Unikey again", "Add the Vietnamese engine back to IBus, for example after removing it or installing ibus-unikey later.", ("hyde-shell", "ibus-start", "--seed", "--force"), ("hyde-shell",)),
         ("Audio", "Open the system audio mixer.", ("pavucontrol",), ("pavucontrol",)),
         ("Network", "Open NetworkManager connection settings.", ("nm-connection-editor",), ("nm-connection-editor",)),
         ("Bluetooth", "Open Bluetooth Manager.", ("blueman-manager",), ("blueman-manager",)),

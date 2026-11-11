@@ -139,6 +139,7 @@ S|${HOME}/.config|MangoHud|mangohud
 
  Launcher 
 P|${HOME}/.config|rofi|rofi
+P|${HOME}/.local/share/applications|anide-movie.desktop|rofi
 S|${HOME}/.config|wlogout|wlogout
 
  Lock Screen 

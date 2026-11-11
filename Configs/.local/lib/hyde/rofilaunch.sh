@@ -5,6 +5,8 @@ if [[ $HYDE_SHELL_INIT -ne 1 ]]; then
 else
     export_hyde_config
 fi
+_rofi_hyde_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+export PATH="${_rofi_hyde_dir}:${LIB_DIR:+$LIB_DIR/hyde:}$HOME/.local/lib/hyde:$PATH"
 
 rofiStyle="${rofiStyle:-1}"
 if [[ $rofiStyle =~ ^[0-9]+$ ]]; then
@@ -37,6 +39,12 @@ case "$1" in
         rofi_args+=("${ROFI_LAUNCH_FILEBROWSER_ARGS[@]:-}")
         shift
         ;;
+    a | m | --anisub | --movie)
+        r_mode="anisub"
+        rofi_config="${ROFI_LAUNCH_MOVIE_STYLE:-$rofi_config}"
+        rofi_args+=("${ROFI_LAUNCH_MOVIE_ARGS[@]:-}")
+        shift
+        ;;
     r | --run)
         r_mode="run"
         rofi_config="${ROFI_LAUNCH_RUN_STYLE:-$rofi_config}"
@@ -49,6 +57,7 @@ case "$1" in
         echo "d :  drun mode"
         echo "w :  window mode"
         echo "f :  filebrowser mode,"
+        echo "a :  anisub movie mode"
         echo "r :  run mode"
         exit 0
         ;;

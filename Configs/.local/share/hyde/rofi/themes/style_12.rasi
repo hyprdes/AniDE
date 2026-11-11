@@ -10,10 +10,11 @@
 
 // Config //
 configuration {
-    modi:                        "drun,filebrowser,window,run";
+    modi:                        "drun,filebrowser,window,anisub:rofi.movie.sh --rofi-script";
     show-icons:                  true;
     display-drun:                " ";
     display-run:                 " ";
+    display-anisub:              " ";
     display-filebrowser:         " ";
     display-window:              " ";
     drun-display-format:         "{name}";

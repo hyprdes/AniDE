@@ -19,7 +19,7 @@ concurrency:
 jobs:
   test:
     name: Configuration and script checks
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout source repository
         uses: actions/checkout@v4
@@ -72,33 +72,28 @@ jobs:
 
       - name: Install test dependencies
         run: |
-          sudo systemctl stop apt-daily.timer apt-daily-upgrade.timer apt-daily.service apt-daily-upgrade.service unattended-upgrades.service 2>/dev/null || true
-          sudo killall -q -9 apt apt-get unattended-upgr 2>/dev/null || true
-          sudo rm -f /var/lib/apt/lists/lock /var/cache/apt/archives/lock /var/lib/dpkg/lock /var/lib/dpkg/lock-frontend
-          sudo dpkg --configure -a 2>/dev/null || true
-          sudo find /etc/apt/sources.list.d -maxdepth 1 -type f ! -name 'ubuntu.sources' -delete 2>/dev/null || true
-          codename=$(. /etc/os-release && echo "${VERSION_CODENAME:-noble}")
-          mirror=""
-          for m in \
-            "https://mirrors.edge.kernel.org/ubuntu/" \
-            "https://mirror.hetzner.com/ubuntu/packages/" \
-            "https://ftp.udx.icscoe.jp/Linux/ubuntu/" \
-            "http://azure.archive.ubuntu.com/ubuntu/" \
-            "http://archive.ubuntu.com/ubuntu/"; do
-            if curl -4 -fsSLI --connect-timeout 3 --max-time 5 "${m}dists/${codename}/InRelease" >/dev/null 2>&1; then
-              mirror="$m"
-              break
-            fi
-          done
-          if [ -n "$mirror" ]; then
-            echo "Selected Ubuntu mirror: $mirror"
-            sudo sed -i -E "s|https?://([a-z0-9.-]+\.)?(archive|security)\.ubuntu\.com/ubuntu/?|${mirror}|g" \
-              /etc/apt/sources.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+          pkgs="lua5.4 lua-filesystem lua-socket lua-argparse lua-dkjson shellcheck fish"
+          apt_opts="-o Acquire::ForceIPv4=true -o Acquire::Retries=1 -o Acquire::http::Timeout=10 -o Acquire::https::Timeout=10 -o DPkg::Lock::Timeout=15"
+          install_pkgs() {
+            timeout 35 sudo DEBIAN_FRONTEND=noninteractive apt-get $apt_opts update >/tmp/apt.log 2>&1 &&
+            timeout 60 sudo DEBIAN_FRONTEND=noninteractive apt-get $apt_opts install -y --no-install-recommends --fix-missing $pkgs >>/tmp/apt.log 2>&1
+          }
+          if ! install_pkgs; then
+            echo "::warning title=apt-attempt-1::$(tail -n 15 /tmp/apt.log | tr '\n' ' ')"
+            sudo killall -q -9 apt apt-get unattended-upgr 2>/dev/null || true
+            sudo rm -f /var/lib/apt/lists/lock /var/cache/apt/archives/lock /var/lib/dpkg/lock /var/lib/dpkg/lock-frontend
+            sudo find /etc/apt/sources.list.d -maxdepth 1 -type f ! -name 'ubuntu.sources' -delete 2>/dev/null || true
+            [ -f /etc/apt/sources.list.d/ubuntu.sources ] && sudo cp -f /etc/apt/sources.list.d/ubuntu.sources /tmp/ubuntu.sources.bak
+            for mirror in "https://mirrors.edge.kernel.org/ubuntu/" "http://archive.ubuntu.com/ubuntu/" "https://mirror.hetzner.com/ubuntu/packages/"; do
+              [ -f /tmp/ubuntu.sources.bak ] && sudo cp -f /tmp/ubuntu.sources.bak /etc/apt/sources.list.d/ubuntu.sources
+              sudo sed -i -E "s|https?://[^/[:space:]]+/ubuntu/?|${mirror}|g" \
+                /etc/apt/sources.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+              if install_pkgs; then
+                break
+              fi
+              echo "::warning title=apt-fallback::mirror=$mirror $(tail -n 15 /tmp/apt.log | tr '\n' ' ')"
+            done
           fi
-          apt_opts="-o Acquire::ForceIPv4=true -o Acquire::Retries=3 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15"
-          sudo apt-get $apt_opts update
-          sudo apt-get $apt_opts install -y --no-install-recommends --fix-missing \
-            lua5.4 lua-filesystem lua-socket lua-argparse lua-dkjson shellcheck fish
           sudo ln -sf /usr/bin/lua5.4 /usr/local/bin/lua
           sudo ln -sf /usr/bin/luac5.4 /usr/local/bin/luac
 
@@ -117,7 +112,7 @@ jobs:
 
   coverage:
     name: Shell coverage
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: test
     env:
       KCOV_VERSION: v43
@@ -170,35 +165,28 @@ jobs:
 
       - name: Install test and coverage dependencies
         run: |
-          sudo systemctl stop apt-daily.timer apt-daily-upgrade.timer apt-daily.service apt-daily-upgrade.service unattended-upgrades.service 2>/dev/null || true
-          sudo killall -q -9 apt apt-get unattended-upgr 2>/dev/null || true
-          sudo rm -f /var/lib/apt/lists/lock /var/cache/apt/archives/lock /var/lib/dpkg/lock /var/lib/dpkg/lock-frontend
-          sudo dpkg --configure -a 2>/dev/null || true
-          sudo find /etc/apt/sources.list.d -maxdepth 1 -type f ! -name 'ubuntu.sources' -delete 2>/dev/null || true
-          codename=$(. /etc/os-release && echo "${VERSION_CODENAME:-noble}")
-          mirror=""
-          for m in \
-            "https://mirrors.edge.kernel.org/ubuntu/" \
-            "https://mirror.hetzner.com/ubuntu/packages/" \
-            "https://ftp.udx.icscoe.jp/Linux/ubuntu/" \
-            "http://azure.archive.ubuntu.com/ubuntu/" \
-            "http://archive.ubuntu.com/ubuntu/"; do
-            if curl -4 -fsSLI --connect-timeout 3 --max-time 5 "${m}dists/${codename}/InRelease" >/dev/null 2>&1; then
-              mirror="$m"
-              break
-            fi
-          done
-          if [ -n "$mirror" ]; then
-            echo "Selected Ubuntu mirror: $mirror"
-            sudo sed -i -E "s|https?://([a-z0-9.-]+\.)?(archive|security)\.ubuntu\.com/ubuntu/?|${mirror}|g" \
-              /etc/apt/sources.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+          pkgs="lua5.4 shellcheck fish binutils-dev build-essential cmake ninja-build libssl-dev libcurl4-openssl-dev libelf-dev zlib1g-dev libdw-dev libiberty-dev"
+          apt_opts="-o Acquire::ForceIPv4=true -o Acquire::Retries=1 -o Acquire::http::Timeout=10 -o Acquire::https::Timeout=10 -o DPkg::Lock::Timeout=15"
+          install_pkgs() {
+            timeout 35 sudo DEBIAN_FRONTEND=noninteractive apt-get $apt_opts update >/tmp/apt.log 2>&1 &&
+            timeout 90 sudo DEBIAN_FRONTEND=noninteractive apt-get $apt_opts install -y --no-install-recommends --fix-missing $pkgs >>/tmp/apt.log 2>&1
+          }
+          if ! install_pkgs; then
+            echo "::warning title=apt-attempt-1::$(tail -n 15 /tmp/apt.log | tr '\n' ' ')"
+            sudo killall -q -9 apt apt-get unattended-upgr 2>/dev/null || true
+            sudo rm -f /var/lib/apt/lists/lock /var/cache/apt/archives/lock /var/lib/dpkg/lock /var/lib/dpkg/lock-frontend
+            sudo find /etc/apt/sources.list.d -maxdepth 1 -type f ! -name 'ubuntu.sources' -delete 2>/dev/null || true
+            [ -f /etc/apt/sources.list.d/ubuntu.sources ] && sudo cp -f /etc/apt/sources.list.d/ubuntu.sources /tmp/ubuntu.sources.bak
+            for mirror in "https://mirrors.edge.kernel.org/ubuntu/" "http://archive.ubuntu.com/ubuntu/" "https://mirror.hetzner.com/ubuntu/packages/"; do
+              [ -f /tmp/ubuntu.sources.bak ] && sudo cp -f /tmp/ubuntu.sources.bak /etc/apt/sources.list.d/ubuntu.sources
+              sudo sed -i -E "s|https?://[^/[:space:]]+/ubuntu/?|${mirror}|g" \
+                /etc/apt/sources.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+              if install_pkgs; then
+                break
+              fi
+              echo "::warning title=apt-fallback::mirror=$mirror $(tail -n 15 /tmp/apt.log | tr '\n' ' ')"
+            done
           fi
-          apt_opts="-o Acquire::ForceIPv4=true -o Acquire::Retries=3 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15"
-          sudo apt-get $apt_opts update
-          sudo apt-get $apt_opts install -y --no-install-recommends --fix-missing \
-            lua5.4 shellcheck fish \
-            binutils-dev build-essential cmake ninja-build libssl-dev \
-            libcurl4-openssl-dev libelf-dev zlib1g-dev libdw-dev libiberty-dev
           sudo ln -sf /usr/bin/lua5.4 /usr/local/bin/lua
           sudo ln -sf /usr/bin/luac5.4 /usr/local/bin/luac
 

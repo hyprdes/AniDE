@@ -361,7 +361,7 @@ description = "Video player command (empty = auto-detect mpv, vlc, celluloid, ha
 type = "string"
 
 [properties.rofi.properties.movie.properties.style]
-default = "clipboard"
+default = "movie"
 description = "Rofi theme name for the movie menus."
 type = "string"
 

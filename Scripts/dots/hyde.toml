@@ -95,12 +95,13 @@ paths = [
     "gtk-3.0/settings.ini",
 ]
 
-# Install only this launcher, not the user's whole applications directory.
+# Install only these launchers, not the user's whole applications directory.
+# anide-movie.desktop is what puts AniSub (rofi.movie) in the SUPER+A finder.
 [[hyde.files]]
 action = "sync"
 source_root = "Configs/.local/share/applications"
 target_root = "${XDG_DATA_HOME}/applications"
-paths = ["anide-settings.desktop"]
+paths = ["anide-settings.desktop", "anide-movie.desktop"]
 
 [[hyde.files]]
 action = "sync"

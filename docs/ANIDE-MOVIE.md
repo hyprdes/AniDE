@@ -18,7 +18,8 @@ ngắn hạn và được tải lại mỗi lần bắt đầu phát.
 ## Mở bằng phím tắt
 
 ```txt
-SUPER + SHIFT + M
+SUPER + SHIFT + M   # mở thẳng menu phim
+SUPER + A           # application finder: gõ "AniSub", "phim" hoặc "kkphim"
 ```
 
 Hoặc chạy trực tiếp:
@@ -26,6 +27,9 @@ Hoặc chạy trực tiếp:
 ```sh
 hyde-shell rofi.movie
 ```
+
+AniSub cũng nằm trong menu **SUPER + A** nhờ `anide-movie.desktop`
+(`Exec=hyde-shell rofi.movie`), nên không cần nhớ phím tắt riêng.
 
 Menu chính gồm **Tìm phim**, **Duyệt danh mục**, **Phim mới cập nhật**,
 **Tiếp tục xem**, **Lịch sử xem**, **Cài đặt** và **Chẩn đoán**. Chọn
@@ -77,7 +81,7 @@ Các khóa nằm trong `~/.config/hyde/config.toml` dưới bảng `[rofi.movie]
 ```toml
 [rofi.movie]
 player = ""              # để trống = tự tìm mpv, vlc, celluloid, haruna
-style = "clipboard"      # tên theme Rofi
+style = "movie"          # theme Rofi của AniSub (bố cục clipboard + dòng mô tả)
 scale = 10
 font = "JetBrainsMono Nerd Font"
 width = "46em"
@@ -95,6 +99,21 @@ cdn_url = "https://phimimg.com"
 môi trường: `ROFI_MOVIE_PROMPT=1` (dùng menu số trong terminal thay cho Rofi)
 và `ROFI_MOVIE_VERIFY=1` (hỏi lại sau khi phát: phim có mở không, để lấy link
 mới khi link đã hết hạn).
+
+## Chữ và bố cục trên Rofi
+
+Menu phim dùng theme `movie`
+(`${XDG_DATA_HOME}/hyde/rofi/themes/movie.rasi`). Khác với các layout HyDE còn
+lại, nó đặt `message` vào `children` của `mainbox`, nên dòng mô tả truyền bằng
+`-mesg` (tóm tắt phim, số trang, gợi ý lọc) mới hiện ra — thiếu widget đó thì
+Rofi bỏ hẳn dòng này. `rofi.movie` cũng tự chèn `message` vào đầu `children`
+của theme đang dùng, nên khi đổi sang theme khác vẫn giữ được dòng mô tả (trừ
+theme xếp `mainbox` ngang, vì chèn vào đó sẽ bóp hẹp danh sách).
+
+Cùng trong theme này: `show-icons` bật để poster hiện cạnh tiêu đề, màu chữ
+của `textbox` và `element-text` lấy từ `@main-fg` để nổi trên nền wallpaper mờ.
+Nếu chữ vẫn khó đọc, mở **⚙️ Cài đặt** rồi chọn **🔠 Font chữ** (danh sách lấy
+từ `fc-list`, chọn font có đủ dấu tiếng Việt) hoặc tăng **🔤 Cỡ chữ** (8-24).
 
 ## Poster và lịch sử
 

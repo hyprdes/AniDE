@@ -394,7 +394,7 @@
                             "type": "string"
                         },
                         "style": {
-                            "default": "clipboard",
+                            "default": "movie",
                             "description": "Rofi theme name for the movie menus.",
                             "type": "string"
                         },

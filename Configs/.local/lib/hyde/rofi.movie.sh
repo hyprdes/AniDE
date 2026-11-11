@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # @name: rofi.movie
-# @ver: 1.0.0
+# @ver: 1.1.0
 # @short: Watch KKPhim movies from Rofi
 # @usage: hyde-shell rofi.movie [search|browse|recent|history|play|link|open|settings|diagnose] [args]
 # @global.flag: -h,--help | Show this help message
@@ -45,6 +45,12 @@
 # is `-no-custom`: it only ever returns a listed entry, so a stray typed string
 # can never be mistaken for a movie slug. Searching has its own entry, and the
 # result lists accept free text to filter the current page.
+#
+# Text is only readable if the layout actually draws it: rofi paints the `-mesg`
+# line through the `message` widget, and no HyDE layout lists `message` in its
+# mainbox children — so the movie summaries and page counters used to vanish.
+# The default style is therefore `movie` (hyde/rofi/themes/movie.rasi), and any
+# other vertical layout gets `message` injected into its own children list.
 
 if [[ ${HYDE_SHELL_INIT:-0} -ne 1 ]] && command -v hyde-shell >/dev/null 2>&1; then
     eval "$(hyde-shell init)"
@@ -154,15 +160,94 @@ movie_clean() {
 }
 
 # ── Rofi plumbing ─────────────────────────────────────────────────────────────
+
+# movie_theme_file <name> → path of that theme, or nothing when unknown.
+# Rofi only looks in its own theme directories; the wallpaper cache symlinks
+# the HyDE themes there, but that has not necessarily happened yet, so resolve
+# the name against the HyDE theme directory first and pass rofi a real path.
+movie_theme_file() {
+    local name="${1:-}" candidate dir
+    [[ -z $name ]] && return 1
+    [[ -f $name ]] && {
+        printf '%s' "$name"
+        return 0
+    }
+    for dir in "$SHARE_DIR/hyde/rofi/themes" \
+        "$XDG_DATA_HOME/hyde/rofi/themes" \
+        "$XDG_DATA_HOME/rofi/themes" \
+        "$XDG_CONFIG_HOME/rofi/themes"; do
+        candidate="${dir%/}/${name}.rasi"
+        [[ -f $candidate ]] && {
+            printf '%s' "$candidate"
+            return 0
+        }
+    done
+    return 1
+}
+
+# movie_mesg_override <theme file> → mainbox override that draws the -mesg line.
+# Every shipped HyDE layout lists mainbox children without `message`, so rofi
+# never paints the message widget: the movie summaries, page counters and hints
+# passed with -mesg simply vanished. Re-emit the theme's own children with
+# `message` first. Horizontal mainboxes are left alone — a message column there
+# would squeeze the list, so those layouts keep today's behaviour.
+movie_mesg_override() {
+    local file="${1:-}" kids flat
+    [[ -f $file ]] || return 1
+    # A layout that already places `message` somewhere must not get a second
+    # one: rofi aborts with "Message widget can only be added once".
+    grep -Eq '^[[:space:]]*children[[:space:]]*:.*message' "$file" && return 1
+    kids=$(awk '
+        /mainbox[ \t]*\{/ { inblock = 1 }
+        inblock && /orientation[ \t]*:[ \t]*horizontal/ { exit 1 }
+        inblock && /children[ \t]*:/ {
+            line = $0
+            sub(/.*children[ \t]*:[ \t]*/, "", line)
+            sub(/[ \t]*;.*$/, "", line)
+            # Only the widget names survive; the brackets are re-added below.
+            gsub(/[\[\]]/, "", line)
+            sub(/^[ \t]+/, "", line)
+            sub(/[ \t]+$/, "", line)
+            print line
+            exit
+        }
+        inblock && /^[ \t]*\}[ \t]*$/ { exit 1 }
+    ' "$file") || return 1
+    [[ -n $kids ]] || return 1
+    flat=",$(printf '%s' "$kids" | tr -d ' \t"'),"
+    [[ $flat == *,message,* ]] && return 1 # this layout already draws it
+    printf 'mainbox{children:[ "message" , %s ];}' "$kids"
+}
+
 movie_setup_rofi() {
     local font_scale="${ROFI_MOVIE_SCALE:-${ROFI_SCALE:-10}}"
     [[ $font_scale =~ ^[0-9]+$ ]] || font_scale=10
+    ((font_scale < 8 || font_scale > 40)) && font_scale=10
     local font_name="${ROFI_MOVIE_FONT:-${ROFI_FONT:-}}"
     if [[ -z $font_name ]] && declare -F get_hyprConf >/dev/null 2>&1; then
         font_name=$(get_hyprConf "MENU_FONT")
         [[ -z $font_name ]] && font_name=$(get_hyprConf "FONT")
     fi
-    MOVIE_FONT_OVERRIDE="* {font: \"${font_name:-JetBrainsMono Nerd Font} ${font_scale}\";}"
+    font_name="${font_name:-JetBrainsMono Nerd Font}"
+    # A font without Vietnamese glyphs turns every title into boxes, so drop
+    # quotes and a trailing size ("… Nerd Font 12"): the scale is added below.
+    font_name="${font_name//[\"\']/}"
+    while [[ $font_name =~ [[:space:]][0-9]+$ ]]; do
+        font_name="${font_name% *}"
+    done
+    font_name="${font_name%"${font_name##*[![:space:]]}"}"
+    MOVIE_FONT_NAME="${font_name:-JetBrainsMono Nerd Font}"
+    MOVIE_FONT_OVERRIDE="* {font: \"${MOVIE_FONT_NAME} ${font_scale}\";}"
+
+    # Readability, whatever layout is configured: the -mesg line and the row
+    # text get explicit colours, the row text is centred against its poster and
+    # the input row keeps a visible prompt.
+    MOVIE_TEXT_OVERRIDE="message{padding:0.5em 0.9em;border:0px 0px 1px 0px;border-color:@main-br;background-color:@main-bg;text-color:@main-fg;}"
+    MOVIE_TEXT_OVERRIDE+="textbox{vertical-align:0.0;horizontal-align:0.0;padding:0.1em 0em;text-color:inherit;background-color:transparent;}"
+    MOVIE_TEXT_OVERRIDE+="element{padding:0.45em 0.65em;spacing:0.7em;}"
+    MOVIE_TEXT_OVERRIDE+="element-text{vertical-align:0.5;horizontal-align:0.0;text-color:inherit;background-color:transparent;}"
+    MOVIE_TEXT_OVERRIDE+="element-icon{size:2.8em;}"
+    MOVIE_TEXT_OVERRIDE+="prompt{text-color:@main-br;}entry{text-color:@main-fg;}"
 
     local border="${hypr_border:-}" width="${hypr_width:-}"
     if [[ ! $border =~ ^[0-9]+$ || ! $width =~ ^[0-9]+$ ]] && command -v hyprctl >/dev/null 2>&1; then
@@ -177,12 +262,17 @@ movie_setup_rofi() {
     local elem_border=$((border == 0 ? 5 : border))
     MOVIE_RADIUS_OVERRIDE="window{border:${width}px;border-radius:${wind_border}px;}wallbox{border-radius:${elem_border}px;} element{border-radius:${elem_border}px;}"
 
-    MOVIE_ICON_OVERRIDE=""
+    # Posters are attached to the rows, so the layout has to ask for icons;
+    # without this every downloaded poster stays invisible.
     local icon_theme=""
     declare -F get_hyprConf >/dev/null 2>&1 && icon_theme=$(get_hyprConf "ICON_THEME")
-    [[ -n $icon_theme ]] && MOVIE_ICON_OVERRIDE="configuration {icon-theme: \"$icon_theme\";}"
+    MOVIE_ICON_OVERRIDE="configuration {show-icons: true;"
+    [[ -n $icon_theme ]] && MOVIE_ICON_OVERRIDE+=" icon-theme: \"$icon_theme\";"
+    MOVIE_ICON_OVERRIDE+="}"
 
-    MOVIE_ROFI_STYLE="${ROFI_MOVIE_STYLE:-clipboard}"
+    MOVIE_ROFI_STYLE="${ROFI_MOVIE_STYLE:-movie}"
+    MOVIE_ROFI_THEME=$(movie_theme_file "$MOVIE_ROFI_STYLE") || MOVIE_ROFI_THEME="$MOVIE_ROFI_STYLE"
+    MOVIE_MESG_OVERRIDE=$(movie_mesg_override "$MOVIE_ROFI_THEME") || MOVIE_MESG_OVERRIDE=""
     MOVIE_ROFI_ARGS=()
     # config.toml arrays arrive as ("a" "b"); splitting on purpose here.
     # shellcheck disable=SC2206
@@ -195,10 +285,11 @@ movie_rofi() {
     local -a args=("$@")
     args+=(-theme-str "$MOVIE_RADIUS_OVERRIDE")
     args+=(-theme-str "$MOVIE_FONT_OVERRIDE")
-    [[ -n $MOVIE_ICON_OVERRIDE ]] && args+=(-theme-str "$MOVIE_ICON_OVERRIDE")
+    args+=(-theme-str "$MOVIE_TEXT_OVERRIDE")
+    [[ -n $MOVIE_MESG_OVERRIDE ]] && args+=(-theme-str "$MOVIE_MESG_OVERRIDE")
+    args+=(-theme-str "$MOVIE_ICON_OVERRIDE")
     args+=(-theme-str "window{width:${MOVIE_WIDTH};}")
-    args+=(-theme-str 'element { padding: 0.45em 0.65em; }')
-    args+=(-config "$MOVIE_ROFI_STYLE")
+    args+=(-config "$MOVIE_ROFI_THEME")
     [[ ${#MOVIE_ROFI_ARGS[@]} -gt 0 ]] && args+=("${MOVIE_ROFI_ARGS[@]}")
     rofi "${args[@]}"
 }
@@ -918,7 +1009,7 @@ movie_genres() {
 🧙 Thần thoại|than-thoai
 🗺️ Phiêu lưu|phieu-luu
 🎓 Học đường|hoc-duong
-👨‍👩‍👧 Gia đình|gia-dinh
+👪 Gia đình|gia-dinh
 🏛️ Lịch sử|lich-su
 🎵 Âm nhạc|am-nhac
 🏆 Thể thao|the-thao
@@ -926,23 +1017,25 @@ movie_genres() {
 EOF
 }
 
+# Country names without flag emoji: flag glyphs are regional-indicator pairs
+# that no Linux font ships, so on Rofi they show up as two boxes.
 movie_countries() {
     cat <<'EOF'
-🇻🇳 Việt Nam|viet-nam
-🇰🇷 Hàn Quốc|han-quoc
-🇨🇳 Trung Quốc|trung-quoc
-🇯🇵 Nhật Bản|nhat-ban
-🇹🇭 Thái Lan|thai-lan
-🇺🇸 Âu Mỹ|au-my
-🇭🇰 Hồng Kông|hong-kong
-🇹🇼 Đài Loan|dai-loan
-🇮🇳 Ấn Độ|an-do
-🇬🇧 Anh|anh
-🇫🇷 Pháp|phap
-🇩🇪 Đức|duc
-🇨🇦 Canada|canada
-🇦🇺 Úc|uc
-🇪🇸 Tây Ban Nha|tay-ban-nha
+Việt Nam|viet-nam
+Hàn Quốc|han-quoc
+Trung Quốc|trung-quoc
+Nhật Bản|nhat-ban
+Thái Lan|thai-lan
+Âu Mỹ|au-my
+Hồng Kông|hong-kong
+Đài Loan|dai-loan
+Ấn Độ|an-do
+Anh|anh
+Pháp|phap
+Đức|duc
+Canada|canada
+Úc|uc
+Tây Ban Nha|tay-ban-nha
 EOF
 }
 
@@ -1148,8 +1241,30 @@ movie_choose_style() {
         movie_ask "🎨 Tên theme Rofi" "$MOVIE_ROFI_STYLE"
         return
     fi
-    sel=$(printf '%s' "$names" | sed '/^$/d' |
+    # The AniSub layout first: it is the one that draws the -mesg line.
+    names=$(printf 'movie\n%s\n' "$(printf '%s' "$names" | sed '/^$/d' | sort | grep -vx movie)")
+    sel=$(printf '%s\n' "$names" | sed '/^$/d' |
         movie_pick "🎨 Kiểu Rofi" "Theme trong $SHARE_DIR/hyde/rofi/themes" 12 -no-custom)
+    printf '%s' "$sel"
+}
+
+# Fonts that are installed, so a menu can replace a font that lacks Vietnamese
+# glyphs instead of asking the user to type the exact family name.
+movie_choose_font() {
+    local current="${ROFI_MOVIE_FONT:-${MOVIE_FONT_NAME:-JetBrainsMono Nerd Font}}" fonts="" sel
+    fonts=$(printf '%s\n' "$current")
+    if command -v fc-list >/dev/null 2>&1; then
+        fonts+=$'\n'$(fc-list : family 2>/dev/null |
+            tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' |
+            sed '/^$/d' | sort -uf | head -n 240)
+    fi
+    fonts=$(printf '%s' "$fonts" | awk '!seen[tolower($0)]++ && length($0) > 1')
+    if [[ -z $fonts ]]; then
+        movie_ask "🔤 Tên font Rofi" "$current"
+        return
+    fi
+    sel=$(printf '%s\n' "$fonts" |
+        movie_pick "🔤 Font chữ" "Chọn font có dấu tiếng Việt · dòng đầu là font đang dùng" 14 -no-custom)
     printf '%s' "$sel"
 }
 
@@ -1159,8 +1274,9 @@ movie_settings() {
         player=$(movie_player 2>/dev/null)
         choice=$(printf '%s\n' \
             "▶ Trình phát|${player:-chưa có}|player" \
-            "🎨 Kiểu Rofi|${ROFI_MOVIE_STYLE:-clipboard}|style" \
+            "🎨 Kiểu Rofi|${MOVIE_ROFI_STYLE:-movie}|style" \
             "🔤 Cỡ chữ|${ROFI_MOVIE_SCALE:-${ROFI_SCALE:-10}}|scale" \
+            "🔠 Font chữ|${MOVIE_FONT_NAME:-JetBrainsMono Nerd Font}|font" \
             "🔉 Nguồn ưu tiên|$(movie_server_pref_label "$MOVIE_SERVER_PREF")|server" \
             "🖼 Poster trong danh sách|$(if [[ $MOVIE_POSTER == "false" ]]; then echo "Tắt"; else echo "Bật"; fi)|poster" \
             "🔎 Số kết quả mỗi trang|${MOVIE_LIMIT}|limit" \
@@ -1168,7 +1284,7 @@ movie_settings() {
             "🧹 Xóa cache phim và poster||cache" \
             "🩺 Chẩn đoán kết nối||diagnose" \
             "🔙 Đóng||close" |
-            movie_pick "⚙️ Cài đặt phim" "Lưu vào ~/.config/hyde/config.toml mục [rofi.movie]" 11 -no-custom)
+            movie_pick "⚙️ Cài đặt phim" "Lưu vào ~/.config/hyde/config.toml mục [rofi.movie]" 12 -no-custom)
         [[ -z $choice ]] && return 0
         case "$(printf '%s' "$choice" | awk -F'|' '{print $3}')" in
             player)
@@ -1191,6 +1307,12 @@ movie_settings() {
                 fi
                 ROFI_MOVIE_SCALE="$value"
                 movie_set_config "scale" "$value"
+                ;;
+            font)
+                value=$(movie_choose_font)
+                [[ -z $value ]] && continue
+                ROFI_MOVIE_FONT="$value"
+                movie_set_config "font" "$value"
                 ;;
             server)
                 value=$(printf '%s\n' "Tự động|auto" "Vietsub|vietsub" "Lồng tiếng|long-tieng" "Thuyết minh|thuyet-minh" |
@@ -1365,7 +1487,7 @@ Commands:
 
 Settings in ~/.config/hyde/config.toml under [rofi.movie], or as ROFI_MOVIE_*:
   player        mpv (default), vlc, celluloid, haruna…
-  style         Rofi theme name (default: clipboard)
+  style         Rofi theme name (default: movie — the AniSub layout)
   scale         Rofi font scale (default: ROFI_SCALE or 10)
   font          Rofi font name (default: MENU_FONT)
   server_pref   auto | vietsub | long-tieng | thuyet-minh

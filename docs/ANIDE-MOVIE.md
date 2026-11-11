@@ -19,17 +19,20 @@ ngắn hạn và được tải lại mỗi lần bắt đầu phát.
 
 ```txt
 SUPER + SHIFT + M   # mở thẳng menu phim
-SUPER + A           # application finder: gõ "AniSub", "phim" hoặc "kkphim"
+SUPER + A           # launcher: tab thứ 4 ( AniSub) hoặc gõ "AniSub", "phim" ở tab ứng dụng
 ```
 
 Hoặc chạy trực tiếp:
 
 ```sh
 hyde-shell rofi.movie
+hyde-shell rofilaunch a
 ```
 
-AniSub cũng nằm trong menu **SUPER + A** nhờ `anide-movie.desktop`
-(`Exec=hyde-shell rofi.movie`), nên không cần nhớ phím tắt riêng.
+AniSub được tích hợp thẳng vào menu **SUPER + A** theo hai cách:
+
+- **Tab thứ 4 (` ` AniSub)** trên thanh chuyển chế độ (`mode-switcher`) của `style_1.rasi`..`style_12.rasi` (thay cho tab `run` `>_` cũ) chạy `rofi.movie.sh --rofi-script`, cho phép duyệt danh mục, tìm phim (gõ từ khóa rồi nhấn Enter), chọn tập và phát ngay bên trong cửa sổ `SUPER + A`.
+- Mục ứng dụng `anide-movie.desktop` (`Exec=hyde-shell rofi.movie`) ngay trong tab ứng dụng (`drun`).
 
 Menu chính gồm **Tìm phim**, **Duyệt danh mục**, **Phim mới cập nhật**,
 **Tiếp tục xem**, **Lịch sử xem**, **Cài đặt** và **Chẩn đoán**. Chọn
@@ -112,8 +115,11 @@ theme xếp `mainbox` ngang, vì chèn vào đó sẽ bóp hẹp danh sách).
 
 Cùng trong theme này: `show-icons` bật để poster hiện cạnh tiêu đề, màu chữ
 của `textbox` và `element-text` lấy từ `@main-fg` để nổi trên nền wallpaper mờ.
-Nếu chữ vẫn khó đọc, mở **⚙️ Cài đặt** rồi chọn **🔠 Font chữ** (danh sách lấy
-từ `fc-list`, chọn font có đủ dấu tiếng Việt) hoặc tăng **🔤 Cỡ chữ** (8-24).
+Khi tách cột bằng `|`, `rofi.movie` truyền `-display-column-separator '[|]'`
+(vì Rofi hiểu tham số này là biểu thức chính quy PCRE của GLib: ký tự `|` trần
+sẽ khớp chuỗi rỗng giữa mọi ký tự và cắt dòng thành 2 chữ cái đầu). Nếu chữ vẫn
+khó đọc, mở **⚙️ Cài đặt** rồi chọn **🔠 Font chữ** (danh sách lấy từ `fc-list`,
+chọn font có đủ dấu tiếng Việt) hoặc tăng **🔤 Cỡ chữ** (8-24).
 
 ## Poster và lịch sử
 

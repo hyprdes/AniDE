@@ -367,11 +367,53 @@ class RofiLegibilityTest(unittest.TestCase):
             self.assertIn("show-icons: true;", joined)
             self.assertIn("textbox{", joined)
             self.assertIn("element-text{vertical-align:0.5;", joined)
+            self.assertIn('inputbar{children:[ "prompt" , "entry" ];}', joined)
             self.assertTrue(
                 any(arg.endswith("/clipboard.rasi") for arg in args), args
             )
         finally:
             shutil.rmtree(workdir, ignore_errors=True)
+
+    def test_movie_pick_uses_literal_pipe_regex_separator(self):
+        """Rofi treats -display-column-separator as a GLib PCRE regex: bare '|'
+        splits between every UTF-8 character ('Đ\\tả'), whereas '[|]' splits on
+        literal pipe characters."""
+        workdir = pathlib.Path(tempfile.mkdtemp())
+        stub = workdir / "rofi"
+        stub.write_text('#!/usr/bin/env bash\nprintf "%s\\n" "$@"\n')
+        stub.chmod(0o755)
+        try:
+            status, out, err = self.sourced(
+                'printf "Đảo Hải Tặc (1999)|Tập 1122 · HD · Vietsub|dao-hai-tac|none|series\\n" | '
+                'movie_pick "🎬 Phim" "Mô tả" 10 -no-custom',
+                PATH=f"{workdir}{os.pathsep}{os.environ['PATH']}",
+            )
+            self.assertEqual(status, 0, err)
+            args = out.splitlines()
+            sep_idx = args.index("-display-column-separator")
+            self.assertEqual(args[sep_idx + 1], "[|]")
+            col_idx = args.index("-display-columns")
+            self.assertEqual(args[col_idx + 1], "1,2")
+
+            # Verify caller-supplied -display-columns 1 replaces the default 1,2
+            # (Rofi's find_arg_str reads the first occurrence on the CLI).
+            status2, out2, err2 = self.sourced(
+                'printf "Tập 1|https://cdn.example/1.m3u8|\\n" | '
+                'movie_pick "🎬 Chọn tập" "1 tập" 12 -no-custom -display-columns 1',
+                PATH=f"{workdir}{os.pathsep}{os.environ['PATH']}",
+            )
+            self.assertEqual(status2, 0, err2)
+            args2 = out2.splitlines()
+            col_indices = [i for i, a in enumerate(args2) if a == "-display-columns"]
+            self.assertEqual(len(col_indices), 1, args2)
+            self.assertEqual(args2[col_indices[0] + 1], "1")
+        finally:
+            shutil.rmtree(workdir, ignore_errors=True)
+
+    def test_movie_theme_has_no_broken_includes_or_unresolved_vars(self):
+        text = self.THEME.read_text()
+        self.assertNotIn("wallbash.rasi", text)
+        self.assertNotIn("@dim-fg", text)
 
     def test_font_setting_is_sanitised_before_it_reaches_rofi(self):
         status, out, err = self.sourced(
@@ -424,6 +466,121 @@ class AppFinderEntryTest(unittest.TestCase):
         ]
         self.assertEqual(len(paths), 1, dots)
         self.assertRegex(paths[0], r'^paths = \[.*"anide-movie\.desktop".*\]$')
+
+    def test_launcher_styles_replace_fourth_run_tab_with_anisub(self):
+        themes_dir = ROOT / "Configs/.local/share/hyde/rofi/themes"
+        for idx in (1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12):
+            rasi = (themes_dir / f"style_{idx}.rasi").read_text()
+            self.assertIn(
+                '"drun,filebrowser,window,anisub:rofi.movie.sh --rofi-script"',
+                rasi,
+                f"style_{idx}.rasi must register anisub as the 4th mode",
+            )
+            self.assertRegex(
+                rasi,
+                r'display-anisub:\s*"',
+                f"style_{idx}.rasi must set display-anisub icon",
+            )
+
+    def test_rofi_script_mode_browses_searches_and_plays_in_tab(self):
+        workdir = pathlib.Path(tempfile.mkdtemp())
+        mpv_log = workdir / "mpv.log"
+        mpv_stub = workdir / "mpv"
+        mpv_stub.write_text(f'#!/usr/bin/env bash\nprintf "%s\\n" "$@" > "{mpv_log}"\n')
+        mpv_stub.chmod(0o755)
+        mock_funcs = (
+            f"movie_list_json() {{ cat {FIXTURES / 'category.json'}; }}; "
+            f"movie_search_json() {{ cat {FIXTURES / 'search.json'}; }}; "
+            f"movie_detail_json() {{ cat {FIXTURES / 'detail.json'}; }}; "
+            "movie_prefetch_posters() { :; }; "
+        )
+        base_env = {
+            **os.environ,
+            "PATH": f"{workdir}{os.pathsep}{os.environ['PATH']}",
+            "XDG_STATE_HOME": str(workdir / "state"),
+            "XDG_CACHE_HOME": str(workdir / "cache"),
+            "ROFI_MOVIE_PLAYER": "mpv",
+            "ROFI_MOVIE_POSTER": "false",
+        }
+        try:
+            # 1. Initial call (ROFI_RETV=0) returns home menu immediately with
+            #    no network calls and without overriding the mode-switcher icon.
+            rc, out, err = run_bash(
+                f"bash {SCRIPT} --rofi-script",
+                env={**base_env, "ROFI_RETV": "0"},
+            )
+            self.assertEqual(rc, 0, err)
+            self.assertNotIn("\0prompt\x1f", out)
+            self.assertIn("🆕 Phim mới cập nhật\0info\x1flist|phim-moi-cap-nhat|1||", out)
+            self.assertIn("\0info\x1fsearch_input\x1ficon\x1fsystem-search\x1fpermanent\x1ftrue", out)
+
+            # 2. Selecting a category row (ROFI_RETV=1) lists movies in-tab.
+            rc, out, err = run_bash(
+                f"source <(sed '/^main \"\\$@\"$/d' {SCRIPT}); {mock_funcs} movie_script_mode",
+                env={
+                    **base_env,
+                    "ROFI_RETV": "1",
+                    "ROFI_INFO": "list|phim-bo|1||",
+                },
+            )
+            self.assertEqual(rc, 0, err)
+            self.assertIn("\0data\x1flist|phim-bo|1||\n", out)
+            self.assertIn("Gấp Ánh Trăng (2026)", out)
+            self.assertIn("\0info\x1fmovie|gap-anh-trang|Gấp Ánh Trăng (2026)|", out)
+
+            # 3. Typing a keyword on the permanent search row searches in-tab.
+            rc, out, err = run_bash(
+                f"source <(sed '/^main \"\\$@\"$/d' {SCRIPT}); {mock_funcs} movie_script_mode",
+                env={
+                    **base_env,
+                    "ROFI_RETV": "1",
+                    "ROFI_INFO": "search_input",
+                    "ROFI_INPUT": "naruto",
+                },
+            )
+            self.assertEqual(rc, 0, err)
+            self.assertIn("Naruto Shippuden (2007)", out)
+            self.assertIn("\0info\x1fmovie|naruto-shippuden|Naruto Shippuden (2007)|", out)
+
+            # 4. Selecting a movie lists its episodes and servers in-tab.
+            rc, out, err = run_bash(
+                f"source <(sed '/^main \"\\$@\"$/d' {SCRIPT}); {mock_funcs} movie_script_mode",
+                env={
+                    **base_env,
+                    "ROFI_RETV": "1",
+                    "ROFI_INFO": "movie|naruto-shippuden|Naruto Shippuden (2007)|",
+                    "ROFI_DATA": "search|naruto|1",
+                },
+            )
+            self.assertEqual(rc, 0, err)
+            self.assertIn("🎬 Tập 001 · Naruto Shippuden (2007) (Vietsub)", out)
+            self.assertIn(
+                "\0info\x1fplay|naruto-shippuden|Naruto Shippuden (2007)|0|Tập 001",
+                out,
+            )
+            self.assertIn("🔉 Đổi nguồn: Thuyết Minh (1 tập)", out)
+
+            # 5. Selecting an episode starts playback in the background and
+            #    emits no rows so Rofi closes cleanly.
+            rc, out, err = run_bash(
+                f"source <(sed '/^main \"\\$@\"$/d' {SCRIPT}); {mock_funcs} movie_script_mode",
+                env={
+                    **base_env,
+                    "ROFI_RETV": "1",
+                    "ROFI_INFO": "play|naruto-shippuden|Naruto Shippuden (2007)|0|Tập 001",
+                },
+            )
+            self.assertEqual(rc, 0, err)
+            self.assertEqual(out, "")
+            for _ in range(30):
+                if mpv_log.is_file() and mpv_log.read_text().strip():
+                    break
+                import time
+                time.sleep(0.05)
+            self.assertTrue(mpv_log.is_file(), "mpv should have been launched")
+            self.assertIn("tap001/index.m3u8", mpv_log.read_text())
+        finally:
+            shutil.rmtree(workdir, ignore_errors=True)
 
 
 if __name__ == "__main__":

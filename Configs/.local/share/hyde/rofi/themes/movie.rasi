@@ -14,29 +14,16 @@
  * Copyright: The HyDE Project
  */
 
-// Fallback palette, used until the wallbash cache is generated.
-// The @theme lines below win, so themed colours still take over.
-* {
-    main-bg:            #1e1e2ef2;
-    main-fg:            #cdd6f4ff;
-    main-br:            #cba6f7ff;
-    main-ex:            #f5e0dcff;
-    select-bg:          #b4befeff;
-    select-fg:          #11111bff;
-    dim-fg:             #a6adc8ff;
-}
-
-@theme "~/.cache/hyde/wallbash/wallbash.rasi"
-@theme "~/.config/rofi/theme.rasi"
-
-
 // Config //
 configuration {
     modi:                        "drun";
     show-icons:                  true;
     display-drun:                "";
     drun-display-format:         "{name}";
+    font:                        "JetBrainsMono Nerd Font 10";
 }
+
+@theme "~/.config/rofi/theme.rasi"
 
 
 // Main //
@@ -118,7 +105,7 @@ entry {
     padding:                     0.7em 0.9em 0.7em 0.2em;
     text-color:                  @main-fg;
     placeholder:                 "gõ để lọc…";
-    placeholder-color:           @dim-fg;
+    placeholder-color:           @main-fg;
     background-color:            transparent;
 }
 

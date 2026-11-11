@@ -619,11 +619,30 @@ movie_poster_path() {
     local url="${1:-}" name
     [[ -z $url ]] && return 1
     name=$(printf '%s' "$url" | cksum | tr ' ' '-')
-    printf '%s/%s-lg.png' "$MOVIE_POSTER_DIR" "$name"
+    printf '%s/%s-full.png' "$MOVIE_POSTER_DIR" "$name"
 }
 
-# Download + resize one poster to 360x540 so Rofi's icon-current-entry preview
-# panel (and row icons) stay sharp.
+movie_poster_resize() {
+    local src="${1:-}" dst="${2:-}"
+    [[ -s $src && -n $dst ]] || return 1
+    if command -v magick >/dev/null 2>&1; then
+        magick "$src" -resize 664x660^ -gravity north -extent 664x660 "$dst" 2>/dev/null || true
+    elif command -v convert >/dev/null 2>&1; then
+        convert "$src" -resize 664x660^ -gravity north -extent 664x660 "$dst" 2>/dev/null || true
+    fi
+    if [[ ! -s $dst ]] && command -v ffmpeg >/dev/null 2>&1; then
+        ffmpeg -nostdin -loglevel error -y -i "$src" \
+            -vf "scale=664:660:force_original_aspect_ratio=increase,crop=664:660" \
+            -frames:v 1 "$dst" 2>/dev/null || true
+    fi
+    if [[ ! -s $dst ]]; then
+        cp -f "$src" "$dst" 2>/dev/null || true
+    fi
+    [[ -s $dst ]]
+}
+
+# Download + resize one poster to 664x660 (33.2:33 aspect ratio) so Rofi's
+# icon-current-entry preview panel fills the entire background panel edge-to-edge.
 movie_poster_fetch() {
     local url="${1:-}" out tmp
     url=$(movie_poster_url "$url") || return 1
@@ -637,19 +656,7 @@ movie_poster_fetch() {
         return 1
     fi
     if [[ -s $tmp ]]; then
-        if command -v magick >/dev/null 2>&1; then
-            magick "$tmp" -resize 360x540^ -gravity north -extent 360x540 "$out" 2>/dev/null || true
-        elif command -v convert >/dev/null 2>&1; then
-            convert "$tmp" -resize 360x540^ -gravity north -extent 360x540 "$out" 2>/dev/null || true
-        fi
-        if [[ ! -s $out ]] && command -v ffmpeg >/dev/null 2>&1; then
-            ffmpeg -nostdin -loglevel error -y -i "$tmp" \
-                -vf "scale=360:540:force_original_aspect_ratio=increase,crop=360:540" \
-                -frames:v 1 "$out" 2>/dev/null || true
-        fi
-        if [[ ! -s $out ]]; then
-            cp -f "$tmp" "$out" 2>/dev/null || true
-        fi
+        movie_poster_resize "$tmp" "$out" || true
     fi
     rm -f "$tmp"
     [[ -s $out ]]
@@ -658,7 +665,7 @@ movie_poster_fetch() {
 # Resolve a cached poster file for a movie slug from its cached detail JSON
 # without blocking on network I/O.
 movie_cached_slug_poster() {
-    local slug="${1:-}" detail_file poster path legacy_name
+    local slug="${1:-}" detail_file poster path legacy_name legacy_file
     [[ -z $slug || $MOVIE_POSTER == "false" || $MOVIE_POSTER == "0" ]] && return 1
     detail_file="${MOVIE_DETAIL_DIR}/$(printf '%s' "$slug" | tr -c 'A-Za-z0-9_-' '_').json"
     [[ -s $detail_file ]] || return 1
@@ -670,11 +677,17 @@ movie_cached_slug_poster() {
         return 0
     fi
     legacy_name=$(printf '%s' "$poster" | cksum | tr ' ' '-')
-    if [[ -s "${MOVIE_POSTER_DIR}/${legacy_name}.png" ]]; then
-        (movie_poster_fetch "$poster" >/dev/null 2>&1 &)
-        printf '%s' "${MOVIE_POSTER_DIR}/${legacy_name}.png"
-        return 0
-    fi
+    for legacy_file in "${MOVIE_POSTER_DIR}/${legacy_name}-lg.png" "${MOVIE_POSTER_DIR}/${legacy_name}.png"; do
+        if [[ -s $legacy_file ]]; then
+            if movie_poster_resize "$legacy_file" "$path" 2>/dev/null; then
+                printf '%s' "$path"
+                return 0
+            fi
+            (movie_poster_fetch "$poster" >/dev/null 2>&1 &)
+            printf '%s' "$legacy_file"
+            return 0
+        fi
+    done
     (movie_poster_fetch "$poster" >/dev/null 2>&1 &)
     return 1
 }

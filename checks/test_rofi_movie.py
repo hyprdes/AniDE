@@ -482,26 +482,41 @@ class AppFinderEntryTest(unittest.TestCase):
                 f"style_{idx}.rasi must set display-anisub icon",
             )
 
-        # style_1.rasi (and side-panel styles 9, 11, 12) must expose a visible
-        # search entry and icon-current-entry inside the preview panel so movie
-        # posters render in the left wallpaper panel of SUPER+A.
+        # style_1.rasi (and side-panel styles 9, 11, 12) must isolate
+        # icon-current-entry to the 4th tab (anisub) via [ "wallspacer",
+        # "message", "icon-current-entry", "entry" ] with negative spacing so
+        # Tabs 1-3 (drun, filebrowser, window, where message is disabled) push
+        # icon-current-entry outside inputbar's clip box and leave the wallpaper
+        # completely untouched, while Tab 4 (anisub, where \0message\x1f enables
+        # message) places icon-current-entry at (0, 0) filling 100% of the panel.
         for idx in (1, 9, 11, 12):
             rasi = (themes_dir / f"style_{idx}.rasi").read_text()
             self.assertRegex(
                 rasi,
-                r'inputbar\s*\{[^}]*children:\s*\[\s*"entry"\s*,\s*"icon-current-entry"\s*\]',
-                f"style_{idx}.rasi must place entry and icon-current-entry in inputbar",
+                r'inputbar\s*\{[^}]*children:\s*\[\s*"wallspacer"\s*,\s*"message"\s*,\s*"icon-current-entry"\s*,\s*"entry"\s*\]',
+                f"style_{idx}.rasi must use wallspacer+message+icon-current-entry in inputbar",
             )
             self.assertRegex(
                 rasi,
-                r"entry\s*\{[^}]*enabled:\s*true",
-                f"style_{idx}.rasi must enable the search entry box",
+                r"inputbar\s*\{[^}]*padding:\s*0em",
+                f"style_{idx}.rasi must set 0em padding on inputbar for edge-to-edge poster",
+            )
+            self.assertRegex(
+                rasi,
+                r"entry\s*\{[^}]*enabled:\s*false",
+                f"style_{idx}.rasi must keep entry hidden so Tabs 1-3 stay untouched",
             )
             self.assertRegex(
                 rasi,
                 r"icon-current-entry\s*\{[^}]*enabled:\s*true",
                 f"style_{idx}.rasi must enable icon-current-entry for poster preview",
             )
+        style_1 = (themes_dir / "style_1.rasi").read_text()
+        self.assertRegex(
+            style_1,
+            r"icon-current-entry\s*\{[^}]*size:\s*33\.2em;",
+            "style_1.rasi must size icon-current-entry to the full 33.2em panel width",
+        )
 
     def test_rofi_script_mode_browses_searches_and_plays_in_tab(self):
         workdir = pathlib.Path(tempfile.mkdtemp())
@@ -600,7 +615,7 @@ class AppFinderEntryTest(unittest.TestCase):
             self.assertEqual(rc, 0, err)
             self.assertIn("Naruto Shippuden (2007)", out)
             self.assertIn("\0info\x1fmovie|naruto-shippuden|Naruto Shippuden (2007)||", out)
-            self.assertRegex(out, r"\x1ficon\x1f[^\n]*posters/[^\n]*-lg\.png")
+            self.assertRegex(out, r"\x1ficon\x1f[^\n]*posters/[^\n]*-full\.png")
 
             # 4. Selecting a movie lists its episodes and servers in-tab and
             #    attaches the movie poster icon to episode rows so the left
@@ -620,7 +635,7 @@ class AppFinderEntryTest(unittest.TestCase):
                 "\0info\x1fplay|naruto-shippuden|Naruto Shippuden (2007)|0|Tập 001",
                 out,
             )
-            self.assertRegex(out, r"Tập 001[^\n]*\x1ficon\x1f[^\n]*posters/[^\n]*-lg\.png")
+            self.assertRegex(out, r"Tập 001[^\n]*\x1ficon\x1f[^\n]*posters/[^\n]*-full\.png")
             self.assertIn("🔉 Đổi nguồn: Thuyết Minh (1 tập)", out)
 
             # 5. Selecting an episode starts playback in the background and

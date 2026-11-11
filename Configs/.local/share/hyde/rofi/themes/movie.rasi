@@ -119,10 +119,10 @@ listbox {
     background-color:            transparent;
 }
 previewbox {
-    width:                       16em;
+    width:                       24em;
     expand:                      false;
     spacing:                     0em;
-    padding:                     1em;
+    padding:                     0em;
     orientation:                 vertical;
     children:                    [ "icon-current-entry" ];
     background-color:            transparent;
@@ -131,7 +131,8 @@ previewbox {
 icon-current-entry {
     enabled:                     true;
     expand:                      true;
-    size:                        18em;
+    size:                        24em;
+    padding:                     0em;
     vertical-align:              0.5;
     horizontal-align:            0.5;
     background-color:            transparent;

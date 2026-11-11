@@ -1512,9 +1512,17 @@ movie_diagnose() {
 #      initial home menu must return immediately with zero network I/O.
 #   2. Never emit `\0prompt\x1f…`: Rofi overwrites `sw->display_name` with the
 #      prompt string, which would replace the `` icon in `mode-switcher`.
-#   3. The search action row carries `\x1fpermanent\x1ftrue` so typing a movie
-#      keyword in any launcher layout keeps the search row matched at index 0
-#      and hands the typed keyword back in `ROFI_INPUT`.
+#   3. Rofi 1.7.x / rofi-wayland only passes the user's typed text (`*input`) as
+#      `$1` when `ROFI_RETV=2` (`MENU_CUSTOM_INPUT`, which requires
+#      `state->filtered_lines == 0`); it does NOT export `ROFI_INPUT`. Since
+#      `script_token_match` matches typed tokens against `entry.entry` (and
+#      `entry.meta`) rather than `entry.display`, `movie_script_row` sets
+#      `entry.entry` to `\t` (which `textbox_append_text` never produces because
+#      it normalizes typed whitespace to `0x20`) and places the visible label in
+#      `\x1fdisplay\x1f<label>`. When `state->text` is empty, Rofi shows all
+#      rows with their `display` text; as soon as the user types any search
+#      keyword, `filtered_lines` becomes `0` so pressing Enter triggers
+#      `ROFI_RETV=2` with `$1 = <typed keyword>`.
 #   4. Movie, history, resume and episode rows attach `\x1ficon\x1f<poster>` so
 #      `icon-current-entry` inside the launcher's preview panel renders the
 #      selected movie's poster.
@@ -1578,11 +1586,9 @@ movie_script_headers() {
 }
 
 movie_script_row() {
-    local label="$1" info="$2" icon="${3:-}" perm="${4:-}" meta="${5:-}"
-    printf '%s\0info\x1f%s' "$label" "$info"
+    local label="$1" info="$2" icon="${3:-}"
+    printf '\t\0info\x1f%s\x1fdisplay\x1f%s' "$info" "$label"
     [[ -n $icon ]] && printf '\x1ficon\x1f%s' "$icon"
-    [[ $perm == "true" ]] && printf '\x1fpermanent\x1ftrue'
-    [[ -n $meta ]] && printf '\x1fmeta\x1f%s' "$meta"
     printf '\n'
 }
 
@@ -1964,6 +1970,8 @@ movie_script_play() {
 movie_script_mode() {
     local retv="${ROFI_RETV:-0}" info="${ROFI_INFO:-}" data="${ROFI_DATA:-menu}"
     local input="${ROFI_INPUT:-}" sel="${1:-}"
+    input=$(printf '%s' "$input" | movie_clean)
+    sel=$(printf '%s' "$sel" | movie_clean)
     movie_reload_settings
     if [[ $retv -eq 0 ]]; then
         movie_script_home
@@ -1978,7 +1986,7 @@ movie_script_mode() {
         fi
         return 0
     fi
-    if [[ $data == "search_prompt" && -n $input && $info != search* ]]; then
+    if [[ -n $input ]]; then
         movie_script_search "$input" 1
         return 0
     fi

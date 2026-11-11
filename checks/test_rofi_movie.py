@@ -542,34 +542,45 @@ class AppFinderEntryTest(unittest.TestCase):
         try:
             # 1. Initial call (ROFI_RETV=0) returns home menu immediately with
             #    no network calls, without overriding the mode-switcher icon,
-            #    and with the permanent search row at the top.
+            #    and with every row using entry="\t" + \x1fdisplay\x1f<label>
+            #    (and no \x1fpermanent\x1ftrue) so typing any keyword in Rofi
+            #    1.7.x yields filtered_lines == 0 and triggers ROFI_RETV=2 ($1).
             rc, out, err = run_bash(
                 f"bash {SCRIPT} --rofi-script",
                 env={**base_env, "ROFI_RETV": "0"},
             )
             self.assertEqual(rc, 0, err)
             self.assertNotIn("\0prompt\x1f", out)
-            self.assertIn("🆕 Phim mới cập nhật\0info\x1flist|phim-moi-cap-nhat|1||", out)
-            self.assertIn("🔎 Tìm phim (gõ tên phim rồi Enter)…\0info\x1fsearch_input\x1fpermanent\x1ftrue", out)
+            self.assertNotIn("\x1fpermanent\x1ftrue", out)
+            self.assertIn(
+                "\t\0info\x1flist|phim-moi-cap-nhat|1||\x1fdisplay\x1f🆕 Phim mới cập nhật",
+                out,
+            )
+            self.assertIn(
+                "\t\0info\x1fsearch_input\x1fdisplay\x1f🔎 Tìm phim (gõ tên phim rồi Enter)…",
+                out,
+            )
 
-            # 1b. Clicking the search row with empty ROFI_INPUT opens the in-tab
+            # 1b. Clicking the search row with empty input opens the in-tab
             #     search prompt instead of spawning a separate Rofi window.
             rc, out, err = run_bash(
-                f"source <(sed '/^main \"\\$@\"$/d' {SCRIPT}); {mock_funcs} movie_script_mode",
+                f"source <(sed '/^main \"\\$@\"$/d' {SCRIPT}); {mock_funcs} movie_script_mode $'\\t'",
                 env={
                     **base_env,
                     "ROFI_RETV": "1",
                     "ROFI_INFO": "search_input",
-                    "ROFI_INPUT": "",
                 },
             )
             self.assertEqual(rc, 0, err)
             self.assertIn("\0data\x1fsearch_prompt\n", out)
-            self.assertIn("🔎 Gõ tên phim vào ô tìm kiếm rồi nhấn Enter…\0info\x1fsearch_input\x1fpermanent\x1ftrue", out)
+            self.assertIn(
+                "\t\0info\x1fsearch_input\x1fdisplay\x1f🔎 Gõ tên phim vào ô tìm kiếm rồi nhấn Enter…",
+                out,
+            )
 
             # 1c. Opening settings stays in-tab and persists changes to config.toml.
             rc, out, err = run_bash(
-                f"source <(sed '/^main \"\\$@\"$/d' {SCRIPT}); {mock_funcs} movie_script_mode",
+                f"source <(sed '/^main \"\\$@\"$/d' {SCRIPT}); {mock_funcs} movie_script_mode $'\\t'",
                 env={
                     **base_env,
                     "ROFI_RETV": "1",
@@ -578,11 +589,14 @@ class AppFinderEntryTest(unittest.TestCase):
             )
             self.assertEqual(rc, 0, err)
             self.assertIn("\0data\x1fsettings\n", out)
-            self.assertIn("▶ Trình phát video: mpv\0info\x1fsettings_player", out)
+            self.assertIn(
+                "\t\0info\x1fsettings_player\x1fdisplay\x1f▶ Trình phát video: mpv",
+                out,
+            )
 
             # 2. Selecting a category row (ROFI_RETV=1) lists movies in-tab.
             rc, out, err = run_bash(
-                f"source <(sed '/^main \"\\$@\"$/d' {SCRIPT}); {mock_funcs} movie_script_mode",
+                f"source <(sed '/^main \"\\$@\"$/d' {SCRIPT}); {mock_funcs} movie_script_mode $'\\t'",
                 env={
                     **base_env,
                     "ROFI_RETV": "1",
@@ -594,9 +608,10 @@ class AppFinderEntryTest(unittest.TestCase):
             self.assertIn("Gấp Ánh Trăng (2026)", out)
             self.assertIn("\0info\x1fmovie|gap-anh-trang|Gấp Ánh Trăng (2026)||", out)
 
-            # 3. Typing a keyword on the permanent search row searches in-tab
-            #    and attaches the cached poster file to each movie row when
-            #    ROFI_MOVIE_POSTER=true.
+            # 3. Typing a keyword and pressing Enter in Rofi 1.7.x / rofi-wayland
+            #    invokes the script with ROFI_RETV=2 and $1=<typed keyword> (with
+            #    no ROFI_INPUT or ROFI_INFO set), returning search results and
+            #    full-bleed poster icons in-tab.
             poster_env = {**base_env, "ROFI_MOVIE_POSTER": "true"}
             poster_mock = (
                 f"{mock_funcs} "
@@ -604,12 +619,11 @@ class AppFinderEntryTest(unittest.TestCase):
                 "movie_prefetch_posters() { local u; while IFS= read -r u; do [[ $u == http* ]] && movie_poster_fetch \"$u\"; done < <(awk -F'|' '{print $4}' <<<\"$1\"); }; "
             )
             rc, out, err = run_bash(
-                f"source <(sed '/^main \"\\$@\"$/d' {SCRIPT}); {poster_mock} movie_script_mode",
+                f"source <(sed '/^main \"\\$@\"$/d' {SCRIPT}); {poster_mock} movie_script_mode naruto",
                 env={
                     **poster_env,
-                    "ROFI_RETV": "1",
-                    "ROFI_INFO": "search_input",
-                    "ROFI_INPUT": "naruto",
+                    "ROFI_RETV": "2",
+                    "ROFI_DATA": "menu",
                 },
             )
             self.assertEqual(rc, 0, err)

@@ -42,3 +42,17 @@ end
 -- The full reference is KEYBINDINGS.md in the HyDE repository.
 --
 -- Other Lua files next to this one can be pulled in with require("name").
+
+if hl then
+	hl.config({
+		decoration = {
+			rounding = 16,
+		},
+		general = {
+			border_size = 2,
+			gaps_in = 4,
+			gaps_out = 0,
+		},
+	})
+end
+

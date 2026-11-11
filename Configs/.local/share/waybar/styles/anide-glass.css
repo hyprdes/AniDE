@@ -4,13 +4,32 @@
 
 /* Theme colors are supplied by Waybar's generated theme.css / Wallbash. */
 window#waybar {
-    background: transparent;
+    margin-top: 0px;
+    margin-left: 0px;
+    margin-right: 0px;
+    background: @bar-bg;
+    background-color: @main-bg;
+    border-radius: 0px;
+}
+
+window#waybar.top .modules-left,
+window#waybar.top .modules-center,
+window#waybar.top .modules-right {
+    margin-top: 0px;
+    margin-bottom: 0px;
+    margin-left: 0px;
+    margin-right: 0px;
+    padding-left: 0px;
+    padding-right: 0px;
 }
 
 #leaf, #leaf-inverse, #leaf-up, #leaf-down, #leaf-right, #leaf-left,
 #pill, #pill-right, #pill-left, #pill-down, #pill-up, #pill-in, #pill-out {
-    background-color: alpha(@main-bg, 0.82);
-    border: 1px solid alpha(@main-fg, 0.28);
+    margin-top: 0px;
+    background-color: @main-bg;
+    border: 1px solid alpha(@main-fg, 0.22);
+    border-top: none;
+    border-radius: 0px 0px 16px 16px;
     box-shadow: 0 2px 6px alpha(black, 0.20);
 }
 

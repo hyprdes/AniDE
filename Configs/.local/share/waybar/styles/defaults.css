@@ -27,7 +27,12 @@
 /* Base HyDE Styles */
 
 window#waybar {
+    margin-top: 0px;
+    margin-left: 0px;
+    margin-right: 0px;
     background: @bar-bg;
+    background-color: @main-bg;
+    border-radius: 0px;
 }
 
 .module {
@@ -135,7 +140,15 @@ These are groups/islands configs
 
 window#waybar.top .modules-left,
 window#waybar.top .modules-center,
-window#waybar.top .modules-right,
+window#waybar.top .modules-right {
+    margin-top: 0em;
+    margin-bottom: 0em;
+    margin-left: 0em;
+    margin-right: 0em;
+    padding-left: 0em;
+    padding-right: 0em;
+}
+
 window#waybar.bottom .modules-left,
 window#waybar.bottom .modules-center,
 window#waybar.bottom .modules-right {
@@ -143,7 +156,6 @@ window#waybar.bottom .modules-right {
     padding-right: 0.3em;
     margin-left: 0.3em;
     margin-right: 0.3em;
-
 }
 
 window#waybar.top label.module,

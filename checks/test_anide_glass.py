@@ -33,7 +33,25 @@ class GlassStyleTest(unittest.TestCase):
             self.assertTrue(layout[group]["modules"])
         self.assertEqual(layout["include"], ["$XDG_CONFIG_HOME/waybar/includes/includes.json"])
         self.assertEqual(layout["position"], "top")
+        self.assertEqual(layout["margin-top"], 0)
+        self.assertEqual(layout["margin-left"], 0)
+        self.assertEqual(layout["margin-right"], 0)
         self.assertNotIn("/home/", path.read_text())
+
+    def test_top_edge_flush_bar_and_hyprland_rounding(self):
+        defaults_css = (ROOT / "Configs/.local/share/waybar/styles/defaults.css").read_text()
+        self.assertIn("margin-top: 0px;", defaults_css)
+        self.assertIn("margin-left: 0px;", defaults_css)
+        self.assertIn("margin-right: 0px;", defaults_css)
+        self.assertIn("background-color: @main-bg;", defaults_css)
+
+        hypr_defaults = (ROOT / "Configs/.local/share/hypr/lua/defaults.lua").read_text()
+        self.assertIn("rounding = 16", hypr_defaults)
+        self.assertIn("border_size = 2", hypr_defaults)
+
+        hyprland_lua = (ROOT / "Configs/.config/hypr/hyprland.lua").read_text()
+        self.assertIn("rounding = 16", hyprland_lua)
+        self.assertIn("border_size = 2", hyprland_lua)
 
     def test_layout_resolves_matching_style_and_user_override(self):
         # Exercise the production resolver without importing Waybar's desktop dependencies.

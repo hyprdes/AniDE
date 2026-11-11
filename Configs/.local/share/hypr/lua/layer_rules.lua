@@ -10,6 +10,7 @@ local blur_layers =
       "rofi",
       "notifications",
       "swaync-(notification-window|control-center)",
+      "quickshell",
       "waybar",
       "logout_dialog"
     }
@@ -24,6 +25,7 @@ local ignore_alpha_layers =
       "rofi",
       "notifications",
       "swaync-(notification-window|control-center)",
+      "quickshell",
       "waybar",
       "selection"
     }

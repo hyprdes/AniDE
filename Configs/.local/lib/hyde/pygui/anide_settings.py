@@ -21,8 +21,8 @@ SECTIONS = (
         ("Qt appearance", "Open the Qt 6 appearance tool.", ("qt6ct",), ("qt6ct",)),
     )),
     ("Bar & menus", "▤", "Shape your workspace", (
-        ("Waybar layout", "Choose a bar layout, including AniDE Glass when installed.", ("hyde-shell", "waybar", "--select-layout"), ("hyde-shell", "rofi", "waybar")),
-        ("Waybar style", "Choose a style without replacing your personal overrides.", ("hyde-shell", "waybar", "--select-style"), ("hyde-shell", "rofi", "waybar")),
+        ("Quickshell reload", "Reload the Quickshell top bar and refresh Wallbash colors.", ("hyde-shell", "quickshell", "--reload"), ("hyde-shell",)),
+        ("Quickshell toggle", "Show or hide the Quickshell top bar.", ("hyde-shell", "quickshell", "--hide"), ("hyde-shell",)),
         ("Keyboard shortcuts", "See the current keybind hints.", ("hyde-shell", "keybinds_hint"), ("hyde-shell", "rofi")),
     )),
     ("Motion & effects", "✦", "Tune the atmosphere", (

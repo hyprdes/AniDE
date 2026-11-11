@@ -964,7 +964,7 @@ description = "Generic desktop/compositor configuration. Compositor-agnostic cou
 type = "object"
 
 [properties.desktop.properties.bar]
-default = "waybar"
+default = "quickshell"
 description = "Status bar."
 type = "string"
 
@@ -1236,7 +1236,7 @@ description = "Wallpaper script."
 type = "string"
 
 [properties."desktop.start".properties.bar]
-default = "hyde-shell app -u hyde-$XDG_SESSION_DESKTOP-bar.scope -t scope -- waybar.py --watch"
+default = "hyde-shell app -u hyde-$XDG_SESSION_DESKTOP-bar.scope -t scope -- quickshell.sh --watch"
 description = "Bar."
 type = "string"
 

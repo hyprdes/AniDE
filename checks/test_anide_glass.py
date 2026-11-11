@@ -53,6 +53,22 @@ class GlassStyleTest(unittest.TestCase):
         self.assertIn("rounding = 16", hyprland_lua)
         self.assertIn("border_size = 2", hyprland_lua)
 
+    def test_quickshell_replaces_waybar_autostart(self):
+        qs_dir = ROOT / "Configs/.config/quickshell"
+        for filename in ("shell.qml", "Colors.qml", "RoundCorner.qml", "theme.json"):
+            file_path = qs_dir / filename
+            self.assertTrue(file_path.is_file(), f"missing {filename}")
+            self.assertNotIn("/home/", file_path.read_text())
+
+        theme_data = json.loads((qs_dir / "theme.json").read_text())
+        self.assertEqual(theme_data["cornerRadius"], 16)
+
+        variables_lua = (ROOT / "Configs/.local/share/hypr/lua/variables.lua").read_text()
+        self.assertIn("quickshell.sh --watch", variables_lua)
+
+        core_group = (ROOT / "Scripts/dots-groups/core.toml").read_text()
+        self.assertIn('"../dots/quickshell.toml"', core_group)
+
     def test_layout_resolves_matching_style_and_user_override(self):
         # Exercise the production resolver without importing Waybar's desktop dependencies.
         source = (ROOT / "Configs/.local/lib/hyde/waybar.py").read_text()

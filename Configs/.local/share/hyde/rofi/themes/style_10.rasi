@@ -60,16 +60,7 @@ inputbar {
     border-radius:               1em 1em 0em 0em;
 }
 entry {
-    enabled:                     true;
-    padding:                     0.65em 1.2em;
-    border:                      1px;
-    border-radius:               2em;
-    border-color:                @main-br;
-    background-color:            @main-bg;
-    text-color:                  @main-fg;
-    placeholder:                 "🔎 Tìm phim / ứng dụng…";
-    placeholder-color:           @main-fg;
-    cursor:                      text;
+    enabled:                     false;
 }
 
 

@@ -53,35 +53,37 @@ mainbox {
 inputbar {
     enabled:                     true;
     width:                       28.5em;
-    orientation:                 vertical;
-    spacing:                     1em;
-    padding:                     1.5em 2em;
-    children:                    [ "entry" , "icon-current-entry" ];
+    orientation:                 horizontal;
+    spacing:                     -30em;
+    padding:                     0em;
+    children:                    [ "wallspacer" , "message" , "icon-current-entry" , "entry" ];
     expand:                      false;
     background-color:            @main-bg;
     background-image:            url("~/.cache/hyde/wall.quad", width);
     border-radius:               1em 0em 0em 1em;
 }
-entry {
-    enabled:                     true;
+wallspacer {
     expand:                      false;
-    padding:                     0.65em 1.2em;
-    border:                      1px;
-    border-radius:               2em;
-    border-color:                @main-br;
-    background-color:            @main-bg;
-    text-color:                  @main-fg;
-    placeholder:                 "🔎 Tìm phim / ứng dụng…";
-    placeholder-color:           @main-fg;
-    cursor:                      text;
+    width:                       60em;
+    background-color:            transparent;
+}
+message {
+    expand:                      true;
+    padding:                     0em;
+    border:                      0px;
+    background-color:            transparent;
 }
 icon-current-entry {
     enabled:                     true;
-    expand:                      true;
-    size:                        20em;
+    expand:                      false;
+    size:                        28.5em;
+    padding:                     0em;
     vertical-align:              0.5;
     horizontal-align:            0.5;
     background-color:            transparent;
+}
+entry {
+    enabled:                     false;
 }
 
 

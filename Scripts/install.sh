@@ -539,6 +539,9 @@ EOF
 			print_log -err "[theme] " -crit "ERROR" "Waybar configuration was not updated"
 			theme_failed=1
 		fi
+		if [ -x "$HOME/.local/lib/hyde/quickshell.sh" ]; then
+			"$HOME/.local/lib/hyde/quickshell.sh" --update || true
+		fi
 		echo "[install] reload :: Hyprland"
 	fi
 

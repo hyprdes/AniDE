@@ -1,0 +1,12 @@
+[quickshell]
+description = "QtQuick-based Wayland desktop shell and status bar for AniDE"
+
+[[quickshell.dependency]]
+yay = ["quickshell"]
+paru = ["quickshell"]
+
+[[quickshell.files]]
+action = "preserve"
+source_root = "Configs/.config/quickshell"
+target_root = "${XDG_CONFIG_HOME}/quickshell"
+paths = ["shell.qml", "Colors.qml", "RoundCorner.qml", "theme.json"]

@@ -1,0 +1,13 @@
+{
+  "barBg": "#101419",
+  "mainBg": "#101419",
+  "surfaceBg": "#1a2028",
+  "mainFg": "#93cee9",
+  "subFg": "#7aa8c4",
+  "actBg": "#93cee9",
+  "actFg": "#101419",
+  "hvrBg": "#27323f",
+  "hvrFg": "#93cee9",
+  "borderColor": "#2c3847",
+  "cornerRadius": 16
+}

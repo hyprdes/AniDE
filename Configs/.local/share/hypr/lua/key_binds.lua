@@ -87,8 +87,8 @@ _F = {description = "[Window Management] logout menu"}
 hl.bind("CTRL + ALT + DELETE", hl.dsp.exec_cmd(hyde.sh.session.logout.launcher()), _F)
 -- ALT_R is a keysym, not a modifier: "ALT_R + CONTROL_R" resolves to a bare
 -- right Control, so every press of that key hid the bar.
-_F = {description = "[Window Management] hide waybar"}
-hl.bind(MOD .. " + CTRL + B", hl.dsp.exec_cmd(hyde.sh.waybar("--hide")), _F)
+_F = {description = "[Window Management] hide Quickshell bar"}
+hl.bind(MOD .. " + CTRL + B", hl.dsp.exec_cmd("hyde-shell quickshell --hide"), _F)
 _F = {description = "[Window Management] lock session"}
 hl.bind(MOD .. " + L", hl.dsp.exec_cmd(hyde.sh.session.lock()), _F)
 
@@ -249,10 +249,10 @@ _F = {description = "[Theming and Wallpaper] next global wallpaper"}
 hl.bind(MOD .. "+ ALT + Right", hl.dsp.exec_cmd(hyde.sh.wallpaper("--next")), _F)
 _F = {description = "[Theming and Wallpaper] previous global wallpaper"}
 hl.bind(MOD .. "+ ALT + Left", hl.dsp.exec_cmd(hyde.sh.wallpaper("--previous")), _F)
-_F = {description = "[Theming and Wallpaper] next Waybar layout"}
-hl.bind(MOD .. "+ ALT + Up", hl.dsp.exec_cmd("hyde-shell waybar --next"), _F)
-_F = {description = "[Theming and Wallpaper] previous Waybar layout"}
-hl.bind(MOD .. "+ ALT + Down", hl.dsp.exec_cmd("hyde-shell waybar --prev"), _F)
+_F = {description = "[Theming and Wallpaper] reload Quickshell bar"}
+hl.bind(MOD .. "+ ALT + Up", hl.dsp.exec_cmd("hyde-shell quickshell --reload"), _F)
+_F = {description = "[Theming and Wallpaper] update Quickshell theme"}
+hl.bind(MOD .. "+ ALT + Down", hl.dsp.exec_cmd("hyde-shell quickshell --update"), _F)
 
 _F = {description = "[Theming and Wallpaper] select a global wallpaper"}
 hl.bind(MOD .. "+ SHIFT + W", hl.dsp.exec_cmd(hyde.sh.menu.wallpapers()), _F)

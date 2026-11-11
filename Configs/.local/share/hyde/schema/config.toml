@@ -266,7 +266,7 @@ initial_class = []  # Initial window classes excluded from float bounds.
 
 # Generic desktop/compositor configuration. Compositor-agnostic counterpart to [hyprland]; use this for cross-compositor support (Hyprland, Sway, niri, etc.).
 [desktop]
-bar = "waybar"  # Status bar.
+bar = "quickshell"  # Status bar.
 background_path = ""  # Lockscreen background path.
 # Desktop UI settings for HyDE and cross-compositor support.
 [desktop.ui]
@@ -332,7 +332,7 @@ text_clipboard = "hyde-shell app -u hyde-$XDG_SESSION_DESKTOP-text-clipboard.ser
 image_clipboard = "hyde-shell app -u hyde-$XDG_SESSION_DESKTOP-image-clipboard.service -t service wl-paste --type image --watch cliphist store"  # Image clipboard daemon.
 clipboard_persist = "hyde-shell app -u hyde-$XDG_SESSION_DESKTOP-clipboard-persist.service -t service wl-clip-persist --clipboard regular"  # Clipboard persist daemon.
 wallpaper = "hyde-shell app -u hyde-$XDG_SESSION_DESKTOP-wallpaper.service -t service -- wallpaper.sh --start --global"  # Wallpaper script.
-bar = "hyde-shell app -u hyde-$XDG_SESSION_DESKTOP-bar.scope -t scope -- waybar.py --watch"  # Bar.
+bar = "hyde-shell app -u hyde-$XDG_SESSION_DESKTOP-bar.scope -t scope -- quickshell.sh --watch"  # Bar.
 notifications = "hyde-shell app -u hyde-$XDG_SESSION_DESKTOP-notifications.service -t service -- dunst"  # Notification daemon.
 battery_notify = "hyde-shell app -u hyde-$XDG_SESSION_DESKTOP-battery-notify.service -t service -- batterynotify.lua"  # Battery notification script.
 applet_network_manager = "hyde-shell app -u hyde-$XDG_SESSION_DESKTOP-network-manager-applet.service -t service -- nm-applet --indicator"  # Network manager applet.

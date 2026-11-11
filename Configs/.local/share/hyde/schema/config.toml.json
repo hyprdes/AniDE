@@ -1125,7 +1125,7 @@
             "type": "object",
             "properties": {
                 "bar": {
-                    "default": "waybar",
+                    "default": "quickshell",
                     "description": "Status bar.",
                     "type": "string"
                 },
@@ -1409,7 +1409,7 @@
                     "type": "string"
                 },
                 "bar": {
-                    "default": "hyde-shell app -u hyde-$XDG_SESSION_DESKTOP-bar.scope -t scope -- waybar.py --watch",
+                    "default": "hyde-shell app -u hyde-$XDG_SESSION_DESKTOP-bar.scope -t scope -- quickshell.sh --watch",
                     "description": "Bar.",
                     "type": "string"
                 },

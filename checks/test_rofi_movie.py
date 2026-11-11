@@ -16,13 +16,14 @@ SCRIPT = ROOT / "Configs/.local/lib/hyde/rofi.movie.sh"
 FIXTURES = pathlib.Path(__file__).resolve().parent / "fixtures"
 
 
-def run_bash(source, stdin=""):
+def run_bash(source, stdin="", env=None):
     process = subprocess.run(
         ["bash", "-c", source],
         input=stdin,
         capture_output=True,
         text=True,
         cwd=ROOT,
+        env=env,
     )
     return process.returncode, process.stdout, process.stderr
 
@@ -250,6 +251,179 @@ class ConfigWiringTest(unittest.TestCase):
             ["bash", "-c", source], capture_output=True, text=True, env=env, cwd=ROOT
         )
         self.assertEqual(process.stdout.split(), ["24", "600", "auto", "46em"])
+
+
+class RofiLegibilityTest(unittest.TestCase):
+    """The -mesg line and the row text have to be drawn, not just passed in."""
+
+    THEME = ROOT / "Configs/.local/share/hyde/rofi/themes/movie.rasi"
+
+    def source_env(self, **extra):
+        """Environment where SHARE_DIR resolves to the themes in this repo."""
+        return {
+            **os.environ,
+            "XDG_DATA_HOME": str(ROOT / "Configs/.local/share"),
+            **extra,
+        }
+
+    def sourced(self, body, **extra):
+        return run_bash(
+            f"source <(sed '/^main \"\\$@\"$/d' {SCRIPT}); {body}",
+            env=self.source_env(**extra),
+        )
+
+    def test_movie_theme_puts_message_in_mainbox(self):
+        text = self.THEME.read_text()
+        mainbox = re.search(r"mainbox\s*\{[^}]*\}", text, re.S)
+        self.assertIsNotNone(mainbox)
+        self.assertIn('"message"', mainbox.group(0))
+        # Without an explicit colour rofi paints the summary dark-on-dark.
+        self.assertRegex(text, r"message\s*\{[^}]*text-color:\s*@main-fg")
+        self.assertRegex(text, r"textbox\s*\{[^}]*text-color:\s*inherit")
+        self.assertRegex(text, r"element-text\s*\{[^}]*text-color:\s*inherit")
+        # Posters are attached to the rows, so the layout must ask for icons.
+        self.assertRegex(text, r"show-icons:\s*true")
+        self.assertRegex(text, r"element-icon\s*\{[^}]*size:")
+
+    def test_default_style_is_the_movie_theme(self):
+        status, out, err = self.sourced(
+            'movie_setup_rofi; printf "%s\\n%s\\n" "$MOVIE_ROFI_STYLE" "$MOVIE_ROFI_THEME"'
+        )
+        self.assertEqual(status, 0, err)
+        style, theme = out.splitlines()[:2]
+        self.assertEqual(style, "movie")
+        # Resolved to a real path: rofi's own theme dir may not be linked yet.
+        self.assertTrue(theme.endswith("/hyde/rofi/themes/movie.rasi"), theme)
+        self.assertTrue(pathlib.Path(theme).is_file(), theme)
+        schema = tomllib.loads(
+            (ROOT / "Configs/.local/share/hyde/schema/schema.toml").read_text()
+        )
+        self.assertEqual(
+            schema["properties"]["rofi"]["properties"]["movie"]["properties"]["style"][
+                "default"
+            ],
+            "movie",
+        )
+
+    def test_message_is_injected_into_other_vertical_layouts(self):
+        status, out, err = self.sourced(
+            'movie_mesg_override "$XDG_DATA_HOME/hyde/rofi/themes/clipboard.rasi"'
+        )
+        self.assertEqual(status, 0, err)
+        self.assertEqual(
+            out.strip(), 'mainbox{children:[ "message" , "wallbox" , "listbox" ];}'
+        )
+
+    def test_horizontal_layouts_keep_their_own_children(self):
+        # style_1 lays mainbox out horizontally; a message column there would
+        # squeeze the list, so it must stay untouched.
+        status, out, err = self.sourced(
+            'movie_mesg_override "$XDG_DATA_HOME/hyde/rofi/themes/style_1.rasi"'
+        )
+        self.assertNotEqual(status, 0, out)
+        self.assertEqual(out.strip(), "")
+
+    def test_layouts_that_already_place_message_are_left_alone(self):
+        """A second message widget makes rofi abort, so never inject one."""
+        workdir = pathlib.Path(tempfile.mkdtemp())
+        theme = workdir / "nested.rasi"
+        theme.write_text(
+            "mainbox {\n"
+            "    orientation: vertical;\n"
+            '    children: [ "listbox" ];\n'
+            "}\n"
+            "listbox {\n"
+            '    children: [ "message", "listview" ];\n'
+            "}\n"
+        )
+        try:
+            status, out, err = self.sourced(
+                f'movie_mesg_override "{theme}"'
+            )
+            self.assertNotEqual(status, 0, out)
+            self.assertEqual(out.strip(), "")
+        finally:
+            shutil.rmtree(workdir, ignore_errors=True)
+
+    def test_movie_rofi_hands_the_overrides_to_rofi(self):
+        """End to end: what movie_rofi actually puts on the rofi command line."""
+        workdir = pathlib.Path(tempfile.mkdtemp())
+        stub = workdir / "rofi"
+        stub.write_text('#!/usr/bin/env bash\nprintf "%s\\n" "$@"\n')
+        stub.chmod(0o755)
+        try:
+            status, out, err = self.sourced(
+                'printf "Ten phim|HD|slug|none|movie\\n" | '
+                'movie_rofi -dmenu -p "🎬 Phim" -mesg "tóm tắt"',
+                PATH=f"{workdir}{os.pathsep}{os.environ['PATH']}",
+                ROFI_MOVIE_STYLE="clipboard",
+            )
+            self.assertEqual(status, 0, err)
+            args = out.splitlines()
+            self.assertIn(
+                'mainbox{children:[ "message" , "wallbox" , "listbox" ];}', args
+            )
+            joined = " ".join(args)
+            self.assertIn("show-icons: true;", joined)
+            self.assertIn("textbox{", joined)
+            self.assertIn("element-text{vertical-align:0.5;", joined)
+            self.assertTrue(
+                any(arg.endswith("/clipboard.rasi") for arg in args), args
+            )
+        finally:
+            shutil.rmtree(workdir, ignore_errors=True)
+
+    def test_font_setting_is_sanitised_before_it_reaches_rofi(self):
+        status, out, err = self.sourced(
+            'movie_setup_rofi; printf "%s" "$MOVIE_FONT_OVERRIDE"',
+            ROFI_MOVIE_FONT='"JetBrainsMono Nerd Font" 12',
+        )
+        self.assertEqual(status, 0, err)
+        self.assertEqual(out, '* {font: "JetBrainsMono Nerd Font 10";}')
+
+    def test_menus_carry_no_unrenderable_glyphs(self):
+        # Regional-indicator flags and ZWJ sequences have no Linux font, so on
+        # Rofi they show up as boxes instead of text.
+        status, out, err = self.sourced("movie_countries; movie_genres")
+        self.assertEqual(status, 0, err)
+        lines = [line for line in out.splitlines() if line]
+        self.assertTrue(lines)
+        for line in lines:
+            self.assertNotIn("\u200d", line, line)
+            for char in line:
+                self.assertFalse(
+                    0x1F1E6 <= ord(char) <= 0x1F1FF, f"flag emoji in {line!r}"
+                )
+
+
+class AppFinderEntryTest(unittest.TestCase):
+    """AniSub must be reachable from the SUPER+A application finder."""
+
+    DESKTOP = ROOT / "Configs/.local/share/applications/anide-movie.desktop"
+
+    def test_desktop_entry_starts_the_movie_menu(self):
+        text = self.DESKTOP.read_text()
+        self.assertIn("[Desktop Entry]", text)
+        self.assertIn("Type=Application", text)
+        self.assertIn("Exec=hyde-shell rofi.movie", text)
+        # drun matches these fields, so the entry is findable in Vietnamese.
+        self.assertRegex(text, r"(?im)^Name=.*AniSub")
+        keywords = re.search(r"(?im)^Keywords=(.*)$", text).group(1)
+        for needle in ("anisub", "phim", "movie", "kkphim"):
+            self.assertIn(needle, keywords)
+        if shutil.which("desktop-file-validate"):
+            status, out, err = run_bash(f"desktop-file-validate {self.DESKTOP}")
+            self.assertEqual(status, 0, out + err)
+
+    def test_desktop_entry_is_part_of_the_install(self):
+        dots = (ROOT / "Scripts/dots/hyde.toml").read_text()
+        paths = [
+            line
+            for line in dots.splitlines()
+            if "anide-settings.desktop" in line and "anide-movie.desktop" in line
+        ]
+        self.assertEqual(len(paths), 1, dots)
+        self.assertRegex(paths[0], r'^paths = \[.*"anide-movie\.desktop".*\]$')
 
 
 if __name__ == "__main__":

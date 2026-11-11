@@ -162,6 +162,9 @@ Holding <kbd>ALT</kbd> keeps the switcher open; releasing it applies the selecti
 | <kbd>SUPER</kbd> + <kbd>SHIFT</kbd> + <kbd>slash</kbd> | web search           |
 | <kbd>SUPER</kbd> + <kbd>SHIFT</kbd> + <kbd>M</kbd>     | movies (KKPhim)      |
 
+> **AniSub** (the KKPhim movie menu) also lives in the **SUPER + A**
+> application finder: search for `AniSub`, `phim` or `kkphim`.
+
 <!-- ## <a id="hardware-controls">Hardware Controls</a> -->
 
 ## <a id="hardware-controls"></a><img src="https://readme-typing-svg.herokuapp.com?font=Lexend+Giga&size=23&pause=1000&color=CCA9DD&width=435&lines=Hardware%20Controls" width="450"/>

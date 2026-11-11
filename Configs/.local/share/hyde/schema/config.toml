@@ -96,7 +96,7 @@ font = "JetBrainsMono Nerd Font"  # Font for bookmarks.
 # hyde-shell rofi.movie.sh (KKPhim) configuration.
 [rofi.movie]
 player = ""  # Video player command (empty = auto-detect mpv, vlc, celluloid, haruna).
-style = "clipboard"  # Rofi theme name for the movie menus.
+style = "movie"  # Rofi theme name for the movie menus.
 scale = 10  # Scaling for the movie menus.
 font = "JetBrainsMono Nerd Font"  # Font for the movie menus.
 width = "46em"  # Window width of the movie menus.

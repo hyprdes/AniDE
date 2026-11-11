@@ -22,7 +22,8 @@ class PackagingTest(unittest.TestCase):
         desktop = (ROOT / "Configs/.local/share/applications/anide-settings.desktop").read_text()
         self.assertIn("Exec=hyde-shell anide-settings", desktop)
         manifest = (ROOT / "Scripts/dots/hyde.toml").read_text()
-        self.assertIn('paths = ["anide-settings.desktop"]', manifest)
+        # Other launchers (anide-movie.desktop) share the same paths array.
+        self.assertRegex(manifest, r'paths = \[[^\]]*"anide-settings\.desktop"[^\]]*\]')
         self.assertIn('target_root = "${XDG_DATA_HOME}/applications"', manifest)
         self.assertIn('paths = "hyde"', manifest)
 

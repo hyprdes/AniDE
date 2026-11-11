@@ -85,11 +85,33 @@ button selected {
 // Inputs //
 inputbar {
     enabled:                     true;
-    children:                    [ "entry" ];
+    expand:                      true;
+    orientation:                 vertical;
+    spacing:                     1em;
+    padding:                     1.5em 2em;
+    children:                    [ "entry" , "icon-current-entry" ];
     background-color:            transparent;
 }
 entry {
-    enabled:                     false;
+    enabled:                     true;
+    expand:                      false;
+    padding:                     0.65em 1.2em;
+    border:                      1px;
+    border-radius:               2em;
+    border-color:                @main-br;
+    background-color:            @main-bg;
+    text-color:                  @main-fg;
+    placeholder:                 "🔎 Tìm phim / ứng dụng…";
+    placeholder-color:           @main-fg;
+    cursor:                      text;
+}
+icon-current-entry {
+    enabled:                     true;
+    expand:                      true;
+    size:                        22em;
+    vertical-align:              0.5;
+    horizontal-align:            0.5;
+    background-color:            transparent;
 }
 
 

@@ -1,4 +1,4 @@
-$HOME/.config/quickshell/theme.json|hyde-shell quickshell --update
+$HOME/.config/quickshell/theme.json
 {
   "preset": "end4-tonal-spot",
   "barBg": "#<wallbash_pry1>",

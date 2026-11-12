@@ -1,0 +1,21 @@
+{
+  "preset": "end4-tonal-spot",
+  "barBg": "#151217",
+  "mainBg": "#151217",
+  "surfaceBg": "#211c24",
+  "layer2Bg": "#2e2732",
+  "mainFg": "#e9e0eb",
+  "subFg": "#988d9e",
+  "actBg": "#dcbff2",
+  "glowColor": "#dcbff2",
+  "glowSecondary": "#e8def8",
+  "accentSecondary": "#3b3242",
+  "onSecondaryContainer": "#e8def8",
+  "actFg": "#24172e",
+  "hvrBg": "#38303d",
+  "hvrFg": "#f5eff7",
+  "borderColor": "#49414e",
+  "barOpacity": 0.85,
+  "pillOpacity": 0.90,
+  "cornerRadius": 23
+}

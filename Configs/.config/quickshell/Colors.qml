@@ -26,17 +26,6 @@ QtObject {
     property int groupRadius: 16             // Smooth capsule rounding inside 40px bar
     property string wallBlurPath: ""
 
-    Behavior on barBg { ColorAnimation { duration: 350; easing.type: Easing.OutCubic } }
-    Behavior on mainBg { ColorAnimation { duration: 350; easing.type: Easing.OutCubic } }
-    Behavior on surfaceBg { ColorAnimation { duration: 350; easing.type: Easing.OutCubic } }
-    Behavior on layer2Bg { ColorAnimation { duration: 350; easing.type: Easing.OutCubic } }
-    Behavior on mainFg { ColorAnimation { duration: 350; easing.type: Easing.OutCubic } }
-    Behavior on subFg { ColorAnimation { duration: 350; easing.type: Easing.OutCubic } }
-    Behavior on actBg { ColorAnimation { duration: 350; easing.type: Easing.OutCubic } }
-    Behavior on accentSecondary { ColorAnimation { duration: 350; easing.type: Easing.OutCubic } }
-    Behavior on onSecondaryContainer { ColorAnimation { duration: 350; easing.type: Easing.OutCubic } }
-    Behavior on actFg { ColorAnimation { duration: 350; easing.type: Easing.OutCubic } }
-
     function normHex(val) {
         if (!val) return "";
         var s = val.toString().trim();

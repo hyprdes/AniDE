@@ -73,7 +73,9 @@ P|${HOME}/.config/Code/User|settings.json|visual-studio-code-bin
 P|${HOME}/.config/VSCodium/User|settings.json|vscodium
 
  Bar 
-P|${HOME}/.config/quickshell|shell.qml Colors.qml RoundCorner.qml theme.json|quickshell
+O|${HOME}/.local/share|quickshell|hyprland
+S|${HOME}/.config/quickshell|shell.qml Colors.qml RoundCorner.qml|hyprland
+P|${HOME}/.config/quickshell|theme.json|hyprland
 
  Terminal 
 P|${HOME}/.config|lsd|lsd

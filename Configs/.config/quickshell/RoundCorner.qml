@@ -5,9 +5,6 @@ Canvas {
     property int cornerSize: 23
     property color fillColor: "#151217"
     property real fillAlpha: 0.85
-    property color strokeColor: "#49414e"
-    property real strokeAlpha: 0.0
-    property real strokeWidth: 0.0
     // "top-left" | "top-right" | "bottom-left" | "bottom-right"
     property string corner: "top-left"
 
@@ -16,25 +13,15 @@ Canvas {
     antialiasing: true
     smooth: true
 
-    function cssRgba(c, a) {
-        var r = Math.round((c.r !== undefined ? c.r : 0.08) * 255);
-        var g = Math.round((c.g !== undefined ? c.g : 0.07) * 255);
-        var b = Math.round((c.b !== undefined ? c.b : 0.09) * 255);
-        var alpha = Math.max(0.0, Math.min(1.0, a));
-        return "rgba(" + r + "," + g + "," + b + "," + alpha.toFixed(3) + ")";
-    }
-
     onFillColorChanged: requestPaint()
     onFillAlphaChanged: requestPaint()
-    onStrokeColorChanged: requestPaint()
-    onStrokeAlphaChanged: requestPaint()
     onCornerSizeChanged: requestPaint()
     onCornerChanged: requestPaint()
 
     onPaint: {
         var ctx = getContext("2d");
         ctx.reset();
-        ctx.fillStyle = cssRgba(root.fillColor, root.fillAlpha);
+        ctx.fillStyle = Qt.alpha(root.fillColor, root.fillAlpha);
         ctx.beginPath();
 
         if (root.corner === "top-left") {

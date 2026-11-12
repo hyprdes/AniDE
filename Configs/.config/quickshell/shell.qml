@@ -52,7 +52,7 @@ ShellRoot {
     function iconForClass(cls) {
         if (!cls) return "󰣆";
         var c = cls.toLowerCase();
-        if (c.indexOf("firefox") >= 0 || c.indexOf("zen") >= 0 || c.indexOf("Floorp") >= 0) return "󰈹";
+        if (c.indexOf("firefox") >= 0 || c.indexOf("zen") >= 0 || c.indexOf("floorp") >= 0) return "󰈹";
         if (c.indexOf("chrom") >= 0 || c.indexOf("brave") >= 0) return "";
         if (c.indexOf("kitty") >= 0 || c.indexOf("alacritty") >= 0 || c.indexOf("wezterm") >= 0 || c.indexOf("foot") >= 0 || c.indexOf("term") >= 0) return "";
         if (c.indexOf("code") >= 0 || c.indexOf("codium") >= 0 || c.indexOf("nvim") >= 0 || c.indexOf("zed") >= 0) return "󰨞";
@@ -251,7 +251,7 @@ ShellRoot {
             ctx.lineTo(r, height);
             ctx.arc(r, r, r, Math.PI / 2, -Math.PI / 2, false);
             ctx.closePath();
-            ctx.fillStyle = shellRoot.cssRgba(baseColor, baseOpacity);
+            ctx.fillStyle = Qt.alpha(baseColor, baseOpacity);
             ctx.fill();
         }
     }
@@ -273,6 +273,10 @@ ShellRoot {
             }
             radius: 16
             color: Qt.alpha(theme.surfaceBg, theme.pillOpacity)
+
+            Behavior on color {
+                ColorAnimation { duration: 300 }
+            }
         }
 
         RowLayout {
@@ -319,7 +323,7 @@ ShellRoot {
                 // 1. Filled tonal circle background (colSecondaryContainer)
                 ctx.beginPath();
                 ctx.arc(cx, cy, rOuter, 0, Math.PI * 2, false);
-                ctx.fillStyle = shellRoot.cssRgba(ringRoot.trackColor, 0.92);
+                ctx.fillStyle = Qt.alpha(ringRoot.trackColor, 0.92);
                 ctx.fill();
 
                 // 2. Progress pie/arc in colOnSecondaryContainer
@@ -329,14 +333,14 @@ ShellRoot {
                     ctx.moveTo(cx, cy);
                     ctx.arc(cx, cy, rOuter, -Math.PI / 2, -Math.PI / 2 + clamped * Math.PI * 2, false);
                     ctx.closePath();
-                    ctx.fillStyle = shellRoot.cssRgba(ringRoot.primaryColor, 1.0);
+                    ctx.fillStyle = ringRoot.primaryColor;
                     ctx.fill();
                 }
 
                 // 3. Inner dark circle for crisp icon contrast
                 ctx.beginPath();
                 ctx.arc(cx, cy, rInner, 0, Math.PI * 2, false);
-                ctx.fillStyle = shellRoot.cssRgba(theme.accentSecondary, 0.95);
+                ctx.fillStyle = Qt.alpha(theme.accentSecondary, 0.95);
                 ctx.fill();
             }
         }
@@ -391,8 +395,6 @@ ShellRoot {
             required property var modelData
             screen: modelData
 
-            WlrLayershell.namespace: "quickshell:bar"
-
             readonly property int barHeight: 40
             readonly property int cornerSize: theme.cornerRadius
             readonly property int activeWsId: (Hyprland.focusedMonitor && Hyprland.focusedMonitor.activeWorkspace)
@@ -429,6 +431,10 @@ ShellRoot {
                 }
                 height: barWindow.barHeight
                 color: Qt.alpha(theme.barBg, theme.barOpacity)
+
+                Behavior on color {
+                    ColorAnimation { duration: 300 }
+                }
 
                 // ── 1. LEFT SECTION (Sparkle LeftSidebarButton + Two-line ActiveWindow; scroll for Brightness) ──
                 MouseArea {
@@ -671,7 +677,7 @@ ShellRoot {
                                 if (shellRoot.wsClasses && shellRoot.wsClasses[id.toString()]) return true;
                                 var list = Hyprland.workspaces ? Hyprland.workspaces.values : [];
                                 for (var i = 0; i < list.length; i++) {
-                                    if (list[i].id === id) return true;
+                                     if (list[i].id === id) return true;
                                 }
                                 return false;
                             }
@@ -679,21 +685,12 @@ ShellRoot {
                             implicitWidth: wsBtnWidth * 10
                             implicitHeight: 32
 
-                            WheelHandler {
-                                onWheel: event => {
-                                    if (event.angleDelta.y < 0) {
-                                        Hyprland.dispatch("workspace r+1");
-                                    } else if (event.angleDelta.y > 0) {
-                                        Hyprland.dispatch("workspace r-1");
-                                    }
-                                }
-                            }
-
                             // Layer 1: Connected Occupied Workspace Capsules (colSecondaryContainer stretching across adjacent occupied slots)
                             Repeater {
                                 model: 10
 
                                 Item {
+                                    id: occSlot
                                     required property int index
                                     readonly property int wsId: index + 1
                                     readonly property bool curOcc: wsContainer.isWsOccupied(wsId)
@@ -702,15 +699,15 @@ ShellRoot {
 
                                     x: index * wsContainer.wsBtnWidth
                                     width: wsContainer.wsBtnWidth
-                                    height: parent.height
+                                    height: wsContainer.height
 
                                     Rectangle {
-                                        visible: parent.curOcc
+                                        visible: occSlot.curOcc
                                         anchors.verticalCenter: parent.verticalCenter
-                                        x: parent.prevOcc ? -wsContainer.activeMargin : wsContainer.activeMargin
+                                        x: occSlot.prevOcc ? -wsContainer.activeMargin : wsContainer.activeMargin
                                         width: wsContainer.activeSize
-                                            + (parent.prevOcc ? wsContainer.activeMargin * 2 : 0)
-                                            + (parent.nextOcc ? wsContainer.activeMargin * 2 : 0)
+                                            + (occSlot.prevOcc ? wsContainer.activeMargin * 2 : 0)
+                                            + (occSlot.nextOcc ? wsContainer.activeMargin * 2 : 0)
                                         height: wsContainer.activeSize
                                         radius: wsContainer.activeSize / 2
                                         color: theme.accentSecondary
@@ -728,6 +725,10 @@ ShellRoot {
                                 height: wsContainer.activeSize
                                 radius: wsContainer.activeSize / 2
                                 color: theme.actBg
+
+                                Behavior on color {
+                                    ColorAnimation { duration: 300 }
+                                }
                             }
 
                             // Layer 3: App Icons (for occupied workspaces) + Small Dots (for empty workspaces, matching image-5.png)
@@ -735,6 +736,7 @@ ShellRoot {
                                 model: 10
 
                                 Item {
+                                    id: wsSlot
                                     required property int index
                                     readonly property int wsId: index + 1
                                     readonly property bool isActive: (barWindow.activeWsIndex === index)
@@ -746,11 +748,11 @@ ShellRoot {
                                     z: 3
                                     x: index * wsContainer.wsBtnWidth
                                     width: wsContainer.wsBtnWidth
-                                    height: parent.height
+                                    height: wsContainer.height
 
                                     // Small 4.5px dot for empty workspaces (slots 4, 5, 7, 8, 9, 10 in image-5.png)
                                     Rectangle {
-                                        visible: !parent.isOcc && !parent.isActive
+                                        visible: !wsSlot.isOcc && !wsSlot.isActive
                                         anchors.centerIn: parent
                                         width: 4.5
                                         height: 4.5
@@ -760,19 +762,19 @@ ShellRoot {
 
                                     // App icon badge for occupied or active workspaces (slots 1, 2, 3, 6 in image-5.png)
                                     Rectangle {
-                                        visible: parent.isOcc || parent.isActive
+                                        visible: wsSlot.isOcc || wsSlot.isActive
                                         anchors.centerIn: parent
                                         width: 18
                                         height: 18
                                         radius: 9
-                                        color: parent.isActive
+                                        color: wsSlot.isActive
                                             ? "transparent"
                                             : Qt.alpha(theme.onSecondaryContainer, 0.14)
 
                                         Text {
                                             anchors.centerIn: parent
-                                            text: shellRoot.iconForClass(parent.parent.winClass)
-                                            color: parent.parent.isActive
+                                            text: shellRoot.iconForClass(wsSlot.winClass)
+                                            color: wsSlot.isActive
                                                 ? theme.actFg
                                                 : theme.onSecondaryContainer
                                             font.family: "JetBrainsMono Nerd Font"
@@ -785,7 +787,14 @@ ShellRoot {
                                         anchors.fill: parent
                                         hoverEnabled: true
                                         cursorShape: Qt.PointingHandCursor
-                                        onClicked: Hyprland.dispatch("workspace " + parent.wsId)
+                                        onClicked: Hyprland.dispatch("workspace " + wsSlot.wsId)
+                                        onWheel: event => {
+                                            if (event.angleDelta.y < 0) {
+                                                Hyprland.dispatch("workspace r+1");
+                                            } else if (event.angleDelta.y > 0) {
+                                                Hyprland.dispatch("workspace r-1");
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -1016,6 +1025,7 @@ ShellRoot {
                                 model: SystemTray.items
 
                                 Rectangle {
+                                    id: traySlot
                                     required property var modelData
                                     implicitWidth: 22
                                     implicitHeight: 22
@@ -1026,7 +1036,7 @@ ShellRoot {
                                         anchors.centerIn: parent
                                         width: 15
                                         height: 15
-                                        source: parent.modelData.icon || ""
+                                        source: traySlot.modelData.icon || ""
                                         sourceSize.width: 15
                                         sourceSize.height: 15
                                     }
@@ -1039,9 +1049,9 @@ ShellRoot {
                                         cursorShape: Qt.PointingHandCursor
                                         onClicked: mouse => {
                                             if (mouse.button === Qt.RightButton) {
-                                                parent.modelData.secondaryActivate();
+                                                traySlot.modelData.secondaryActivate();
                                             } else {
-                                                parent.modelData.activate();
+                                                traySlot.modelData.activate();
                                             }
                                         }
                                     }
@@ -1064,7 +1074,6 @@ ShellRoot {
                 cornerSize: barWindow.cornerSize
                 fillColor: theme.barBg
                 fillAlpha: theme.barOpacity
-                strokeWidth: 0
             }
 
             RoundCorner {
@@ -1076,7 +1085,6 @@ ShellRoot {
                 cornerSize: barWindow.cornerSize
                 fillColor: theme.barBg
                 fillAlpha: theme.barOpacity
-                strokeWidth: 0
             }
         }
     }
@@ -1089,8 +1097,6 @@ ShellRoot {
             id: bottomCornerWindow
             required property var modelData
             screen: modelData
-
-            WlrLayershell.namespace: "quickshell:screenCorners"
 
             readonly property int cornerSize: theme.cornerRadius
 
@@ -1120,7 +1126,6 @@ ShellRoot {
                 cornerSize: bottomCornerWindow.cornerSize
                 fillColor: theme.barBg
                 fillAlpha: theme.barOpacity
-                strokeWidth: 0
             }
 
             RoundCorner {
@@ -1132,7 +1137,6 @@ ShellRoot {
                 cornerSize: bottomCornerWindow.cornerSize
                 fillColor: theme.barBg
                 fillAlpha: theme.barOpacity
-                strokeWidth: 0
             }
         }
     }

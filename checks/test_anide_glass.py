@@ -18,8 +18,14 @@ class QuickshellBarTest(unittest.TestCase):
     def test_quickshell_files_and_wallbash_theme(self):
         for filename in ("shell.qml", "Colors.qml", "RoundCorner.qml", "theme.json"):
             file_path = QS_DIR / filename
+            share_path = ROOT / "Configs/.local/share/quickshell" / filename
             self.assertTrue(file_path.is_file(), f"missing {filename}")
+            self.assertTrue(share_path.is_file(), f"missing share copy {filename}")
             self.assertNotIn("/home/", file_path.read_text())
+            self.assertEqual(file_path.read_text(), share_path.read_text())
+
+        colors_qml = (QS_DIR / "Colors.qml").read_text()
+        self.assertNotIn("Behavior on barBg", colors_qml)
 
         theme_data = json.loads((QS_DIR / "theme.json").read_text())
         for key in (
@@ -70,6 +76,13 @@ class QuickshellBarTest(unittest.TestCase):
             "RoundCorner",
         ):
             self.assertIn(end4_component, shell_qml)
+        self.assertNotIn("WlrLayershell.namespace", shell_qml)
+        self.assertNotIn("parent.parent.", shell_qml)
+        self.assertNotIn("WheelHandler", shell_qml)
+
+        restore_psv = (ROOT / "Scripts/restore_cfg.psv").read_text()
+        self.assertIn("S|${HOME}/.config/quickshell|shell.qml Colors.qml RoundCorner.qml|hyprland", restore_psv)
+        self.assertIn("O|${HOME}/.local/share|quickshell|hyprland", restore_psv)
 
     def test_quickshell_manifest_and_autostart(self):
         manifest = (ROOT / "Scripts/dots/quickshell.toml").read_text()

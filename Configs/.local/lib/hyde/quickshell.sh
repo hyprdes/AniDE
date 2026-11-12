@@ -18,6 +18,9 @@ XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
 QS_CONFIG_DIR="${XDG_CONFIG_HOME}/quickshell"
 QS_SHARE_DIR="${XDG_DATA_HOME}/quickshell"
 HYDE_CACHE_DIR="${XDG_CACHE_HOME}/hyde"
+QS_LOG_FILE="${XDG_RUNTIME_DIR:-/tmp}/quickshell.log"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_QS_DIR="${SCRIPT_DIR}/../../../.config/quickshell"
 
 find_qs_bin() {
     if command -v quickshell >/dev/null 2>&1; then
@@ -35,11 +38,13 @@ is_qs_running() {
 }
 
 stop_waybar() {
-    if command -v systemctl >/dev/null 2>&1; then
-        systemctl --user stop "hyde-${XDG_SESSION_DESKTOP:-Hyprland}-bar.service" "hyde-Hyprland-bar.service" "waybar.service" >/dev/null 2>&1 || true
-        systemctl --user reset-failed "hyde-${XDG_SESSION_DESKTOP:-Hyprland}-bar.service" "hyde-Hyprland-bar.service" "waybar.service" >/dev/null 2>&1 || true
+    if pgrep -u "${USER:-$(id -un)}" -x waybar >/dev/null 2>&1; then
+        if command -v systemctl >/dev/null 2>&1; then
+            systemctl --user stop "waybar.service" >/dev/null 2>&1 || true
+            systemctl --user reset-failed "waybar.service" >/dev/null 2>&1 || true
+        fi
+        pkill -u "${USER:-$(id -un)}" -x waybar >/dev/null 2>&1 || true
     fi
-    pkill -u "${USER:-$(id -un)}" -x waybar >/dev/null 2>&1 || true
 }
 
 apply_hypr_blur() {
@@ -52,6 +57,7 @@ sync_wallpaper_theme() {
     mkdir -p "${QS_CONFIG_DIR}"
     local dcol_file=""
     local blur_path=""
+    local tmp_json="${QS_CONFIG_DIR}/.theme.json.tmp.$$"
 
     if [[ -e "${HYDE_CACHE_DIR}/wall.blur" ]]; then
         blur_path=$(readlink -f "${HYDE_CACHE_DIR}/wall.blur" 2>/dev/null || printf '%s' "${HYDE_CACHE_DIR}/wall.blur")
@@ -69,16 +75,16 @@ sync_wallpaper_theme() {
         (
             # shellcheck disable=SC1090
             source "${dcol_file}" 2>/dev/null || true
-            local p1="${dcol_pry1:-${wallbash_pry1:-#151217}}"
-            local x12="${dcol_1xa2:-${wallbash_1xa2:-#211c24}}"
-            local x13="${dcol_1xa3:-${wallbash_1xa3:-#2e2732}}"
-            local x14="${dcol_1xa4:-${wallbash_1xa4:-#49414e}}"
-            local x16="${dcol_1xa6:-${wallbash_1xa6:-#988d9e}}"
-            local x19="${dcol_1xa9:-${wallbash_1xa9:-#e9e0eb}}"
-            local x23="${dcol_2xa3:-${wallbash_2xa3:-#3b3242}}"
-            local x24="${dcol_2xa4:-${wallbash_2xa4:-#38303d}}"
-            local x28="${dcol_2xa8:-${wallbash_2xa8:-#dcbff2}}"
-            local x29="${dcol_2xa9:-${wallbash_2xa9:-#e8def8}}"
+            p1="${dcol_pry1:-${wallbash_pry1:-#151217}}"
+            x12="${dcol_1xa2:-${wallbash_1xa2:-#211c24}}"
+            x13="${dcol_1xa3:-${wallbash_1xa3:-#2e2732}}"
+            x14="${dcol_1xa4:-${wallbash_1xa4:-#49414e}}"
+            x16="${dcol_1xa6:-${wallbash_1xa6:-#988d9e}}"
+            x19="${dcol_1xa9:-${wallbash_1xa9:-#e9e0eb}}"
+            x23="${dcol_2xa3:-${wallbash_2xa3:-#3b3242}}"
+            x24="${dcol_2xa4:-${wallbash_2xa4:-#38303d}}"
+            x28="${dcol_2xa8:-${wallbash_2xa8:-#dcbff2}}"
+            x29="${dcol_2xa9:-${wallbash_2xa9:-#e8def8}}"
 
             [[ "${p1}" == \#* ]] || p1="#${p1}"
             [[ "${x12}" == \#* ]] || x12="#${x12}"
@@ -91,7 +97,7 @@ sync_wallpaper_theme() {
             [[ "${x28}" == \#* ]] || x28="#${x28}"
             [[ "${x29}" == \#* ]] || x29="#${x29}"
 
-            cat >"${QS_CONFIG_DIR}/theme.json" <<EOF
+            cat >"${tmp_json}" <<EOF
 {
   "preset": "end4-tonal-spot",
   "barBg": "${p1}",
@@ -115,12 +121,13 @@ sync_wallpaper_theme() {
   "wallBlurPath": "${blur_path}"
 }
 EOF
+            mv -f "${tmp_json}" "${QS_CONFIG_DIR}/theme.json"
         )
         return 0
     fi
 
     if [[ ! -f "${QS_CONFIG_DIR}/theme.json" ]]; then
-        cat >"${QS_CONFIG_DIR}/theme.json" <<EOF
+        cat >"${tmp_json}" <<EOF
 {
   "preset": "end4-tonal-spot",
   "barBg": "#151217",
@@ -144,15 +151,32 @@ EOF
   "wallBlurPath": "${blur_path}"
 }
 EOF
+        mv -f "${tmp_json}" "${QS_CONFIG_DIR}/theme.json"
     fi
 }
 
 ensure_config() {
     mkdir -p "${QS_CONFIG_DIR}"
-    if [[ -d "${QS_SHARE_DIR}" ]]; then
+    local src_dir=""
+    if [[ -d "${QS_SHARE_DIR}" && -f "${QS_SHARE_DIR}/shell.qml" ]]; then
+        src_dir="${QS_SHARE_DIR}"
+    elif [[ -d "${REPO_QS_DIR}" && -f "${REPO_QS_DIR}/shell.qml" ]]; then
+        src_dir="${REPO_QS_DIR}"
+    fi
+
+    if [[ -n "${src_dir}" ]]; then
+        local force_sync=0
+        if [[ -f "${QS_CONFIG_DIR}/shell.qml" ]] && grep -qE 'WlrLayershell\.namespace|parent\.parent\.winClass' "${QS_CONFIG_DIR}/shell.qml" 2>/dev/null; then
+            force_sync=1
+        fi
+        if [[ -f "${QS_CONFIG_DIR}/Colors.qml" ]] && grep -q 'Behavior on barBg' "${QS_CONFIG_DIR}/Colors.qml" 2>/dev/null; then
+            force_sync=1
+        fi
         for qml_file in shell.qml Colors.qml RoundCorner.qml; do
-            if [[ -f "${QS_SHARE_DIR}/${qml_file}" ]] && ! cmp -s "${QS_SHARE_DIR}/${qml_file}" "${QS_CONFIG_DIR}/${qml_file}" 2>/dev/null; then
-                cp -f "${QS_SHARE_DIR}/${qml_file}" "${QS_CONFIG_DIR}/${qml_file}" 2>/dev/null || true
+            if [[ -f "${src_dir}/${qml_file}" ]]; then
+                if [[ "${force_sync}" -eq 1 || ! -f "${QS_CONFIG_DIR}/${qml_file}" || "${src_dir}/${qml_file}" -nt "${QS_CONFIG_DIR}/${qml_file}" ]]; then
+                    cp -f "${src_dir}/${qml_file}" "${QS_CONFIG_DIR}/${qml_file}" 2>/dev/null || true
+                fi
             fi
         done
     fi
@@ -171,7 +195,7 @@ start_qs() {
     if is_qs_running; then
         return 0
     fi
-    nohup "${qs_bin}" -p "${QS_CONFIG_DIR}" >/dev/null 2>&1 &
+    nohup "${qs_bin}" -p "${QS_CONFIG_DIR}" >>"${QS_LOG_FILE}" 2>&1 &
     disown || true
 }
 
@@ -193,7 +217,7 @@ update_qs() {
     stop_waybar
     ensure_config
     apply_hypr_blur
-    if ! is_qs_running; then
+    if ! is_qs_running && [[ -n "${WAYLAND_DISPLAY:-}" ]]; then
         start_qs
     fi
 }
@@ -222,7 +246,7 @@ EOF
 }
 
 case "${1:---watch}" in
-    -w | --watch | start)
+    -w | --watch | --start | start)
         start_qs
         ;;
     -r | --reload | reload | restart)
@@ -231,10 +255,10 @@ case "${1:---watch}" in
     -u | --update | update)
         update_qs
         ;;
-    -H | --hide | hide | toggle)
+    -H | --hide | --toggle | hide | toggle)
         toggle_qs
         ;;
-    -k | --kill | kill | stop)
+    -k | --kill | --stop | kill | stop)
         kill_qs
         ;;
     -h | --help | help)

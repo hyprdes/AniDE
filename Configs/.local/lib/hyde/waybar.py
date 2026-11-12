@@ -14,6 +14,22 @@ import signal
 
 from pathlib import Path
 
+if __name__ == "__main__":
+    _qs_script = Path(__file__).resolve().parent / "quickshell.sh"
+    if _qs_script.is_file():
+        _flag = "--watch"
+        if any(a in sys.argv[1:] for a in ("-G", "--hide")):
+            _flag = "--hide"
+        elif any(a in sys.argv[1:] for a in ("-k", "--kill")):
+            _flag = "--kill"
+        elif any(a in sys.argv[1:] for a in ("-u", "--update")):
+            _flag = "--update"
+        elif any(a in sys.argv[1:] for a in ("-w", "--watch")):
+            _flag = "--watch"
+        else:
+            _flag = "--reload"
+        os.execv("/bin/bash", ["/bin/bash", str(_qs_script), _flag])
+
 import pyutils.wrapper.libnotify as notify
 import pyutils.compositor as HYPRLAND
 import pyutils.logger as logger

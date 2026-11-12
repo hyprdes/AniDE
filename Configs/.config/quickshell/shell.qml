@@ -1,4 +1,4 @@
-// AniDE Quickshell Bar — end-4 Illogical Impulse (ii) Rounded Layout + Dreamy Frosted Mist & Cyan Aura Glass
+// AniDE Quickshell Bar — end-4 Rounded Pill Architecture + image-4 Dreamy Airbrushed Cyan-Obsidian Frosted Glass
 // GPL-3.0-or-later; see CREDITS.md.
 import Quickshell
 import Quickshell.Io
@@ -37,7 +37,16 @@ ShellRoot {
         Quickshell.execDetached(args);
     }
 
-    // Live Wallbash theme.json hot-reload
+    // Helper: converts a QML color + alpha into a standard CSS "rgba(r,g,b,a)" string for HTML5 Context2D gradients
+    function cssRgba(c, a) {
+        var r = Math.round((c && c.r !== undefined ? c.r : 0.0) * 255);
+        var g = Math.round((c && c.g !== undefined ? c.g : 0.9) * 255);
+        var b = Math.round((c && c.b !== undefined ? c.b : 1.0) * 255);
+        var alpha = Math.max(0.0, Math.min(1.0, a));
+        return "rgba(" + r + "," + g + "," + b + "," + alpha.toFixed(3) + ")";
+    }
+
+    // Live theme.json hot-reload
     FileView {
         id: themeFile
         path: Quickshell.env("XDG_CONFIG_HOME")
@@ -120,15 +129,22 @@ ShellRoot {
         }
     }
 
-    // ── Reusable end-4 + Dreamy Frosted Mist Components ──
+    // ── Reusable end-4 + image-4 Dreamy Airbrushed Cyan-Mist Components ──
 
-    // 0. DreamyMistCanvas: Renders soft radial cyan/accent mist clouds + fine frosted stipple grain inside rounded pills
+    // 0. DreamyMistCanvas: Faithfully renders the "profile" capsule from image-4.png:
+    //    - Translucent smoky obsidian base
+    //    - Vivid diagonal electric-cyan (#00e5ff) & ice-white (#9ef8ff) airbrush mist clouds
+    //    - Deep smoky contrast pocket + subtle frosty silver right-edge mist
+    //    - Dense stippled spray-paint grain along the cyan-to-black mist boundary
+    //    - Crisp frosted white-cyan glass rim
     component DreamyMistCanvas: Canvas {
         id: mistCanvas
+        property color baseColor: theme.surfaceBg
+        property real baseOpacity: theme.pillOpacity
         property color glowPrimary: theme.glowColor
         property color glowSecondary: theme.glowSecondary
-        property real mistIntensity: 0.30
-        property real grainIntensity: 0.08
+        property real mistIntensity: 0.62
+        property real grainIntensity: 0.18
         property int seedOffset: 17
 
         anchors.fill: parent
@@ -139,16 +155,17 @@ ShellRoot {
         onHeightChanged: requestPaint()
         onGlowPrimaryChanged: requestPaint()
         onGlowSecondaryChanged: requestPaint()
+        onBaseOpacityChanged: requestPaint()
         onMistIntensityChanged: requestPaint()
 
         onPaint: {
             var ctx = getContext("2d");
             ctx.reset();
-            if (width <= 2 || height <= 2) return;
+            if (width <= 4 || height <= 4) return;
 
             var r = height / 2;
 
-            // Clip strictly to the full stadium/capsule pill shape
+            // Clip to full stadium/capsule pill geometry
             ctx.beginPath();
             ctx.moveTo(r, 0);
             ctx.lineTo(width - r, 0);
@@ -158,76 +175,124 @@ ShellRoot {
             ctx.closePath();
             ctx.clip();
 
-            // 1. Primary diagonal cyan/accent radial mist bloom (left-center, like the "profile" capsule in image-4)
-            var gx1 = width * 0.28;
-            var gy1 = height * 0.38;
-            var gr1 = Math.max(width * 0.48, height * 1.35);
-            var grad1 = ctx.createRadialGradient(gx1, gy1, 1, gx1, gy1, gr1);
-            grad1.addColorStop(0.0, Qt.rgba(glowPrimary.r, glowPrimary.g, glowPrimary.b, mistIntensity));
-            grad1.addColorStop(0.45, Qt.rgba(glowSecondary.r, glowSecondary.g, glowSecondary.b, mistIntensity * 0.48));
-            grad1.addColorStop(1.0, Qt.rgba(glowPrimary.r, glowPrimary.g, glowPrimary.b, 0.0));
-            ctx.fillStyle = grad1;
+            // 1. Translucent smoky obsidian glass base (allows Hyprland Kawase blur to shine through)
+            ctx.fillStyle = shellRoot.cssRgba(baseColor, baseOpacity);
             ctx.fillRect(0, 0, width, height);
 
-            // 2. Secondary dreamy counter-bloom (right-bottom soft mist)
-            var gx2 = width * 0.76;
-            var gy2 = height * 0.68;
-            var gr2 = Math.max(width * 0.40, height * 1.15);
-            var grad2 = ctx.createRadialGradient(gx2, gy2, 1, gx2, gy2, gr2);
-            grad2.addColorStop(0.0, Qt.rgba(glowSecondary.r, glowSecondary.g, glowSecondary.b, mistIntensity * 0.65));
-            grad2.addColorStop(0.55, Qt.rgba(glowPrimary.r, glowPrimary.g, glowPrimary.b, mistIntensity * 0.22));
-            grad2.addColorStop(1.0, Qt.rgba(glowSecondary.r, glowSecondary.g, glowSecondary.b, 0.0));
-            ctx.fillStyle = grad2;
+            // 2. Primary electric-cyan diagonal mist cloud (sweeping from top-left/center-left to bottom-center, exactly like "profile" in image-4)
+            var cx1 = width * 0.34;
+            var cy1 = height * 0.22;
+            var cr1 = Math.max(width * 0.46, height * 1.45);
+            var gradCyan1 = ctx.createRadialGradient(cx1, cy1, 1, cx1, cy1, cr1);
+            gradCyan1.addColorStop(0.0, shellRoot.cssRgba(glowSecondary, Math.min(0.88, mistIntensity * 1.10)));
+            gradCyan1.addColorStop(0.28, shellRoot.cssRgba(glowPrimary, mistIntensity));
+            gradCyan1.addColorStop(0.62, shellRoot.cssRgba(glowPrimary, mistIntensity * 0.38));
+            gradCyan1.addColorStop(1.0, shellRoot.cssRgba(glowPrimary, 0.0));
+            ctx.fillStyle = gradCyan1;
             ctx.fillRect(0, 0, width, height);
 
-            // 3. Soft top-edge frosty sheen
-            var sheen = ctx.createLinearGradient(0, 0, 0, height * 0.55);
-            sheen.addColorStop(0.0, Qt.rgba(1, 1, 1, 0.14));
-            sheen.addColorStop(1.0, Qt.rgba(1, 1, 1, 0.0));
-            ctx.fillStyle = sheen;
-            ctx.fillRect(0, 0, width, height * 0.55);
+            // 3. Lower-left / center-bottom cyan mist continuation (creates the diagonal cyan band across the pill)
+            var cx2 = width * 0.42;
+            var cy2 = height * 0.88;
+            var cr2 = Math.max(width * 0.42, height * 1.30);
+            var gradCyan2 = ctx.createRadialGradient(cx2, cy2, 1, cx2, cy2, cr2);
+            gradCyan2.addColorStop(0.0, shellRoot.cssRgba(glowSecondary, Math.min(0.82, mistIntensity * 0.95)));
+            gradCyan2.addColorStop(0.35, shellRoot.cssRgba(glowPrimary, mistIntensity * 0.80));
+            gradCyan2.addColorStop(0.70, shellRoot.cssRgba(glowPrimary, mistIntensity * 0.22));
+            gradCyan2.addColorStop(1.0, shellRoot.cssRgba(glowPrimary, 0.0));
+            ctx.fillStyle = gradCyan2;
+            ctx.fillRect(0, 0, width, height);
 
-            // 4. Deterministic frosted stipple / airbrush grain (like the stippled cyan glow in image-4)
-            var dots = Math.min(180, Math.max(45, Math.floor((width * height) / 42)));
-            var s = mistCanvas.seedOffset + Math.floor(width);
+            // 4. Left-edge turquoise rim glow (like the glowing left curve of "profile" in image-4)
+            var cxLeft = width * 0.08;
+            var cyLeft = height * 0.58;
+            var crLeft = Math.max(width * 0.24, height * 0.95);
+            var gradLeft = ctx.createRadialGradient(cxLeft, cyLeft, 1, cxLeft, cyLeft, crLeft);
+            gradLeft.addColorStop(0.0, shellRoot.cssRgba(glowPrimary, mistIntensity * 0.72));
+            gradLeft.addColorStop(0.55, shellRoot.cssRgba(glowPrimary, mistIntensity * 0.25));
+            gradLeft.addColorStop(1.0, shellRoot.cssRgba(glowPrimary, 0.0));
+            ctx.fillStyle = gradLeft;
+            ctx.fillRect(0, 0, width, height);
+
+            // 5. Smoky obsidian depth pocket on the right-center + subtle frosty white-silver mist near the right edge
+            var cxDark = width * 0.70;
+            var cyDark = height * 0.48;
+            var crDark = Math.max(width * 0.32, height * 1.1);
+            var gradDark = ctx.createRadialGradient(cxDark, cyDark, 1, cxDark, cyDark, crDark);
+            gradDark.addColorStop(0.0, "rgba(3, 5, 9, 0.52)");
+            gradDark.addColorStop(0.65, "rgba(3, 5, 9, 0.22)");
+            gradDark.addColorStop(1.0, "rgba(3, 5, 9, 0.0)");
+            ctx.fillStyle = gradDark;
+            ctx.fillRect(0, 0, width, height);
+
+            var cxFrost = width * 0.86;
+            var cyFrost = height * 0.46;
+            var crFrost = Math.max(width * 0.24, height * 0.90);
+            var gradFrost = ctx.createRadialGradient(cxFrost, cyFrost, 1, cxFrost, cyFrost, crFrost);
+            gradFrost.addColorStop(0.0, "rgba(220, 240, 250, 0.24)");
+            gradFrost.addColorStop(0.55, "rgba(180, 225, 245, 0.10)");
+            gradFrost.addColorStop(1.0, "rgba(220, 240, 250, 0.0)");
+            ctx.fillStyle = gradFrost;
+            ctx.fillRect(0, 0, width, height);
+
+            // 6. Dense stippled airbrush / spray-noise grain (matches the grainy cyan/black airbrush texture of image-4)
+            var dots = Math.min(420, Math.max(110, Math.floor((width * height) / 16)));
+            var s = mistCanvas.seedOffset + Math.floor(width * 3);
             for (var i = 0; i < dots; i++) {
                 s = (s * 1103515245 + 12345) & 0x7fffffff;
                 var px = (s % 1000) / 1000.0 * width;
                 s = (s * 1103515245 + 12345) & 0x7fffffff;
                 var py = (s % 1000) / 1000.0 * height;
-                var useCyan = (i % 3 !== 0);
-                var alpha = grainIntensity * (0.45 + ((s % 100) / 180.0));
-                ctx.fillStyle = useCyan
-                    ? Qt.rgba(glowSecondary.r, glowSecondary.g, glowSecondary.b, alpha)
-                    : Qt.rgba(1.0, 1.0, 1.0, alpha * 0.85);
-                ctx.fillRect(px, py, 1.25, 1.25);
+
+                var kind = i % 5;
+                var alpha = grainIntensity * (0.45 + ((s % 100) / 140.0));
+                var dotSize = (i % 4 === 0) ? 1.55 : 1.15;
+
+                if (kind === 0 || kind === 1) {
+                    ctx.fillStyle = shellRoot.cssRgba(glowPrimary, alpha);
+                } else if (kind === 2) {
+                    ctx.fillStyle = shellRoot.cssRgba(glowSecondary, alpha * 0.95);
+                } else if (kind === 3) {
+                    ctx.fillStyle = "rgba(255, 255, 255, " + (alpha * 0.70).toFixed(3) + ")";
+                } else {
+                    ctx.fillStyle = "rgba(3, 6, 10, " + (alpha * 0.85).toFixed(3) + ")";
+                }
+                ctx.fillRect(px, py, dotSize, dotSize);
             }
+
+            // 7. Soft top frosted glass specular sheen
+            var sheen = ctx.createLinearGradient(0, 0, 0, height * 0.48);
+            sheen.addColorStop(0.0, "rgba(255, 255, 255, 0.22)");
+            sheen.addColorStop(0.5, "rgba(185, 246, 255, 0.06)");
+            sheen.addColorStop(1.0, "rgba(255, 255, 255, 0.0)");
+            ctx.fillStyle = sheen;
+            ctx.fillRect(0, 0, width, height * 0.48);
         }
     }
 
-    // 1. end-4 BarGroup upgraded with Full Stadium Rounding + Dreamy Frosted Mist & Specular Glass Rim
+    // 1. end-4 BarGroup upgraded with image-4 Airbrushed Cyan-Obsidian Frosted Glass + Silver-Cyan Rim
     component BarGroup: Item {
         id: grpRoot
-        property real padding: 10
-        property real mistIntensity: 0.28
+        property real padding: 11
+        property real mistIntensity: 0.62
         property int seedOffset: 23
         default property alias items: grpRow.children
         implicitWidth: grpRow.implicitWidth + padding * 2
         implicitHeight: 42
 
-        // Outer soft cyan ambient halo behind the capsule
+        // Soft outer cyan ambient aura halo around the capsule
         Rectangle {
             anchors {
                 fill: pillBody
-                margins: -2
+                margins: -2.5
             }
             radius: height / 2
             color: "transparent"
-            border.width: 2
-            border.color: Qt.alpha(theme.glowColor, 0.12)
+            border.width: 2.5
+            border.color: Qt.alpha(theme.glowColor, 0.16)
         }
 
-        // Main Frosted Obsidian-Cyan Pill Body (34px tall inside 42px bar -> full 17px stadium radius)
+        // Main Frosted Airbrushed Capsule (34px tall inside 42px bar -> 17px full stadium radius)
         Rectangle {
             id: pillBody
             anchors {
@@ -236,32 +301,25 @@ ShellRoot {
                 bottomMargin: 4
             }
             radius: height / 2
-            color: Qt.alpha(theme.surfaceBg, theme.pillOpacity)
-            border.width: 1.2
-            border.color: Qt.alpha(theme.borderColor, 0.36)
-
-            gradient: Gradient {
-                orientation: Gradient.Horizontal
-                GradientStop { position: 0.0; color: Qt.alpha(theme.surfaceBg, Math.min(0.92, theme.pillOpacity + 0.08)) }
-                GradientStop { position: 0.5; color: Qt.alpha(theme.barBg, theme.pillOpacity) }
-                GradientStop { position: 1.0; color: Qt.alpha(theme.surfaceBg, Math.min(0.92, theme.pillOpacity + 0.06)) }
-            }
+            color: "transparent"
+            border.width: 1.35
+            border.color: Qt.alpha(theme.borderColor, 0.48)
 
             DreamyMistCanvas {
                 mistIntensity: grpRoot.mistIntensity
                 seedOffset: grpRoot.seedOffset
             }
 
-            // Crisp inner top specular rim highlight (like the white-silver capsule rim in image-4)
+            // Inner frosted white-silver specular rim (matches the double-layered glass outline on "profile" in image-4)
             Rectangle {
                 anchors {
                     fill: parent
-                    margins: 1
+                    margins: 1.2
                 }
                 radius: height / 2
                 color: "transparent"
                 border.width: 0.8
-                border.color: Qt.alpha("#ffffff", 0.18)
+                border.color: Qt.alpha("#ffffff", 0.24)
             }
         }
 
@@ -284,7 +342,7 @@ ShellRoot {
         property real value: 0.0 // 0.0 .. 1.0
         property string iconText: ""
         property color primaryColor: theme.actBg
-        property color trackColor: Qt.alpha(theme.mainFg, 0.16)
+        property color trackColor: Qt.alpha("#ffffff", 0.22)
         property int size: 20
 
         implicitWidth: size
@@ -308,24 +366,24 @@ ShellRoot {
                 ctx.beginPath();
                 ctx.arc(cx, cy, r, 0, Math.PI * 2, false);
                 ctx.lineWidth = 2.2;
-                ctx.strokeStyle = ringRoot.trackColor;
+                ctx.strokeStyle = shellRoot.cssRgba(ringRoot.trackColor, 0.26);
                 ctx.stroke();
 
-                // Soft glow + Value arc
+                // Soft cyan halo + Value arc
                 var clamped = Math.max(0.0, Math.min(1.0, ringRoot.value));
                 if (clamped > 0.01) {
                     ctx.beginPath();
                     ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + clamped * Math.PI * 2, false);
-                    ctx.lineWidth = 3.8;
+                    ctx.lineWidth = 4.2;
                     ctx.lineCap = "round";
-                    ctx.strokeStyle = Qt.rgba(ringRoot.primaryColor.r, ringRoot.primaryColor.g, ringRoot.primaryColor.b, 0.28);
+                    ctx.strokeStyle = shellRoot.cssRgba(ringRoot.primaryColor, 0.36);
                     ctx.stroke();
 
                     ctx.beginPath();
                     ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + clamped * Math.PI * 2, false);
                     ctx.lineWidth = 2.2;
                     ctx.lineCap = "round";
-                    ctx.strokeStyle = ringRoot.primaryColor;
+                    ctx.strokeStyle = shellRoot.cssRgba(ringRoot.primaryColor, 1.0);
                     ctx.stroke();
                 }
             }
@@ -351,12 +409,12 @@ ShellRoot {
         implicitHeight: 24
         radius: 12
         color: utilMouse.containsMouse
-            ? Qt.alpha(theme.actBg, 0.28)
-            : Qt.alpha(theme.layer2Bg, 0.78)
-        border.width: 1
+            ? Qt.alpha(theme.actBg, 0.36)
+            : Qt.alpha("#05080d", 0.52)
+        border.width: 1.1
         border.color: utilMouse.containsMouse
-            ? Qt.alpha(theme.borderColor, 0.65)
-            : Qt.alpha("#ffffff", 0.16)
+            ? Qt.alpha("#ffffff", 0.80)
+            : Qt.alpha(theme.borderColor, 0.36)
 
         Behavior on color {
             ColorAnimation { duration: 150 }
@@ -368,7 +426,7 @@ ShellRoot {
         Text {
             anchors.centerIn: parent
             text: utilBtn.iconText
-            color: utilMouse.containsMouse ? theme.hvrFg : theme.mainFg
+            color: theme.mainFg
             font.family: "JetBrainsMono Nerd Font"
             font.pixelSize: 12
         }
@@ -382,7 +440,7 @@ ShellRoot {
         }
     }
 
-    // ── TOP BAR WINDOW (end-4 Bar.qml + BarContent.qml with Frosted Glass Blur) ──
+    // ── TOP BAR WINDOW (end-4 Bar.qml + BarContent.qml with Translucent Cyan-Mist Glass) ──
     Variants {
         model: Quickshell.screens
 
@@ -419,7 +477,7 @@ ShellRoot {
                 item: barContent
             }
 
-            // BarContent (42px height, translucent obsidian-glass backdrop + subtle ambient mist)
+            // BarContent (42px height, ultra-translucent smoky glass + full-width ambient cyan mist clouds)
             Rectangle {
                 id: barContent
                 anchors {
@@ -430,25 +488,58 @@ ShellRoot {
                 height: barWindow.barHeight
                 color: Qt.alpha(theme.barBg, theme.barOpacity)
 
-                // Subtle bottom luminous rim line connecting into the top-left & top-right RoundCorners
+                // Full-width subtle ambient cyan & ice mist across the translucent bar strip
+                Canvas {
+                    id: barAmbientMist
+                    anchors.fill: parent
+                    antialiasing: true
+                    onWidthChanged: requestPaint()
+                    onHeightChanged: requestPaint()
+                    onPaint: {
+                        var ctx = getContext("2d");
+                        ctx.reset();
+                        if (width <= 4 || height <= 4) return;
+
+                        var gLeft = ctx.createRadialGradient(width * 0.14, height * 0.5, 2, width * 0.14, height * 0.5, width * 0.22);
+                        gLeft.addColorStop(0.0, shellRoot.cssRgba(theme.glowColor, 0.18));
+                        gLeft.addColorStop(1.0, shellRoot.cssRgba(theme.glowColor, 0.0));
+                        ctx.fillStyle = gLeft;
+                        ctx.fillRect(0, 0, width, height);
+
+                        var gCenter = ctx.createRadialGradient(width * 0.50, height * 0.5, 4, width * 0.50, height * 0.5, width * 0.30);
+                        gCenter.addColorStop(0.0, shellRoot.cssRgba(theme.glowSecondary, 0.16));
+                        gCenter.addColorStop(0.5, shellRoot.cssRgba(theme.glowColor, 0.08));
+                        gCenter.addColorStop(1.0, shellRoot.cssRgba(theme.glowColor, 0.0));
+                        ctx.fillStyle = gCenter;
+                        ctx.fillRect(0, 0, width, height);
+
+                        var gRight = ctx.createRadialGradient(width * 0.88, height * 0.5, 2, width * 0.88, height * 0.5, width * 0.20);
+                        gRight.addColorStop(0.0, shellRoot.cssRgba(theme.glowColor, 0.16));
+                        gRight.addColorStop(1.0, shellRoot.cssRgba(theme.glowColor, 0.0));
+                        ctx.fillStyle = gRight;
+                        ctx.fillRect(0, 0, width, height);
+                    }
+                }
+
+                // Luminous frosted bottom border line connecting seamlessly into the top-left & top-right RoundCorners
                 Rectangle {
                     anchors {
                         bottom: parent.bottom
                         left: parent.left
                         right: parent.right
                     }
-                    height: 1.2
+                    height: 1.3
                     gradient: Gradient {
                         orientation: Gradient.Horizontal
-                        GradientStop { position: 0.0; color: Qt.alpha(theme.borderColor, 0.28) }
-                        GradientStop { position: 0.25; color: Qt.alpha("#ffffff", 0.14) }
-                        GradientStop { position: 0.5; color: Qt.alpha(theme.glowColor, 0.34) }
-                        GradientStop { position: 0.75; color: Qt.alpha("#ffffff", 0.14) }
-                        GradientStop { position: 1.0; color: Qt.alpha(theme.borderColor, 0.28) }
+                        GradientStop { position: 0.0; color: Qt.alpha(theme.borderColor, 0.38) }
+                        GradientStop { position: 0.25; color: Qt.alpha("#ffffff", 0.22) }
+                        GradientStop { position: 0.5; color: Qt.alpha(theme.glowColor, 0.52) }
+                        GradientStop { position: 0.75; color: Qt.alpha("#ffffff", 0.22) }
+                        GradientStop { position: 1.0; color: Qt.alpha(theme.borderColor, 0.38) }
                     }
                 }
 
-                // ── 1. LEFT SECTION (Frosted Distro Pill + Two-line ActiveWindow; scroll for Brightness) ──
+                // ── 1. LEFT SECTION (Frosted Distro Pill + "#Soul's market" Style ActiveWindow Pill; scroll for Brightness) ──
                 MouseArea {
                     id: leftSideArea
                     anchors {
@@ -470,9 +561,9 @@ ShellRoot {
 
                     RowLayout {
                         anchors.fill: parent
-                        spacing: 8
+                        spacing: 6
 
-                        // LeftSidebarButton: Frosted glowing circular capsule at leftMargin = screenRounding
+                        // LeftSidebarButton: Airbrushed cyan-obsidian circular capsule at leftMargin = screenRounding
                         Rectangle {
                             id: leftSidebarBtn
                             Layout.alignment: Qt.AlignVCenter
@@ -480,20 +571,14 @@ ShellRoot {
                             implicitWidth: 34
                             implicitHeight: 34
                             radius: 17
-                            color: leftBtnMouse.containsMouse
-                                ? Qt.alpha(theme.actBg, 0.24)
-                                : Qt.alpha(theme.surfaceBg, theme.pillOpacity)
-                            border.width: 1.2
+                            color: "transparent"
+                            border.width: 1.35
                             border.color: leftBtnMouse.containsMouse
-                                ? Qt.alpha(theme.actBg, 0.75)
-                                : Qt.alpha(theme.borderColor, 0.38)
-
-                            Behavior on color {
-                                ColorAnimation { duration: 150 }
-                            }
+                                ? Qt.alpha("#ffffff", 0.85)
+                                : Qt.alpha(theme.borderColor, 0.48)
 
                             DreamyMistCanvas {
-                                mistIntensity: leftBtnMouse.containsMouse ? 0.42 : 0.26
+                                mistIntensity: leftBtnMouse.containsMouse ? 0.78 : 0.62
                                 seedOffset: 7
                             }
 
@@ -505,7 +590,7 @@ ShellRoot {
                                 font.pixelSize: 17
                             }
 
-                            // Tiny cyan ping dot at bottom-right (like end-4 LeftSidebarButton + image-4 accent)
+                            // Glowing electric-cyan ping dot at bottom-right
                             Rectangle {
                                 anchors {
                                     bottom: parent.bottom
@@ -518,7 +603,7 @@ ShellRoot {
                                 radius: 3.5
                                 color: theme.actBg
                                 border.width: 1
-                                border.color: theme.barBg
+                                border.color: "#ffffff"
                             }
 
                             MouseArea {
@@ -537,41 +622,58 @@ ShellRoot {
                             }
                         }
 
-                        // end-4 ActiveWindow (Two-line stacked: small misty app class on top, crisp title on bottom)
-                        ColumnLayout {
-                            Layout.rightMargin: 12
-                            Layout.fillWidth: true
+                        // ActiveWindow wrapped in a Dreamy Frosted Pill styled like "#Soul's market" in image-4
+                        BarGroup {
                             Layout.alignment: Qt.AlignVCenter
-                            spacing: -2
+                            Layout.maximumWidth: Math.max(160, leftSideArea.width - barWindow.cornerSize - 56)
+                            padding: 12
+                            mistIntensity: 0.58
+                            seedOffset: 19
 
-                            Text {
-                                Layout.fillWidth: true
-                                elide: Text.ElideRight
-                                text: shellRoot.activeWinClass !== ""
-                                    ? ("#" + shellRoot.activeWinClass)
-                                    : ((Hyprland.activeToplevel && Hyprland.activeToplevel.title) ? "#application" : "#AniDE • Desktop")
-                                color: theme.actBg
-                                font.family: "JetBrainsMono Nerd Font"
-                                font.pixelSize: 10
-                                font.weight: Font.DemiBold
-                            }
+                            ColumnLayout {
+                                spacing: -2
 
-                            Text {
-                                Layout.fillWidth: true
-                                elide: Text.ElideRight
-                                text: (Hyprland.activeToplevel && Hyprland.activeToplevel.title)
-                                    ? Hyprland.activeToplevel.title
-                                    : (shellRoot.activeWinTitle !== "" ? shellRoot.activeWinTitle : ("Workspace " + barWindow.activeWsId))
-                                color: theme.mainFg
-                                font.family: "JetBrainsMono Nerd Font"
-                                font.pixelSize: 12
-                                font.weight: Font.Medium
+                                RowLayout {
+                                    spacing: 0
+                                    Text {
+                                        text: "#S"
+                                        color: theme.actBg
+                                        font.family: "JetBrainsMono Nerd Font"
+                                        font.pixelSize: 10
+                                        font.weight: Font.ExtraBold
+                                    }
+                                    Text {
+                                        Layout.maximumWidth: 160
+                                        elide: Text.ElideRight
+                                        text: shellRoot.activeWinClass !== ""
+                                            ? ("oul • " + shellRoot.activeWinClass)
+                                            : ((Hyprland.activeToplevel && Hyprland.activeToplevel.title) ? "oul • app" : "oul's • AniDE")
+                                        color: theme.mainFg
+                                        font.family: "JetBrainsMono Nerd Font"
+                                        font.pixelSize: 10
+                                        font.weight: Font.Bold
+                                    }
+                                }
+
+                                Text {
+                                    Layout.maximumWidth: 185
+                                    elide: Text.ElideRight
+                                    text: (Hyprland.activeToplevel && Hyprland.activeToplevel.title)
+                                        ? Hyprland.activeToplevel.title
+                                        : (shellRoot.activeWinTitle !== "" ? shellRoot.activeWinTitle : ("w o r k s p a c e  " + barWindow.activeWsId))
+                                    color: theme.onSecondaryContainer
+                                    font.family: "JetBrainsMono Nerd Font"
+                                    font.pixelSize: 11
+                                    font.weight: Font.Medium
+                                }
                             }
                         }
+
+                        Item { Layout.fillWidth: true }
                     }
                 }
 
-                // ── 2. MIDDLE SECTION (Three Rounded Dreamy Frosted BarGroup Capsules) ──
+                // ── 2. MIDDLE SECTION (Three Rounded Airbrushed Cyan-Mist BarGroup Capsules) ──
                 Row {
                     id: middleSection
                     anchors {
@@ -585,8 +687,8 @@ ShellRoot {
                     BarGroup {
                         id: leftCenterGroup
                         anchors.verticalCenter: parent.verticalCenter
-                        padding: 11
-                        mistIntensity: 0.28
+                        padding: 12
+                        mistIntensity: 0.62
                         seedOffset: 31
 
                         // RAM Resource
@@ -602,7 +704,7 @@ ShellRoot {
                                 color: theme.mainFg
                                 font.family: "JetBrainsMono Nerd Font"
                                 font.pixelSize: 11
-                                font.weight: Font.Medium
+                                font.weight: Font.Bold
                             }
                         }
 
@@ -620,17 +722,17 @@ ShellRoot {
                                 color: theme.mainFg
                                 font.family: "JetBrainsMono Nerd Font"
                                 font.pixelSize: 11
-                                font.weight: Font.Medium
+                                font.weight: Font.Bold
                             }
                         }
 
-                        // Subtle vertical glass divider
+                        // Subtle vertical frosted divider
                         Rectangle {
                             Layout.leftMargin: 2
                             Layout.rightMargin: 2
                             width: 1
                             height: 14
-                            color: Qt.alpha("#ffffff", 0.16)
+                            color: Qt.alpha("#ffffff", 0.24)
                         }
 
                         // Media (MPRIS / AniSub)
@@ -645,7 +747,7 @@ ShellRoot {
                             CircularResourceRing {
                                 value: (mediaWidget.activePlayer && mediaWidget.activePlayer.length > 0)
                                     ? (mediaWidget.activePlayer.position / mediaWidget.activePlayer.length)
-                                    : (mediaWidget.hasTrack && mediaWidget.activePlayer.isPlaying ? 0.65 : 0.35)
+                                    : (mediaWidget.hasTrack && mediaWidget.activePlayer.isPlaying ? 0.65 : 0.42)
                                 iconText: (mediaWidget.hasTrack && mediaWidget.activePlayer.isPlaying) ? "" : "󰎈"
                                 primaryColor: theme.actBg
                             }
@@ -659,7 +761,7 @@ ShellRoot {
                                 color: theme.mainFg
                                 font.family: "JetBrainsMono Nerd Font"
                                 font.pixelSize: 11
-                                font.weight: Font.Medium
+                                font.weight: Font.Bold
 
                                 MouseArea {
                                     anchors.fill: parent
@@ -679,12 +781,12 @@ ShellRoot {
                         }
                     }
 
-                    // 2B. Middle-Center BarGroup: Workspaces with Connected Occupied Capsules + Dreamy Glowing Liquid Pill
+                    // 2B. Middle-Center BarGroup: Workspaces with Connected Occupied Capsules + Glowing Cyan Liquid Pill ("profile" centerpiece)
                     BarGroup {
                         id: middleCenterGroup
                         anchors.verticalCenter: parent.verticalCenter
-                        padding: 6
-                        mistIntensity: 0.36
+                        padding: 7
+                        mistIntensity: 0.72
                         seedOffset: 73
 
                         Item {
@@ -725,7 +827,7 @@ ShellRoot {
                                 }
                             }
 
-                            // Layer 1: Connected Occupied Workspace Capsules (frosted glass pills stretching across occupied neighbors)
+                            // Layer 1: Connected Occupied Workspace Capsules (frosted cyan-tinted glass pills stretching across occupied neighbors)
                             Repeater {
                                 model: 10
 
@@ -749,9 +851,9 @@ ShellRoot {
                                             + (parent.nextOcc ? wsContainer.activeMargin * 2 : 0)
                                         height: wsContainer.activeSize
                                         radius: wsContainer.activeSize / 2
-                                        color: Qt.alpha(theme.accentSecondary, 0.72)
+                                        color: Qt.alpha(theme.actBg, 0.18)
                                         border.width: 1
-                                        border.color: Qt.alpha(theme.borderColor, 0.22)
+                                        border.color: Qt.alpha(theme.borderColor, 0.34)
                                     }
                                 }
                             }
@@ -760,13 +862,13 @@ ShellRoot {
                             Rectangle {
                                 z: 1
                                 anchors.verticalCenter: parent.verticalCenter
-                                x: activeIndicator.x - 4
-                                width: activeIndicator.width + 8
-                                height: activeIndicator.height + 6
+                                x: activeIndicator.x - 5
+                                width: activeIndicator.width + 10
+                                height: activeIndicator.height + 8
                                 radius: height / 2
-                                color: Qt.alpha(theme.glowColor, 0.28)
+                                color: Qt.alpha(theme.glowColor, 0.36)
                                 border.width: 1
-                                border.color: Qt.alpha(theme.glowSecondary, 0.35)
+                                border.color: Qt.alpha(theme.glowSecondary, 0.45)
                             }
 
                             // Layer 2B: Liquid Stretchy Active Indicator (TrailingIndicator with luminous cyan-ice gradient & rim)
@@ -779,14 +881,14 @@ ShellRoot {
                                 height: wsContainer.activeSize
                                 radius: wsContainer.activeSize / 2
                                 color: theme.actBg
-                                border.width: 1.2
-                                border.color: Qt.alpha("#ffffff", 0.72)
+                                border.width: 1.3
+                                border.color: "#ffffff"
 
                                 gradient: Gradient {
                                     orientation: Gradient.Horizontal
-                                    GradientStop { position: 0.0; color: theme.glowSecondary }
-                                    GradientStop { position: 0.5; color: theme.actBg }
-                                    GradientStop { position: 1.0; color: theme.glowColor }
+                                    GradientStop { position: 0.0; color: "#ffffff" }
+                                    GradientStop { position: 0.35; color: theme.glowSecondary }
+                                    GradientStop { position: 1.0; color: theme.actBg }
                                 }
                             }
 
@@ -811,7 +913,7 @@ ShellRoot {
                                         height: wsContainer.activeSize
                                         radius: wsContainer.activeSize / 2
                                         color: wsHit.containsMouse && !parent.isActive
-                                            ? Qt.alpha(theme.actBg, 0.22)
+                                            ? Qt.alpha(theme.actBg, 0.26)
                                             : "transparent"
                                     }
 
@@ -820,10 +922,10 @@ ShellRoot {
                                         text: parent.wsId.toString()
                                         color: parent.isActive
                                             ? theme.actFg
-                                            : (parent.isOcc ? theme.onSecondaryContainer : theme.subFg)
+                                            : (parent.isOcc ? "#ffffff" : Qt.alpha("#ffffff", 0.68))
                                         font.family: "JetBrainsMono Nerd Font"
                                         font.pixelSize: 12
-                                        font.weight: parent.isActive ? Font.ExtraBold : Font.Medium
+                                        font.weight: parent.isActive ? Font.ExtraBold : Font.Bold
                                     }
 
                                     MouseArea {
@@ -838,24 +940,34 @@ ShellRoot {
                         }
                     }
 
-                    // 2C. Right-Center BarGroup: ClockWidget + CircleUtilButtons + OneUI BatteryIndicator
+                    // 2C. Right-Center BarGroup: ClockWidget ("2025" two-tone style) + CircleUtilButtons + OneUI BatteryIndicator
                     BarGroup {
                         id: rightCenterGroup
                         anchors.verticalCenter: parent.verticalCenter
-                        padding: 11
-                        mistIntensity: 0.28
+                        padding: 12
+                        mistIntensity: 0.62
                         seedOffset: 109
 
-                        // ClockWidget (Bold Time • Misty Date, styled like "2025" pill in image-4)
+                        // ClockWidget (White hours + Electric Cyan minutes, styled directly like "2025" in image-4!)
                         RowLayout {
-                            spacing: 5
+                            spacing: 4
 
-                            Text {
-                                text: shellRoot.timeText
-                                color: theme.mainFg
-                                font.family: "JetBrainsMono Nerd Font"
-                                font.pixelSize: 14
-                                font.weight: Font.Bold
+                            RowLayout {
+                                spacing: 0
+                                Text {
+                                    text: shellRoot.timeText.length >= 3 ? shellRoot.timeText.slice(0, 3) : shellRoot.timeText
+                                    color: "#ffffff"
+                                    font.family: "JetBrainsMono Nerd Font"
+                                    font.pixelSize: 14
+                                    font.weight: Font.ExtraBold
+                                }
+                                Text {
+                                    text: shellRoot.timeText.length >= 5 ? shellRoot.timeText.slice(3, 5) : ""
+                                    color: theme.actBg
+                                    font.family: "JetBrainsMono Nerd Font"
+                                    font.pixelSize: 14
+                                    font.weight: Font.ExtraBold
+                                }
                             }
 
                             Text {
@@ -871,17 +983,17 @@ ShellRoot {
                                 color: theme.onSecondaryContainer
                                 font.family: "JetBrainsMono Nerd Font"
                                 font.pixelSize: 11
-                                font.weight: Font.Medium
+                                font.weight: Font.Bold
                             }
                         }
 
-                        // Subtle vertical glass divider
+                        // Subtle vertical frosted divider
                         Rectangle {
                             Layout.leftMargin: 2
                             Layout.rightMargin: 2
                             width: 1
                             height: 14
-                            color: Qt.alpha("#ffffff", 0.16)
+                            color: Qt.alpha("#ffffff", 0.24)
                         }
 
                         // end-4 UtilButtons (Circular 24x24 frosted buttons)
@@ -920,9 +1032,9 @@ ShellRoot {
                             Rectangle {
                                 anchors.fill: parent
                                 radius: 9.5
-                                color: Qt.alpha(theme.accentSecondary, 0.72)
+                                color: Qt.alpha("#05080d", 0.58)
                                 border.width: 1
-                                border.color: Qt.alpha(theme.borderColor, 0.42)
+                                border.color: Qt.alpha(theme.borderColor, 0.48)
                                 clip: true
 
                                 Rectangle {
@@ -959,7 +1071,7 @@ ShellRoot {
                     }
                 }
 
-                // ── 3. RIGHT SECTION (SysTray + Frosted Right Status Pill; scroll for Volume) ──
+                // ── 3. RIGHT SECTION (SysTray + Airbrushed Cyan-Mist Right Status Pill; scroll for Volume) ──
                 MouseArea {
                     id: rightSideArea
                     anchors {
@@ -984,7 +1096,7 @@ ShellRoot {
                         layoutDirection: Qt.RightToLeft
                         spacing: 8
 
-                        // RightSidebarButton status capsule (frosted pill with luminous rim at rightMargin = screenRounding)
+                        // RightSidebarButton status capsule (airbrushed cyan-mist pill at rightMargin = screenRounding)
                         Rectangle {
                             id: rightStatusPill
                             Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
@@ -992,18 +1104,18 @@ ShellRoot {
                             implicitWidth: rightIndicators.implicitWidth + 24
                             implicitHeight: 34
                             radius: 17
-                            color: Qt.alpha(theme.surfaceBg, theme.pillOpacity)
-                            border.width: 1.2
+                            color: "transparent"
+                            border.width: 1.35
                             border.color: rightSideArea.containsMouse
-                                ? Qt.alpha(theme.actBg, 0.65)
-                                : Qt.alpha(theme.borderColor, 0.38)
+                                ? Qt.alpha("#ffffff", 0.80)
+                                : Qt.alpha(theme.borderColor, 0.48)
 
                             Behavior on border.color {
                                 ColorAnimation { duration: 150 }
                             }
 
                             DreamyMistCanvas {
-                                mistIntensity: rightSideArea.containsMouse ? 0.36 : 0.24
+                                mistIntensity: rightSideArea.containsMouse ? 0.74 : 0.60
                                 seedOffset: 151
                             }
 
@@ -1028,7 +1140,7 @@ ShellRoot {
                                         color: theme.mainFg
                                         font.family: "JetBrainsMono Nerd Font"
                                         font.pixelSize: 11
-                                        font.weight: Font.Medium
+                                        font.weight: Font.Bold
                                     }
                                     MouseArea {
                                         anchors.fill: parent
@@ -1129,10 +1241,10 @@ ShellRoot {
                                     implicitHeight: 24
                                     radius: 12
                                     color: trayMouse.containsMouse
-                                        ? Qt.alpha(theme.actBg, 0.24)
-                                        : Qt.alpha(theme.surfaceBg, 0.55)
+                                        ? Qt.alpha(theme.actBg, 0.32)
+                                        : Qt.alpha("#05080d", 0.50)
                                     border.width: 1
-                                    border.color: Qt.alpha("#ffffff", 0.14)
+                                    border.color: Qt.alpha(theme.borderColor, 0.34)
 
                                     Image {
                                         anchors.centerIn: parent
@@ -1174,8 +1286,10 @@ ShellRoot {
                 }
                 corner: "top-left"
                 cornerSize: barWindow.cornerSize
-                fillColor: Qt.alpha(theme.barBg, theme.barOpacity)
-                strokeColor: Qt.alpha(theme.borderColor, 0.30)
+                fillColor: theme.barBg
+                fillAlpha: theme.barOpacity
+                strokeColor: theme.borderColor
+                strokeAlpha: 0.38
             }
 
             RoundCorner {
@@ -1185,8 +1299,10 @@ ShellRoot {
                 }
                 corner: "top-right"
                 cornerSize: barWindow.cornerSize
-                fillColor: Qt.alpha(theme.barBg, theme.barOpacity)
-                strokeColor: Qt.alpha(theme.borderColor, 0.30)
+                fillColor: theme.barBg
+                fillAlpha: theme.barOpacity
+                strokeColor: theme.borderColor
+                strokeAlpha: 0.38
             }
         }
     }
@@ -1228,8 +1344,10 @@ ShellRoot {
                 }
                 corner: "bottom-left"
                 cornerSize: bottomCornerWindow.cornerSize
-                fillColor: Qt.alpha(theme.barBg, theme.barOpacity)
-                strokeColor: Qt.alpha(theme.borderColor, 0.30)
+                fillColor: theme.barBg
+                fillAlpha: theme.barOpacity
+                strokeColor: theme.borderColor
+                strokeAlpha: 0.38
             }
 
             RoundCorner {
@@ -1239,8 +1357,10 @@ ShellRoot {
                 }
                 corner: "bottom-right"
                 cornerSize: bottomCornerWindow.cornerSize
-                fillColor: Qt.alpha(theme.barBg, theme.barOpacity)
-                strokeColor: Qt.alpha(theme.borderColor, 0.30)
+                fillColor: theme.barBg
+                fillAlpha: theme.barOpacity
+                strokeColor: theme.borderColor
+                strokeAlpha: 0.38
             }
         }
     }

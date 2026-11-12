@@ -69,53 +69,49 @@ sync_wallpaper_theme() {
         (
             # shellcheck disable=SC1090
             source "${dcol_file}" 2>/dev/null || true
-            local p1="${dcol_pry1:-${wallbash_pry1:-#05070b}}"
-            local p2="${dcol_pry2:-${wallbash_pry2:-#070b10}}"
-            local p3="${dcol_pry3:-${wallbash_pry3:-#0f2533}}"
-            local p4="${dcol_pry4:-${wallbash_pry4:-#00e5ff}}"
-            local t1="${dcol_txt1:-${wallbash_txt1:-#f5fbff}}"
-            local x17="${dcol_1xa7:-${wallbash_1xa7:-#9ab4c7}}"
-            local x19="${dcol_1xa9:-${wallbash_1xa9:-${t1}}}"
-            local x22="${dcol_2xa2:-${wallbash_2xa2:-#0c141d}}"
-            local x23="${dcol_2xa3:-${wallbash_2xa3:-#122838}}"
-            local x37="${dcol_3xa7:-${wallbash_3xa7:-${p4}}}"
-            local x38="${dcol_3xa8:-${wallbash_3xa8:-${x37}}}"
-            local x39="${dcol_3xa9:-${wallbash_3xa9:-#e3faff}}"
-            local x48="${dcol_4xa8:-${wallbash_4xa8:-#9ef8ff}}"
+            local p1="${dcol_pry1:-${wallbash_pry1:-#151217}}"
+            local x12="${dcol_1xa2:-${wallbash_1xa2:-#211c24}}"
+            local x13="${dcol_1xa3:-${wallbash_1xa3:-#2e2732}}"
+            local x14="${dcol_1xa4:-${wallbash_1xa4:-#49414e}}"
+            local x16="${dcol_1xa6:-${wallbash_1xa6:-#988d9e}}"
+            local x19="${dcol_1xa9:-${wallbash_1xa9:-#e9e0eb}}"
+            local x23="${dcol_2xa3:-${wallbash_2xa3:-#3b3242}}"
+            local x24="${dcol_2xa4:-${wallbash_2xa4:-#38303d}}"
+            local x28="${dcol_2xa8:-${wallbash_2xa8:-#dcbff2}}"
+            local x29="${dcol_2xa9:-${wallbash_2xa9:-#e8def8}}"
 
             [[ "${p1}" == \#* ]] || p1="#${p1}"
-            [[ "${p2}" == \#* ]] || p2="#${p2}"
-            [[ "${p3}" == \#* ]] || p3="#${p3}"
-            [[ "${x17}" == \#* ]] || x17="#${x17}"
+            [[ "${x12}" == \#* ]] || x12="#${x12}"
+            [[ "${x13}" == \#* ]] || x13="#${x13}"
+            [[ "${x14}" == \#* ]] || x14="#${x14}"
+            [[ "${x16}" == \#* ]] || x16="#${x16}"
             [[ "${x19}" == \#* ]] || x19="#${x19}"
-            [[ "${x22}" == \#* ]] || x22="#${x22}"
             [[ "${x23}" == \#* ]] || x23="#${x23}"
-            [[ "${x37}" == \#* ]] || x37="#${x37}"
-            [[ "${x38}" == \#* ]] || x38="#${x38}"
-            [[ "${x39}" == \#* ]] || x39="#${x39}"
-            [[ "${x48}" == \#* ]] || x48="#${x48}"
+            [[ "${x24}" == \#* ]] || x24="#${x24}"
+            [[ "${x28}" == \#* ]] || x28="#${x28}"
+            [[ "${x29}" == \#* ]] || x29="#${x29}"
 
             cat >"${QS_CONFIG_DIR}/theme.json" <<EOF
 {
-  "preset": "wallbash-glass",
+  "preset": "end4-tonal-spot",
   "barBg": "${p1}",
   "mainBg": "${p1}",
-  "surfaceBg": "${p2}",
-  "layer2Bg": "${x22}",
+  "surfaceBg": "${x12}",
+  "layer2Bg": "${x13}",
   "mainFg": "${x19}",
-  "subFg": "${x17}",
-  "actBg": "${x37}",
-  "glowColor": "${x38}",
-  "glowSecondary": "${x48}",
-  "accentSecondary": "${p3}",
-  "onSecondaryContainer": "${x39}",
+  "subFg": "${x16}",
+  "actBg": "${x28}",
+  "glowColor": "${x28}",
+  "glowSecondary": "${x29}",
+  "accentSecondary": "${x23}",
+  "onSecondaryContainer": "${x29}",
   "actFg": "${p1}",
-  "hvrBg": "${x23}",
-  "hvrFg": "${x39}",
-  "borderColor": "${x37}",
-  "barOpacity": 0.28,
-  "pillOpacity": 0.48,
-  "cornerRadius": 24,
+  "hvrBg": "${x24}",
+  "hvrFg": "${x19}",
+  "borderColor": "${x14}",
+  "barOpacity": 0.85,
+  "pillOpacity": 0.90,
+  "cornerRadius": 23,
   "wallBlurPath": "${blur_path}"
 }
 EOF
@@ -126,25 +122,25 @@ EOF
     if [[ ! -f "${QS_CONFIG_DIR}/theme.json" ]]; then
         cat >"${QS_CONFIG_DIR}/theme.json" <<EOF
 {
-  "preset": "wallbash-glass",
-  "barBg": "#05070b",
-  "mainBg": "#05070b",
-  "surfaceBg": "#070b10",
-  "layer2Bg": "#0c141d",
-  "mainFg": "#f5fbff",
-  "subFg": "#9ab4c7",
-  "actBg": "#00e5ff",
-  "glowColor": "#00e5ff",
-  "glowSecondary": "#9ef8ff",
-  "accentSecondary": "#0f2533",
-  "onSecondaryContainer": "#e3faff",
-  "actFg": "#030b10",
-  "hvrBg": "#122838",
-  "hvrFg": "#ffffff",
-  "borderColor": "#b8f2ff",
-  "barOpacity": 0.28,
-  "pillOpacity": 0.48,
-  "cornerRadius": 24,
+  "preset": "end4-tonal-spot",
+  "barBg": "#151217",
+  "mainBg": "#151217",
+  "surfaceBg": "#211c24",
+  "layer2Bg": "#2e2732",
+  "mainFg": "#e9e0eb",
+  "subFg": "#988d9e",
+  "actBg": "#dcbff2",
+  "glowColor": "#dcbff2",
+  "glowSecondary": "#e8def8",
+  "accentSecondary": "#3b3242",
+  "onSecondaryContainer": "#e8def8",
+  "actFg": "#24172e",
+  "hvrBg": "#38303d",
+  "hvrFg": "#f5eff7",
+  "borderColor": "#49414e",
+  "barOpacity": 0.85,
+  "pillOpacity": 0.90,
+  "cornerRadius": 23,
   "wallBlurPath": "${blur_path}"
 }
 EOF

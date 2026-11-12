@@ -2,43 +2,40 @@ import QtQuick
 
 QtObject {
     id: colors
-    // Wallpaper-adaptive Frosted Glass palette (seeded with Soul's Market cyan-mist, updated dynamically from wall.dcol / Wallbash)
-    property color barBg: "#05070b"
-    property color mainBg: "#05070b"
-    property color surfaceBg: "#070b10"
-    property color layer2Bg: "#0c141d"
-    property color mainFg: "#f5fbff"
-    property color subFg: "#9ab4c7"
-    property color actBg: "#00e5ff"
-    property color glowColor: "#00e5ff"
-    property color glowSecondary: "#9ef8ff"
-    property color accentSecondary: "#0f2533"
-    property color onSecondaryContainer: "#e3faff"
-    property color actFg: "#030b10"
-    property color hvrBg: "#122838"
-    property color hvrFg: "#ffffff"
-    property color borderColor: "#b8f2ff"
-    property color errorColor: "#ff6b8b"
-    property color onErrorColor: "#1f0008"
-    property real barOpacity: 0.28
-    property real pillOpacity: 0.48
-    property int cornerRadius: 24
-    property int groupRadius: 9999
+    // end-4 Illogical Impulse (ii) Material 3 Dark "Tonal Spot" palette (matches image-5.png)
+    property color barBg: "#151217"          // colLayer0
+    property color mainBg: "#151217"         // m3background
+    property color surfaceBg: "#211c24"      // colLayer1 (BarGroup capsule background)
+    property color layer2Bg: "#2e2732"       // colLayer2 (CircleUtilButton background)
+    property color mainFg: "#e9e0eb"         // colOnLayer0 / colOnLayer1
+    property color subFg: "#988d9e"          // colSubtext / colOnLayer1Inactive
+    property color actBg: "#dcbff2"          // colPrimary (active workspace indicator)
+    property color glowColor: "#dcbff2"
+    property color glowSecondary: "#e8def8"
+    property color accentSecondary: "#3b3242"// colSecondaryContainer (connected occupied workspaces & ring track)
+    property color onSecondaryContainer: "#e8def8" // colOnSecondaryContainer (ring fill & battery fill)
+    property color actFg: "#24172e"          // colOnPrimary
+    property color hvrBg: "#38303d"          // colLayer1Hover
+    property color hvrFg: "#f5eff7"
+    property color borderColor: "#49414e"
+    property color errorColor: "#ffb4ab"
+    property color onErrorColor: "#690005"
+    property real barOpacity: 0.85           // Material 3 Tonal Spot transparency
+    property real pillOpacity: 0.90
+    property int cornerRadius: 23            // Appearance.rounding.screenRounding (23px Hug corners)
+    property int groupRadius: 16             // Smooth capsule rounding inside 40px bar
     property string wallBlurPath: ""
 
-    Behavior on barBg { ColorAnimation { duration: 400; easing.type: Easing.OutCubic } }
-    Behavior on mainBg { ColorAnimation { duration: 400; easing.type: Easing.OutCubic } }
-    Behavior on surfaceBg { ColorAnimation { duration: 400; easing.type: Easing.OutCubic } }
-    Behavior on layer2Bg { ColorAnimation { duration: 400; easing.type: Easing.OutCubic } }
-    Behavior on mainFg { ColorAnimation { duration: 400; easing.type: Easing.OutCubic } }
-    Behavior on subFg { ColorAnimation { duration: 400; easing.type: Easing.OutCubic } }
-    Behavior on actBg { ColorAnimation { duration: 400; easing.type: Easing.OutCubic } }
-    Behavior on glowColor { ColorAnimation { duration: 400; easing.type: Easing.OutCubic } }
-    Behavior on glowSecondary { ColorAnimation { duration: 400; easing.type: Easing.OutCubic } }
-    Behavior on accentSecondary { ColorAnimation { duration: 400; easing.type: Easing.OutCubic } }
-    Behavior on onSecondaryContainer { ColorAnimation { duration: 400; easing.type: Easing.OutCubic } }
-    Behavior on actFg { ColorAnimation { duration: 400; easing.type: Easing.OutCubic } }
-    Behavior on borderColor { ColorAnimation { duration: 400; easing.type: Easing.OutCubic } }
+    Behavior on barBg { ColorAnimation { duration: 350; easing.type: Easing.OutCubic } }
+    Behavior on mainBg { ColorAnimation { duration: 350; easing.type: Easing.OutCubic } }
+    Behavior on surfaceBg { ColorAnimation { duration: 350; easing.type: Easing.OutCubic } }
+    Behavior on layer2Bg { ColorAnimation { duration: 350; easing.type: Easing.OutCubic } }
+    Behavior on mainFg { ColorAnimation { duration: 350; easing.type: Easing.OutCubic } }
+    Behavior on subFg { ColorAnimation { duration: 350; easing.type: Easing.OutCubic } }
+    Behavior on actBg { ColorAnimation { duration: 350; easing.type: Easing.OutCubic } }
+    Behavior on accentSecondary { ColorAnimation { duration: 350; easing.type: Easing.OutCubic } }
+    Behavior on onSecondaryContainer { ColorAnimation { duration: 350; easing.type: Easing.OutCubic } }
+    Behavior on actFg { ColorAnimation { duration: 350; easing.type: Easing.OutCubic } }
 
     function normHex(val) {
         if (!val) return "";
@@ -59,7 +56,6 @@ QtObject {
             if (data.subFg) subFg = normHex(data.subFg);
             if (data.actBg) actBg = normHex(data.actBg);
             if (data.glowColor) glowColor = normHex(data.glowColor);
-            else if (data.actBg) glowColor = normHex(data.actBg);
             if (data.glowSecondary) glowSecondary = normHex(data.glowSecondary);
             if (data.accentSecondary) accentSecondary = normHex(data.accentSecondary);
             if (data.onSecondaryContainer) onSecondaryContainer = normHex(data.onSecondaryContainer);
@@ -69,7 +65,7 @@ QtObject {
             if (data.borderColor) borderColor = normHex(data.borderColor);
             if (data.barOpacity !== undefined) barOpacity = Number(data.barOpacity);
             if (data.pillOpacity !== undefined) pillOpacity = Number(data.pillOpacity);
-            if (data.cornerRadius !== undefined) cornerRadius = Number(data.cornerRadius) || 24;
+            if (data.cornerRadius !== undefined) cornerRadius = Number(data.cornerRadius) || 23;
             if (data.wallBlurPath !== undefined) wallBlurPath = data.wallBlurPath;
         } catch (e) {
             // Keep existing palette if JSON is mid-write

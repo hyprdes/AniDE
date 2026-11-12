@@ -2,8 +2,10 @@ import QtQuick
 
 Canvas {
     id: root
-    property int cornerSize: 23
-    property color fillColor: "#141313"
+    property int cornerSize: 24
+    property color fillColor: "#070a0f"
+    property color strokeColor: Qt.rgba(0.36, 0.88, 1.0, 0.28)
+    property real strokeWidth: 1.2
     // "top-left" | "top-right" | "bottom-left" | "bottom-right"
     property string corner: "top-left"
 
@@ -13,6 +15,7 @@ Canvas {
     smooth: true
 
     onFillColorChanged: requestPaint()
+    onStrokeColorChanged: requestPaint()
     onCornerSizeChanged: requestPaint()
     onCornerChanged: requestPaint()
 
@@ -42,5 +45,23 @@ Canvas {
 
         ctx.closePath();
         ctx.fill();
+
+        // Subtle luminous inner arc rim tracing the rounded screen corner
+        if (root.strokeWidth > 0) {
+            ctx.beginPath();
+            ctx.lineWidth = root.strokeWidth;
+            ctx.strokeStyle = root.strokeColor;
+            var r = Math.max(1, width - root.strokeWidth * 0.5);
+            if (root.corner === "top-left") {
+                ctx.arc(width, height, r, -Math.PI / 2, Math.PI, true);
+            } else if (root.corner === "top-right") {
+                ctx.arc(0, height, r, -Math.PI / 2, 0, false);
+            } else if (root.corner === "bottom-left") {
+                ctx.arc(width, 0, r, Math.PI / 2, Math.PI, false);
+            } else if (root.corner === "bottom-right") {
+                ctx.arc(0, 0, r, Math.PI / 2, 0, true);
+            }
+            ctx.stroke();
+        }
     }
 }

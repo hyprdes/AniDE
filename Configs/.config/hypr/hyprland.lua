@@ -47,6 +47,17 @@ if hl then
 	hl.config({
 		decoration = {
 			rounding = 16,
+			blur = {
+				enabled = true,
+				size = 8,
+				passes = 3,
+				noise = 0.035,
+				contrast = 1.05,
+				brightness = 0.95,
+				vibrancy = 0.25,
+				special = true,
+				popups = true,
+			},
 		},
 		general = {
 			border_size = 2,

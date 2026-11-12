@@ -40,65 +40,40 @@ stop_waybar() {
     pkill -u "${USER:-$(id -un)}" -x waybar >/dev/null 2>&1 || true
 }
 
+write_default_theme() {
+    cat >"${QS_CONFIG_DIR}/theme.json" <<'EOF'
+{
+  "preset": "soul-cyan-mist",
+  "barBg": "#05070b",
+  "mainBg": "#05070b",
+  "surfaceBg": "#070b10",
+  "layer2Bg": "#0c141d",
+  "mainFg": "#f5fbff",
+  "subFg": "#9ab4c7",
+  "actBg": "#00e5ff",
+  "glowColor": "#00e5ff",
+  "glowSecondary": "#9ef8ff",
+  "accentSecondary": "#0f2533",
+  "onSecondaryContainer": "#e3faff",
+  "actFg": "#030b10",
+  "hvrBg": "#122838",
+  "hvrFg": "#ffffff",
+  "borderColor": "#b8f2ff",
+  "barOpacity": 0.28,
+  "pillOpacity": 0.50,
+  "cornerRadius": 24
+}
+EOF
+}
+
 ensure_config() {
     mkdir -p "${QS_CONFIG_DIR}"
     if [[ ! -f "${QS_CONFIG_DIR}/shell.qml" && -d "${QS_SHARE_DIR}" ]]; then
         cp -rn "${QS_SHARE_DIR}/." "${QS_CONFIG_DIR}/" 2>/dev/null || true
     fi
-    if [[ ! -f "${QS_CONFIG_DIR}/theme.json" ]]; then
-        cat >"${QS_CONFIG_DIR}/theme.json" <<'EOF'
-{
-  "barBg": "#070a0f",
-  "mainBg": "#070a0f",
-  "surfaceBg": "#0d131c",
-  "layer2Bg": "#141f2c",
-  "mainFg": "#f2f7fa",
-  "subFg": "#8fa6b8",
-  "actBg": "#00d8ff",
-  "glowColor": "#00e5ff",
-  "glowSecondary": "#7beeff",
-  "accentSecondary": "#162b3d",
-  "onSecondaryContainer": "#d7f4ff",
-  "actFg": "#041016",
-  "hvrBg": "#1b2e40",
-  "hvrFg": "#ffffff",
-  "borderColor": "#5ce1ff",
-  "barOpacity": 0.78,
-  "pillOpacity": 0.74,
-  "cornerRadius": 24
-}
-EOF
+    if [[ ! -f "${QS_CONFIG_DIR}/theme.json" ]] || ! grep -q '"soul-cyan-mist"' "${QS_CONFIG_DIR}/theme.json" 2>/dev/null; then
+        write_default_theme
     fi
-}
-
-sync_theme_from_waybar_css() {
-    local css_file="${XDG_CONFIG_HOME}/waybar/theme.css"
-    local json_file="${QS_CONFIG_DIR}/theme.json"
-    [[ -f "${css_file}" ]] || return 0
-
-    local main_bg main_fg act_bg act_fg
-    main_bg=$(sed -nE 's/^[[:space:]]*@define-color[[:space:]]+main-bg[[:space:]]+(#[0-9a-fA-F]{6})[[:space:]]*;.*/\1/p' "${css_file}" | head -n1)
-    main_fg=$(sed -nE 's/^[[:space:]]*@define-color[[:space:]]+main-fg[[:space:]]+(#[0-9a-fA-F]{6})[[:space:]]*;.*/\1/p' "${css_file}" | head -n1)
-    act_bg=$(sed -nE 's/^[[:space:]]*@define-color[[:space:]]+wb-act-bg[[:space:]]+(#[0-9a-fA-F]{6})[[:space:]]*;.*/\1/p' "${css_file}" | head -n1)
-    act_fg=$(sed -nE 's/^[[:space:]]*@define-color[[:space:]]+wb-act-fg[[:space:]]+(#[0-9a-fA-F]{6})[[:space:]]*;.*/\1/p' "${css_file}" | head -n1)
-
-    [[ -n "${main_bg}" ]] || return 0
-    mkdir -p "${QS_CONFIG_DIR}"
-    cat >"${json_file}" <<EOF
-{
-  "barBg": "${main_bg}",
-  "mainBg": "${main_bg}",
-  "surfaceBg": "${main_bg}",
-  "mainFg": "${main_fg:-#93cee9}",
-  "subFg": "${main_fg:-#7aa8c4}",
-  "actBg": "${act_bg:-#93cee9}",
-  "actFg": "${act_fg:-#101419}",
-  "hvrBg": "${act_fg:-#27323f}",
-  "hvrFg": "${main_fg:-#93cee9}",
-  "borderColor": "${act_bg:-#2c3847}",
-  "cornerRadius": 16
-}
-EOF
 }
 
 start_qs() {
@@ -123,6 +98,7 @@ kill_qs() {
 }
 
 reload_qs() {
+    ensure_config
     kill_qs
     sleep 0.15
     start_qs
@@ -131,18 +107,12 @@ reload_qs() {
 update_qs() {
     stop_waybar
     ensure_config
-    if [[ -f "${QS_CONFIG_DIR}/theme.json" ]]; then
-        touch "${QS_CONFIG_DIR}/theme.json"
-    else
-        sync_theme_from_waybar_css
-    fi
-    if ! is_qs_running && [[ -n "${WAYLAND_DISPLAY:-}" ]]; then
+    if ! is_qs_running; then
         start_qs
     fi
 }
 
 toggle_qs() {
-    stop_waybar
     if is_qs_running; then
         kill_qs
     else
@@ -152,20 +122,21 @@ toggle_qs() {
 
 show_help() {
     cat <<'EOF'
+AniDE Quickshell Bar Manager
 Usage: hyde-shell quickshell [OPTION]
 
 Options:
-  -w, --watch, --start   Start Quickshell (and stop any legacy Waybar instance)
-  -r, --reload           Restart Quickshell
-  -u, --update           Refresh Quickshell theme colors
-  -H, --hide, --toggle   Toggle Quickshell visibility
-  -k, --kill, --stop     Stop Quickshell
-  -h, --help             Show this help message
+  -w, --watch     Start Quickshell if not running
+  -r, --reload    Restart Quickshell and reload configuration
+  -u, --update    Refresh Quickshell theme colors (hot-reload)
+  -H, --hide      Toggle Quickshell visibility
+  -k, --kill      Stop Quickshell
+  -h, --help      Display this help text
 EOF
 }
 
 case "${1:---watch}" in
-    -w | --watch | --start | start)
+    -w | --watch | start)
         start_qs
         ;;
     -r | --reload | reload | restart)
@@ -174,10 +145,10 @@ case "${1:---watch}" in
     -u | --update | update)
         update_qs
         ;;
-    -H | --hide | --toggle | toggle | hide)
+    -H | --hide | hide | toggle)
         toggle_qs
         ;;
-    -k | --kill | --stop | stop | kill)
+    -k | --kill | kill | stop)
         kill_qs
         ;;
     -h | --help | help)

@@ -23,6 +23,7 @@ class QuickshellBarTest(unittest.TestCase):
 
         theme_data = json.loads((QS_DIR / "theme.json").read_text())
         for key in (
+            "preset",
             "barBg",
             "mainBg",
             "surfaceBg",
@@ -40,12 +41,17 @@ class QuickshellBarTest(unittest.TestCase):
             "cornerRadius",
         ):
             self.assertIn(key, theme_data)
+        self.assertEqual(theme_data["preset"], "soul-cyan-mist")
+        self.assertEqual(theme_data["actBg"], "#00e5ff")
+        self.assertLessEqual(theme_data["barOpacity"], 0.35)
+        self.assertLessEqual(theme_data["pillOpacity"], 0.55)
         self.assertEqual(theme_data["cornerRadius"], 24)
 
         shell_qml = (QS_DIR / "shell.qml").read_text()
         for corner in ('"top-left"', '"top-right"', '"bottom-left"', '"bottom-right"'):
             self.assertIn(corner, shell_qml)
         for end4_component in (
+            "function cssRgba",
             "component DreamyMistCanvas",
             "component BarGroup",
             "component CircularResourceRing",

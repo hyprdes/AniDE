@@ -2,54 +2,77 @@ import QtQuick
 
 QtObject {
     id: colors
-    // Soul's Market / image-4 Dreamy Frosted Obsidian & Electric Cyan Mist palette
-    property color barBg: "#05070b"          // Ultra-translucent smoky obsidian bar backdrop
+    // Wallpaper-adaptive Frosted Glass palette (seeded with Soul's Market cyan-mist, updated dynamically from wall.dcol / Wallbash)
+    property color barBg: "#05070b"
     property color mainBg: "#05070b"
-    property color surfaceBg: "#070b10"      // Smoky black-glass capsule base
-    property color layer2Bg: "#0c141d"       // Inner circular button glass base
-    property color mainFg: "#f5fbff"         // Crisp pure ice-white typography (like "profile" & "2025")
-    property color subFg: "#9ab4c7"          // Misty silver-cyan secondary text
-    property color actBg: "#00e5ff"          // Vivid electric cyan glow (from "#Soul's", "profile", "2025")
-    property color glowColor: "#00e5ff"      // Primary diagonal cyan airbrush mist bloom
-    property color glowSecondary: "#9ef8ff"  // Bright ice-cyan inner mist core
-    property color accentSecondary: "#0f2533"// Frosted deep-cyan occupied workspace capsule
+    property color surfaceBg: "#070b10"
+    property color layer2Bg: "#0c141d"
+    property color mainFg: "#f5fbff"
+    property color subFg: "#9ab4c7"
+    property color actBg: "#00e5ff"
+    property color glowColor: "#00e5ff"
+    property color glowSecondary: "#9ef8ff"
+    property color accentSecondary: "#0f2533"
     property color onSecondaryContainer: "#e3faff"
-    property color actFg: "#030b10"          // High-contrast obsidian text on glowing cyan pill
+    property color actFg: "#030b10"
     property color hvrBg: "#122838"
     property color hvrFg: "#ffffff"
-    property color borderColor: "#b8f2ff"    // Luminous frosted white-cyan glass rim
+    property color borderColor: "#b8f2ff"
     property color errorColor: "#ff6b8b"
     property color onErrorColor: "#1f0008"
-    property real barOpacity: 0.28           // Low bar alpha so Hyprland 4-pass Kawase blur shines through
-    property real pillOpacity: 0.50          // Translucent smoky pill alpha so cyan mist & blur blend dreamingly
-    property int cornerRadius: 24            // 24px rounded screen corners & capsule geometry
-    property int groupRadius: 9999           // Full stadium/capsule rounding
+    property real barOpacity: 0.28
+    property real pillOpacity: 0.48
+    property int cornerRadius: 24
+    property int groupRadius: 9999
+    property string wallBlurPath: ""
+
+    Behavior on barBg { ColorAnimation { duration: 400; easing.type: Easing.OutCubic } }
+    Behavior on mainBg { ColorAnimation { duration: 400; easing.type: Easing.OutCubic } }
+    Behavior on surfaceBg { ColorAnimation { duration: 400; easing.type: Easing.OutCubic } }
+    Behavior on layer2Bg { ColorAnimation { duration: 400; easing.type: Easing.OutCubic } }
+    Behavior on mainFg { ColorAnimation { duration: 400; easing.type: Easing.OutCubic } }
+    Behavior on subFg { ColorAnimation { duration: 400; easing.type: Easing.OutCubic } }
+    Behavior on actBg { ColorAnimation { duration: 400; easing.type: Easing.OutCubic } }
+    Behavior on glowColor { ColorAnimation { duration: 400; easing.type: Easing.OutCubic } }
+    Behavior on glowSecondary { ColorAnimation { duration: 400; easing.type: Easing.OutCubic } }
+    Behavior on accentSecondary { ColorAnimation { duration: 400; easing.type: Easing.OutCubic } }
+    Behavior on onSecondaryContainer { ColorAnimation { duration: 400; easing.type: Easing.OutCubic } }
+    Behavior on actFg { ColorAnimation { duration: 400; easing.type: Easing.OutCubic } }
+    Behavior on borderColor { ColorAnimation { duration: 400; easing.type: Easing.OutCubic } }
+
+    function normHex(val) {
+        if (!val) return "";
+        var s = val.toString().trim();
+        if (s === "") return "";
+        return s.charAt(0) === "#" ? s : ("#" + s);
+    }
 
     function applyJson(raw) {
         if (!raw) return;
         try {
             var data = JSON.parse(raw);
-            // Only apply if it's the soul-cyan-mist preset or explicit custom config with glowColor
-            if (data.barBg) barBg = data.barBg;
-            if (data.mainBg) mainBg = data.mainBg;
-            if (data.surfaceBg) surfaceBg = data.surfaceBg;
-            if (data.layer2Bg) layer2Bg = data.layer2Bg;
-            if (data.mainFg) mainFg = data.mainFg;
-            if (data.subFg) subFg = data.subFg;
-            if (data.actBg) actBg = data.actBg;
-            if (data.glowColor) glowColor = data.glowColor;
-            if (data.glowSecondary) glowSecondary = data.glowSecondary;
-            if (data.accentSecondary) accentSecondary = data.accentSecondary;
-            if (data.onSecondaryContainer) onSecondaryContainer = data.onSecondaryContainer;
-            if (data.actFg) actFg = data.actFg;
-            if (data.hvrBg) hvrBg = data.hvrBg;
-            if (data.hvrFg) hvrFg = data.hvrFg;
-            if (data.borderColor) borderColor = data.borderColor;
+            if (data.barBg) barBg = normHex(data.barBg);
+            if (data.mainBg) mainBg = normHex(data.mainBg);
+            if (data.surfaceBg) surfaceBg = normHex(data.surfaceBg);
+            if (data.layer2Bg) layer2Bg = normHex(data.layer2Bg);
+            if (data.mainFg) mainFg = normHex(data.mainFg);
+            if (data.subFg) subFg = normHex(data.subFg);
+            if (data.actBg) actBg = normHex(data.actBg);
+            if (data.glowColor) glowColor = normHex(data.glowColor);
+            else if (data.actBg) glowColor = normHex(data.actBg);
+            if (data.glowSecondary) glowSecondary = normHex(data.glowSecondary);
+            if (data.accentSecondary) accentSecondary = normHex(data.accentSecondary);
+            if (data.onSecondaryContainer) onSecondaryContainer = normHex(data.onSecondaryContainer);
+            if (data.actFg) actFg = normHex(data.actFg);
+            if (data.hvrBg) hvrBg = normHex(data.hvrBg);
+            if (data.hvrFg) hvrFg = normHex(data.hvrFg);
+            if (data.borderColor) borderColor = normHex(data.borderColor);
             if (data.barOpacity !== undefined) barOpacity = Number(data.barOpacity);
             if (data.pillOpacity !== undefined) pillOpacity = Number(data.pillOpacity);
             if (data.cornerRadius !== undefined) cornerRadius = Number(data.cornerRadius) || 24;
+            if (data.wallBlurPath !== undefined) wallBlurPath = data.wallBlurPath;
         } catch (e) {
-            // Keep default dreamy cyan-mist palette if JSON is mid-write
+            // Keep existing palette if JSON is mid-write
         }
     }
 }

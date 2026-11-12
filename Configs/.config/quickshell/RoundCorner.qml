@@ -2,12 +2,12 @@ import QtQuick
 
 Canvas {
     id: root
-    property int cornerSize: 24
-    property color fillColor: "#05070b"
-    property real fillAlpha: 0.28
-    property color strokeColor: "#b8f2ff"
-    property real strokeAlpha: 0.38
-    property real strokeWidth: 1.3
+    property int cornerSize: 23
+    property color fillColor: "#151217"
+    property real fillAlpha: 0.85
+    property color strokeColor: "#49414e"
+    property real strokeAlpha: 0.0
+    property real strokeWidth: 0.0
     // "top-left" | "top-right" | "bottom-left" | "bottom-right"
     property string corner: "top-left"
 
@@ -17,9 +17,9 @@ Canvas {
     smooth: true
 
     function cssRgba(c, a) {
-        var r = Math.round((c.r !== undefined ? c.r : 0.02) * 255);
-        var g = Math.round((c.g !== undefined ? c.g : 0.03) * 255);
-        var b = Math.round((c.b !== undefined ? c.b : 0.05) * 255);
+        var r = Math.round((c.r !== undefined ? c.r : 0.08) * 255);
+        var g = Math.round((c.g !== undefined ? c.g : 0.07) * 255);
+        var b = Math.round((c.b !== undefined ? c.b : 0.09) * 255);
         var alpha = Math.max(0.0, Math.min(1.0, a));
         return "rgba(" + r + "," + g + "," + b + "," + alpha.toFixed(3) + ")";
     }
@@ -57,23 +57,5 @@ Canvas {
 
         ctx.closePath();
         ctx.fill();
-
-        // Luminous frosted inner arc tracing the rounded screen corner (like the frame border in image-4)
-        if (root.strokeWidth > 0) {
-            ctx.beginPath();
-            ctx.lineWidth = root.strokeWidth;
-            ctx.strokeStyle = cssRgba(root.strokeColor, root.strokeAlpha);
-            var r = Math.max(1, width - root.strokeWidth * 0.5);
-            if (root.corner === "top-left") {
-                ctx.arc(width, height, r, -Math.PI / 2, Math.PI, true);
-            } else if (root.corner === "top-right") {
-                ctx.arc(0, height, r, -Math.PI / 2, 0, false);
-            } else if (root.corner === "bottom-left") {
-                ctx.arc(width, 0, r, Math.PI / 2, Math.PI, false);
-            } else if (root.corner === "bottom-right") {
-                ctx.arc(0, 0, r, Math.PI / 2, 0, true);
-            }
-            ctx.stroke();
-        }
     }
 }

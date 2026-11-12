@@ -41,10 +41,8 @@ class QuickshellBarTest(unittest.TestCase):
             "cornerRadius",
         ):
             self.assertIn(key, theme_data)
-        self.assertEqual(theme_data["preset"], "wallbash-glass")
-        self.assertLessEqual(theme_data["barOpacity"], 0.35)
-        self.assertLessEqual(theme_data["pillOpacity"], 0.55)
-        self.assertEqual(theme_data["cornerRadius"], 24)
+        self.assertEqual(theme_data["preset"], "end4-tonal-spot")
+        self.assertEqual(theme_data["cornerRadius"], 23)
 
         for dcol_rel in (
             "Configs/.local/share/wallbash/always/quickshell.dcol",
@@ -52,14 +50,15 @@ class QuickshellBarTest(unittest.TestCase):
         ):
             dcol_text = (ROOT / dcol_rel).read_text()
             self.assertIn("<wallbash_pry1>", dcol_text)
-            self.assertIn("<wallbash_3xa7>", dcol_text)
+            self.assertIn("<wallbash_2xa8>", dcol_text)
 
         shell_qml = (QS_DIR / "shell.qml").read_text()
         for corner in ('"top-left"', '"top-right"', '"bottom-left"', '"bottom-right"'):
             self.assertIn(corner, shell_qml)
         for end4_component in (
             "function cssRgba",
-            "wallBlurUrl",
+            "function iconForClass",
+            "swapUsage",
             "component DreamyMistCanvas",
             "component BarGroup",
             "component CircularResourceRing",

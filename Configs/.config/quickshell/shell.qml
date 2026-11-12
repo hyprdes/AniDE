@@ -214,7 +214,7 @@ ShellRoot {
                                 theme.glowColor = theme.normHex(dc[6]);
                             }
                             if (dc[7]) {
-                                theme.onSecondaryContainer = theme.normHex(dc[7]);
+                                theme.secondaryFg = theme.normHex(dc[7]);
                                 theme.glowSecondary = theme.normHex(dc[7]);
                             }
                             theme.actFg = theme.normHex(dc[0]);
@@ -256,39 +256,16 @@ ShellRoot {
         }
     }
 
-    // 1. end-4 BarGroup: Clean borderless Material 3 colLayer1 capsule (topMargin: 4, bottomMargin: 4, radius: 16)
-    component BarGroup: Item {
+    // 1. end-4 BarGroup: Clean borderless Material 3 colLayer1 capsule (32px height inside 40px bar, radius: 16)
+    component BarGroup: Rectangle {
         id: grpRoot
         property real padding: 8
-        default property alias items: grpRow.children
-        implicitWidth: grpRow.implicitWidth + padding * 2
-        implicitHeight: 40
+        height: 32
+        radius: 16
+        color: Qt.alpha(theme.surfaceBg, theme.pillOpacity)
 
-        Rectangle {
-            id: pillBody
-            anchors {
-                fill: parent
-                topMargin: 4
-                bottomMargin: 4
-            }
-            radius: 16
-            color: Qt.alpha(theme.surfaceBg, theme.pillOpacity)
-
-            Behavior on color {
-                ColorAnimation { duration: 300 }
-            }
-        }
-
-        RowLayout {
-            id: grpRow
-            anchors {
-                verticalCenter: parent.verticalCenter
-                left: parent.left
-                right: parent.right
-                leftMargin: grpRoot.padding
-                rightMargin: grpRoot.padding
-            }
-            spacing: 6
+        Behavior on color {
+            ColorAnimation { duration: 300 }
         }
     }
 
@@ -297,7 +274,7 @@ ShellRoot {
         id: ringRoot
         property real value: 0.0 // 0.0 .. 1.0
         property string iconText: "󰍛"
-        property color primaryColor: theme.onSecondaryContainer
+        property color primaryColor: theme.secondaryFg
         property color trackColor: theme.accentSecondary
         property int size: 20
 
@@ -546,103 +523,110 @@ ShellRoot {
                         id: leftCenterGroup
                         anchors.verticalCenter: parent.verticalCenter
                         padding: 8
+                        implicitWidth: leftCenterRow.implicitWidth + padding * 2
 
-                        // RAM Resource (36)
                         RowLayout {
-                            spacing: 4
-                            CircularResourceRing {
-                                value: shellRoot.memoryUsage
-                                iconText: "󰍛"
-                                primaryColor: shellRoot.memoryUsage >= 0.90 ? theme.errorColor : theme.onSecondaryContainer
-                            }
-                            Text {
-                                text: Math.round(shellRoot.memoryUsage * 100).toString()
-                                color: theme.mainFg
-                                font.family: "JetBrainsMono Nerd Font"
-                                font.pixelSize: 12
-                            }
-                        }
-
-                        // Swap / Disk Resource (70)
-                        RowLayout {
-                            Layout.leftMargin: 6
-                            spacing: 4
-                            CircularResourceRing {
-                                value: shellRoot.swapUsage
-                                iconText: "󰓡"
-                                primaryColor: shellRoot.swapUsage >= 0.90 ? theme.errorColor : theme.onSecondaryContainer
-                            }
-                            Text {
-                                text: Math.round(shellRoot.swapUsage * 100).toString()
-                                color: theme.mainFg
-                                font.family: "JetBrainsMono Nerd Font"
-                                font.pixelSize: 12
-                            }
-                        }
-
-                        // CPU Resource (3)
-                        RowLayout {
-                            Layout.leftMargin: 6
-                            spacing: 4
-                            CircularResourceRing {
-                                value: shellRoot.cpuUsage
-                                iconText: "󰻠"
-                                primaryColor: shellRoot.cpuUsage >= 0.90 ? theme.errorColor : theme.onSecondaryContainer
-                            }
-                            Text {
-                                text: Math.round(shellRoot.cpuUsage * 100).toString()
-                                color: theme.mainFg
-                                font.family: "JetBrainsMono Nerd Font"
-                                font.pixelSize: 12
-                            }
-                        }
-
-                        // Media (MPRIS circular icon + centered "No media" / track title, matching image-5.png)
-                        RowLayout {
-                            id: mediaWidget
-                            Layout.leftMargin: 8
-                            readonly property var activePlayer: (Mpris.players && Mpris.players.values && Mpris.players.values.length > 0)
-                                ? Mpris.players.values[0]
-                                : null
-                            readonly property bool hasTrack: activePlayer !== null && activePlayer.trackTitle !== ""
+                            id: leftCenterRow
+                            anchors.centerIn: parent
                             spacing: 6
 
-                            CircularResourceRing {
-                                value: (mediaWidget.activePlayer && mediaWidget.activePlayer.length > 0)
-                                    ? (mediaWidget.activePlayer.position / mediaWidget.activePlayer.length)
-                                    : (mediaWidget.hasTrack && mediaWidget.activePlayer.isPlaying ? 0.65 : 0.0)
-                                iconText: (mediaWidget.hasTrack && mediaWidget.activePlayer.isPlaying) ? "" : "󰎈"
-                                primaryColor: theme.onSecondaryContainer
-                            }
-
-                            Item {
-                                implicitWidth: 115
-                                implicitHeight: 24
-
+                            // RAM Resource (36)
+                            RowLayout {
+                                spacing: 4
+                                CircularResourceRing {
+                                    value: shellRoot.memoryUsage
+                                    iconText: "󰍛"
+                                    primaryColor: shellRoot.memoryUsage >= 0.90 ? theme.errorColor : theme.secondaryFg
+                                }
                                 Text {
-                                    anchors.centerIn: parent
-                                    width: parent.width
-                                    horizontalAlignment: Text.AlignHCenter
-                                    elide: Text.ElideRight
-                                    text: mediaWidget.hasTrack
-                                        ? (mediaWidget.activePlayer.trackTitle + (mediaWidget.activePlayer.trackArtist ? (" • " + mediaWidget.activePlayer.trackArtist) : ""))
-                                        : "No media"
+                                    text: Math.round(shellRoot.memoryUsage * 100).toString()
                                     color: theme.mainFg
                                     font.family: "JetBrainsMono Nerd Font"
                                     font.pixelSize: 12
                                 }
+                            }
 
-                                MouseArea {
-                                    anchors.fill: parent
-                                    acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: mouse => {
-                                        if (!mediaWidget.hasTrack || mouse.button === Qt.LeftButton) {
-                                            shellRoot.runCmd(["hyde-shell", "rofi.movie"]);
-                                        } else if (mouse.button === Qt.MiddleButton && mediaWidget.activePlayer) {
-                                            mediaWidget.activePlayer.togglePlaying();
-                                        } else if (mouse.button === Qt.RightButton && mediaWidget.activePlayer) {
-                                            mediaWidget.activePlayer.next();
+                            // Swap / Disk Resource (70)
+                            RowLayout {
+                                Layout.leftMargin: 6
+                                spacing: 4
+                                CircularResourceRing {
+                                    value: shellRoot.swapUsage
+                                    iconText: "󰓡"
+                                    primaryColor: shellRoot.swapUsage >= 0.90 ? theme.errorColor : theme.secondaryFg
+                                }
+                                Text {
+                                    text: Math.round(shellRoot.swapUsage * 100).toString()
+                                    color: theme.mainFg
+                                    font.family: "JetBrainsMono Nerd Font"
+                                    font.pixelSize: 12
+                                }
+                            }
+
+                            // CPU Resource (3)
+                            RowLayout {
+                                Layout.leftMargin: 6
+                                spacing: 4
+                                CircularResourceRing {
+                                    value: shellRoot.cpuUsage
+                                    iconText: "󰻠"
+                                    primaryColor: shellRoot.cpuUsage >= 0.90 ? theme.errorColor : theme.secondaryFg
+                                }
+                                Text {
+                                    text: Math.round(shellRoot.cpuUsage * 100).toString()
+                                    color: theme.mainFg
+                                    font.family: "JetBrainsMono Nerd Font"
+                                    font.pixelSize: 12
+                                }
+                            }
+
+                            // Media (MPRIS circular icon + centered "No media" / track title, matching image-5.png)
+                            RowLayout {
+                                id: mediaWidget
+                                Layout.leftMargin: 8
+                                readonly property var activePlayer: (Mpris.players && Mpris.players.values && Mpris.players.values.length > 0)
+                                    ? Mpris.players.values[0]
+                                    : null
+                                readonly property bool hasTrack: activePlayer !== null && activePlayer.trackTitle !== ""
+                                spacing: 6
+
+                                CircularResourceRing {
+                                    value: (mediaWidget.activePlayer && mediaWidget.activePlayer.length > 0)
+                                        ? (mediaWidget.activePlayer.position / mediaWidget.activePlayer.length)
+                                        : (mediaWidget.hasTrack && mediaWidget.activePlayer.isPlaying ? 0.65 : 0.0)
+                                    iconText: (mediaWidget.hasTrack && mediaWidget.activePlayer.isPlaying) ? "" : "󰎈"
+                                    primaryColor: theme.secondaryFg
+                                }
+
+                                Item {
+                                    implicitWidth: 115
+                                    implicitHeight: 24
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        width: parent.width
+                                        horizontalAlignment: Text.AlignHCenter
+                                        elide: Text.ElideRight
+                                        text: mediaWidget.hasTrack
+                                            ? (mediaWidget.activePlayer.trackTitle + (mediaWidget.activePlayer.trackArtist ? (" • " + mediaWidget.activePlayer.trackArtist) : ""))
+                                            : "No media"
+                                        color: theme.mainFg
+                                        font.family: "JetBrainsMono Nerd Font"
+                                        font.pixelSize: 12
+                                    }
+
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: mouse => {
+                                            if (!mediaWidget.hasTrack || mouse.button === Qt.LeftButton) {
+                                                shellRoot.runCmd(["hyde-shell", "rofi.movie"]);
+                                            } else if (mouse.button === Qt.MiddleButton && mediaWidget.activePlayer) {
+                                                mediaWidget.activePlayer.togglePlaying();
+                                            } else if (mouse.button === Qt.RightButton && mediaWidget.activePlayer) {
+                                                mediaWidget.activePlayer.next();
+                                            }
                                         }
                                     }
                                 }
@@ -655,9 +639,11 @@ ShellRoot {
                         id: middleCenterGroup
                         anchors.verticalCenter: parent.verticalCenter
                         padding: 5
+                        implicitWidth: wsContainer.implicitWidth + padding * 2
 
                         Item {
                             id: wsContainer
+                            anchors.centerIn: parent
                             readonly property real wsBtnWidth: 26
                             readonly property real activeMargin: 2
                             readonly property real activeSize: wsBtnWidth - activeMargin * 2 // 22px
@@ -677,7 +663,7 @@ ShellRoot {
                                 if (shellRoot.wsClasses && shellRoot.wsClasses[id.toString()]) return true;
                                 var list = Hyprland.workspaces ? Hyprland.workspaces.values : [];
                                 for (var i = 0; i < list.length; i++) {
-                                     if (list[i].id === id) return true;
+                                    if (list[i].id === id) return true;
                                 }
                                 return false;
                             }
@@ -769,14 +755,14 @@ ShellRoot {
                                         radius: 9
                                         color: wsSlot.isActive
                                             ? "transparent"
-                                            : Qt.alpha(theme.onSecondaryContainer, 0.14)
+                                            : Qt.alpha(theme.secondaryFg, 0.14)
 
                                         Text {
                                             anchors.centerIn: parent
                                             text: shellRoot.iconForClass(wsSlot.winClass)
                                             color: wsSlot.isActive
                                                 ? theme.actFg
-                                                : theme.onSecondaryContainer
+                                                : theme.secondaryFg
                                             font.family: "JetBrainsMono Nerd Font"
                                             font.pixelSize: 11
                                         }
@@ -806,92 +792,99 @@ ShellRoot {
                         id: rightCenterGroup
                         anchors.verticalCenter: parent.verticalCenter
                         padding: 8
+                        implicitWidth: rightCenterRow.implicitWidth + padding * 2
 
-                        // ClockWidget (Single-tone clean M3 typography matching image-5.png)
                         RowLayout {
-                            spacing: 4
+                            id: rightCenterRow
+                            anchors.centerIn: parent
+                            spacing: 6
 
-                            Text {
-                                text: shellRoot.timeText
-                                color: theme.mainFg
-                                font.family: "JetBrainsMono Nerd Font"
-                                font.pixelSize: 13
-                                font.weight: Font.Medium
-                            }
+                            // ClockWidget (Single-tone clean M3 typography matching image-5.png)
+                            RowLayout {
+                                spacing: 4
 
-                            Text {
-                                text: "•"
-                                color: theme.subFg
-                                font.family: "JetBrainsMono Nerd Font"
-                                font.pixelSize: 11
-                            }
-
-                            Text {
-                                text: shellRoot.dateText
-                                color: theme.mainFg
-                                font.family: "JetBrainsMono Nerd Font"
-                                font.pixelSize: 12
-                            }
-                        }
-
-                        // 3 CircleUtilButtons (Screen Snip, Color Picker, Keyboard/Movie — matching image-5.png)
-                        RowLayout {
-                            Layout.leftMargin: 6
-                            spacing: 4
-
-                            CircleUtilButton {
-                                iconText: "󰆞"
-                                onTriggered: shellRoot.runCmd(["hyde-shell", "screenshot", "s"])
-                            }
-                            CircleUtilButton {
-                                iconText: "󰈊"
-                                onTriggered: shellRoot.runCmd(["hyprpicker", "-a"])
-                            }
-                            CircleUtilButton {
-                                iconText: "󰌌"
-                                onTriggered: shellRoot.runCmd(["hyde-shell", "rofi.movie"])
-                            }
-                        }
-
-                        // end-4 OneUI 7 ClippedProgressBar BatteryIndicator (⚡92)
-                        Item {
-                            Layout.leftMargin: 4
-                            implicitWidth: 32
-                            implicitHeight: 18
-
-                            Rectangle {
-                                anchors.fill: parent
-                                radius: 9
-                                color: theme.accentSecondary
-                                clip: true
-
-                                Rectangle {
-                                    width: Math.max(6, parent.width * Math.max(0.0, Math.min(1.0, shellRoot.batteryLevel)))
-                                    height: parent.height
-                                    radius: 9
-                                    color: (shellRoot.batteryLevel <= 0.20 && !shellRoot.batteryCharging)
-                                        ? theme.errorColor
-                                        : theme.onSecondaryContainer
+                                Text {
+                                    text: shellRoot.timeText
+                                    color: theme.mainFg
+                                    font.family: "JetBrainsMono Nerd Font"
+                                    font.pixelSize: 13
+                                    font.weight: Font.Medium
                                 }
 
-                                RowLayout {
-                                    anchors.centerIn: parent
-                                    spacing: 0
+                                Text {
+                                    text: "•"
+                                    color: theme.subFg
+                                    font.family: "JetBrainsMono Nerd Font"
+                                    font.pixelSize: 11
+                                }
 
-                                    Text {
-                                        visible: shellRoot.batteryCharging
-                                        text: ""
-                                        color: theme.actFg
-                                        font.family: "JetBrainsMono Nerd Font"
-                                        font.pixelSize: 9
+                                Text {
+                                    text: shellRoot.dateText
+                                    color: theme.mainFg
+                                    font.family: "JetBrainsMono Nerd Font"
+                                    font.pixelSize: 12
+                                }
+                            }
+
+                            // 3 CircleUtilButtons (Screen Snip, Color Picker, Keyboard/Movie — matching image-5.png)
+                            RowLayout {
+                                Layout.leftMargin: 6
+                                spacing: 4
+
+                                CircleUtilButton {
+                                    iconText: "󰆞"
+                                    onTriggered: shellRoot.runCmd(["hyde-shell", "screenshot", "s"])
+                                }
+                                CircleUtilButton {
+                                    iconText: "󰈊"
+                                    onTriggered: shellRoot.runCmd(["hyprpicker", "-a"])
+                                }
+                                CircleUtilButton {
+                                    iconText: "󰌌"
+                                    onTriggered: shellRoot.runCmd(["hyde-shell", "rofi.movie"])
+                                }
+                            }
+
+                            // end-4 OneUI 7 ClippedProgressBar BatteryIndicator (⚡92)
+                            Item {
+                                Layout.leftMargin: 4
+                                implicitWidth: 32
+                                implicitHeight: 18
+
+                                Rectangle {
+                                    anchors.fill: parent
+                                    radius: 9
+                                    color: theme.accentSecondary
+                                    clip: true
+
+                                    Rectangle {
+                                        width: Math.max(6, parent.width * Math.max(0.0, Math.min(1.0, shellRoot.batteryLevel)))
+                                        height: parent.height
+                                        radius: 9
+                                        color: (shellRoot.batteryLevel <= 0.20 && !shellRoot.batteryCharging)
+                                            ? theme.errorColor
+                                            : theme.secondaryFg
                                     }
 
-                                    Text {
-                                        text: Math.round(Math.max(0, shellRoot.batteryLevel * 100)).toString()
-                                        color: theme.actFg
-                                        font.family: "JetBrainsMono Nerd Font"
-                                        font.pixelSize: 10
-                                        font.bold: true
+                                    RowLayout {
+                                        anchors.centerIn: parent
+                                        spacing: 0
+
+                                        Text {
+                                            visible: shellRoot.batteryCharging
+                                            text: ""
+                                            color: theme.actFg
+                                            font.family: "JetBrainsMono Nerd Font"
+                                            font.pixelSize: 9
+                                        }
+
+                                        Text {
+                                            text: Math.round(Math.max(0, shellRoot.batteryLevel * 100)).toString()
+                                            color: theme.actFg
+                                            font.family: "JetBrainsMono Nerd Font"
+                                            font.pixelSize: 10
+                                            font.bold: true
+                                        }
                                     }
                                 }
                             }

@@ -13,13 +13,13 @@ QtObject {
     property color glowColor: "#dcbff2"
     property color glowSecondary: "#e8def8"
     property color accentSecondary: "#3b3242"// colSecondaryContainer (connected occupied workspaces & ring track)
-    property color onSecondaryContainer: "#e8def8" // colOnSecondaryContainer (ring fill & battery fill)
+    property color secondaryFg: "#e8def8"    // colOnSecondaryContainer (ring fill & battery fill)
     property color actFg: "#24172e"          // colOnPrimary
     property color hvrBg: "#38303d"          // colLayer1Hover
     property color hvrFg: "#f5eff7"
     property color borderColor: "#49414e"
     property color errorColor: "#ffb4ab"
-    property color onErrorColor: "#690005"
+    property color errorFg: "#690005"
     property real barOpacity: 0.85           // Material 3 Tonal Spot transparency
     property real pillOpacity: 0.90
     property int cornerRadius: 23            // Appearance.rounding.screenRounding (23px Hug corners)
@@ -47,7 +47,8 @@ QtObject {
             if (data.glowColor) glowColor = normHex(data.glowColor);
             if (data.glowSecondary) glowSecondary = normHex(data.glowSecondary);
             if (data.accentSecondary) accentSecondary = normHex(data.accentSecondary);
-            if (data.onSecondaryContainer) onSecondaryContainer = normHex(data.onSecondaryContainer);
+            if (data.onSecondaryContainer) secondaryFg = normHex(data.onSecondaryContainer);
+            if (data.secondaryFg) secondaryFg = normHex(data.secondaryFg);
             if (data.actFg) actFg = normHex(data.actFg);
             if (data.hvrBg) hvrBg = normHex(data.hvrBg);
             if (data.hvrFg) hvrFg = normHex(data.hvrFg);

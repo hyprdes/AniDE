@@ -26,6 +26,8 @@ class QuickshellBarTest(unittest.TestCase):
 
         colors_qml = (QS_DIR / "Colors.qml").read_text()
         self.assertNotIn("Behavior on barBg", colors_qml)
+        self.assertNotIn("property color onErrorColor", colors_qml)
+        self.assertNotIn("property color onSecondaryContainer", colors_qml)
 
         theme_data = json.loads((QS_DIR / "theme.json").read_text())
         for key in (

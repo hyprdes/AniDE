@@ -169,7 +169,7 @@ ensure_config() {
         if [[ -f "${QS_CONFIG_DIR}/shell.qml" ]] && grep -qE 'WlrLayershell\.namespace|parent\.parent\.winClass' "${QS_CONFIG_DIR}/shell.qml" 2>/dev/null; then
             force_sync=1
         fi
-        if [[ -f "${QS_CONFIG_DIR}/Colors.qml" ]] && grep -q 'Behavior on barBg' "${QS_CONFIG_DIR}/Colors.qml" 2>/dev/null; then
+        if [[ -f "${QS_CONFIG_DIR}/Colors.qml" ]] && grep -qE 'Behavior on barBg|property color onErrorColor|property color onSecondaryContainer' "${QS_CONFIG_DIR}/Colors.qml" 2>/dev/null; then
             force_sync=1
         fi
         for qml_file in shell.qml Colors.qml RoundCorner.qml; do

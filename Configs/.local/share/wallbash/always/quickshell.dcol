@@ -1,0 +1,22 @@
+$HOME/.config/quickshell/theme.json|hyde-shell quickshell --update
+{
+  "preset": "wallbash-glass",
+  "barBg": "#<wallbash_pry1>",
+  "mainBg": "#<wallbash_pry1>",
+  "surfaceBg": "#<wallbash_pry2>",
+  "layer2Bg": "#<wallbash_2xa2>",
+  "mainFg": "#<wallbash_1xa9>",
+  "subFg": "#<wallbash_1xa7>",
+  "actBg": "#<wallbash_3xa7>",
+  "glowColor": "#<wallbash_3xa8>",
+  "glowSecondary": "#<wallbash_4xa8>",
+  "accentSecondary": "#<wallbash_pry3>",
+  "onSecondaryContainer": "#<wallbash_3xa9>",
+  "actFg": "#<wallbash_pry1>",
+  "hvrBg": "#<wallbash_2xa3>",
+  "hvrFg": "#<wallbash_3xa9>",
+  "borderColor": "#<wallbash_3xa7>",
+  "barOpacity": 0.28,
+  "pillOpacity": 0.48,
+  "cornerRadius": 24
+}

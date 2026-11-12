@@ -14,8 +14,10 @@ set -euo pipefail
 
 XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
 QS_CONFIG_DIR="${XDG_CONFIG_HOME}/quickshell"
 QS_SHARE_DIR="${XDG_DATA_HOME}/quickshell"
+HYDE_CACHE_DIR="${XDG_CACHE_HOME}/hyde"
 
 find_qs_bin() {
     if command -v quickshell >/dev/null 2>&1; then
@@ -40,10 +42,91 @@ stop_waybar() {
     pkill -u "${USER:-$(id -un)}" -x waybar >/dev/null 2>&1 || true
 }
 
-write_default_theme() {
-    cat >"${QS_CONFIG_DIR}/theme.json" <<'EOF'
+apply_hypr_blur() {
+    if [[ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]] && command -v hyprctl >/dev/null 2>&1; then
+        hyprctl --batch "keyword decoration:blur:enabled true ; keyword decoration:blur:size 10 ; keyword decoration:blur:passes 4 ; keyword decoration:blur:ignore_opacity true ; keyword decoration:blur:xray true ; keyword decoration:blur:vibrancy 0.28 ; keyword decoration:blur:noise 0.03" >/dev/null 2>&1 || true
+    fi
+}
+
+sync_wallpaper_theme() {
+    mkdir -p "${QS_CONFIG_DIR}"
+    local dcol_file=""
+    local blur_path=""
+
+    if [[ -e "${HYDE_CACHE_DIR}/wall.blur" ]]; then
+        blur_path=$(readlink -f "${HYDE_CACHE_DIR}/wall.blur" 2>/dev/null || printf '%s' "${HYDE_CACHE_DIR}/wall.blur")
+    elif [[ -e "${HYDE_CACHE_DIR}/wall.set" ]]; then
+        blur_path=$(readlink -f "${HYDE_CACHE_DIR}/wall.set" 2>/dev/null || printf '%s' "${HYDE_CACHE_DIR}/wall.set")
+    fi
+
+    if [[ -f "${HYDE_CACHE_DIR}/wall.dcol" ]]; then
+        dcol_file=$(readlink -f "${HYDE_CACHE_DIR}/wall.dcol" 2>/dev/null || printf '%s' "${HYDE_CACHE_DIR}/wall.dcol")
+    elif [[ -f "${HYDE_CACHE_DIR}/wallbash/shell-colors" ]]; then
+        dcol_file="${HYDE_CACHE_DIR}/wallbash/shell-colors"
+    fi
+
+    if [[ -n "${dcol_file}" && -r "${dcol_file}" ]]; then
+        (
+            # shellcheck disable=SC1090
+            source "${dcol_file}" 2>/dev/null || true
+            local p1="${dcol_pry1:-${wallbash_pry1:-#05070b}}"
+            local p2="${dcol_pry2:-${wallbash_pry2:-#070b10}}"
+            local p3="${dcol_pry3:-${wallbash_pry3:-#0f2533}}"
+            local p4="${dcol_pry4:-${wallbash_pry4:-#00e5ff}}"
+            local t1="${dcol_txt1:-${wallbash_txt1:-#f5fbff}}"
+            local x17="${dcol_1xa7:-${wallbash_1xa7:-#9ab4c7}}"
+            local x19="${dcol_1xa9:-${wallbash_1xa9:-${t1}}}"
+            local x22="${dcol_2xa2:-${wallbash_2xa2:-#0c141d}}"
+            local x23="${dcol_2xa3:-${wallbash_2xa3:-#122838}}"
+            local x37="${dcol_3xa7:-${wallbash_3xa7:-${p4}}}"
+            local x38="${dcol_3xa8:-${wallbash_3xa8:-${x37}}}"
+            local x39="${dcol_3xa9:-${wallbash_3xa9:-#e3faff}}"
+            local x48="${dcol_4xa8:-${wallbash_4xa8:-#9ef8ff}}"
+
+            [[ "${p1}" == \#* ]] || p1="#${p1}"
+            [[ "${p2}" == \#* ]] || p2="#${p2}"
+            [[ "${p3}" == \#* ]] || p3="#${p3}"
+            [[ "${x17}" == \#* ]] || x17="#${x17}"
+            [[ "${x19}" == \#* ]] || x19="#${x19}"
+            [[ "${x22}" == \#* ]] || x22="#${x22}"
+            [[ "${x23}" == \#* ]] || x23="#${x23}"
+            [[ "${x37}" == \#* ]] || x37="#${x37}"
+            [[ "${x38}" == \#* ]] || x38="#${x38}"
+            [[ "${x39}" == \#* ]] || x39="#${x39}"
+            [[ "${x48}" == \#* ]] || x48="#${x48}"
+
+            cat >"${QS_CONFIG_DIR}/theme.json" <<EOF
 {
-  "preset": "soul-cyan-mist",
+  "preset": "wallbash-glass",
+  "barBg": "${p1}",
+  "mainBg": "${p1}",
+  "surfaceBg": "${p2}",
+  "layer2Bg": "${x22}",
+  "mainFg": "${x19}",
+  "subFg": "${x17}",
+  "actBg": "${x37}",
+  "glowColor": "${x38}",
+  "glowSecondary": "${x48}",
+  "accentSecondary": "${p3}",
+  "onSecondaryContainer": "${x39}",
+  "actFg": "${p1}",
+  "hvrBg": "${x23}",
+  "hvrFg": "${x39}",
+  "borderColor": "${x37}",
+  "barOpacity": 0.28,
+  "pillOpacity": 0.48,
+  "cornerRadius": 24,
+  "wallBlurPath": "${blur_path}"
+}
+EOF
+        )
+        return 0
+    fi
+
+    if [[ ! -f "${QS_CONFIG_DIR}/theme.json" ]]; then
+        cat >"${QS_CONFIG_DIR}/theme.json" <<EOF
+{
+  "preset": "wallbash-glass",
   "barBg": "#05070b",
   "mainBg": "#05070b",
   "surfaceBg": "#070b10",
@@ -60,25 +143,30 @@ write_default_theme() {
   "hvrFg": "#ffffff",
   "borderColor": "#b8f2ff",
   "barOpacity": 0.28,
-  "pillOpacity": 0.50,
-  "cornerRadius": 24
+  "pillOpacity": 0.48,
+  "cornerRadius": 24,
+  "wallBlurPath": "${blur_path}"
 }
 EOF
+    fi
 }
 
 ensure_config() {
     mkdir -p "${QS_CONFIG_DIR}"
-    if [[ ! -f "${QS_CONFIG_DIR}/shell.qml" && -d "${QS_SHARE_DIR}" ]]; then
-        cp -rn "${QS_SHARE_DIR}/." "${QS_CONFIG_DIR}/" 2>/dev/null || true
+    if [[ -d "${QS_SHARE_DIR}" ]]; then
+        for qml_file in shell.qml Colors.qml RoundCorner.qml; do
+            if [[ -f "${QS_SHARE_DIR}/${qml_file}" ]] && ! cmp -s "${QS_SHARE_DIR}/${qml_file}" "${QS_CONFIG_DIR}/${qml_file}" 2>/dev/null; then
+                cp -f "${QS_SHARE_DIR}/${qml_file}" "${QS_CONFIG_DIR}/${qml_file}" 2>/dev/null || true
+            fi
+        done
     fi
-    if [[ ! -f "${QS_CONFIG_DIR}/theme.json" ]] || ! grep -q '"soul-cyan-mist"' "${QS_CONFIG_DIR}/theme.json" 2>/dev/null; then
-        write_default_theme
-    fi
+    sync_wallpaper_theme
 }
 
 start_qs() {
     stop_waybar
     ensure_config
+    apply_hypr_blur
     local qs_bin
     if ! qs_bin=$(find_qs_bin); then
         printf 'Quickshell binary (quickshell / qs) not found on PATH.\n' >&2
@@ -99,6 +187,7 @@ kill_qs() {
 
 reload_qs() {
     ensure_config
+    apply_hypr_blur
     kill_qs
     sleep 0.15
     start_qs
@@ -107,6 +196,7 @@ reload_qs() {
 update_qs() {
     stop_waybar
     ensure_config
+    apply_hypr_blur
     if ! is_qs_running; then
         start_qs
     fi

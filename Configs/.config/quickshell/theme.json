@@ -1,5 +1,5 @@
 {
-  "preset": "soul-cyan-mist",
+  "preset": "wallbash-glass",
   "barBg": "#05070b",
   "mainBg": "#05070b",
   "surfaceBg": "#070b10",
@@ -16,6 +16,6 @@
   "hvrFg": "#ffffff",
   "borderColor": "#b8f2ff",
   "barOpacity": 0.28,
-  "pillOpacity": 0.50,
+  "pillOpacity": 0.48,
   "cornerRadius": 24
 }

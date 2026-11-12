@@ -76,3 +76,23 @@ check_require("monitors")
 check_require("hyprland")
 -- --* workflows configuration overrides everything
 check_require("lua_state.workflows")
+
+-- Keep Quickshell frosted glass blur active even after static hypr_theme / workflow overrides
+hl.config({
+	decoration = {
+		blur = {
+			enabled = true,
+			size = 10,
+			passes = 4,
+			ignore_opacity = true,
+			xray = true,
+			noise = 0.03,
+			contrast = 1.05,
+			brightness = 0.95,
+			vibrancy = 0.28,
+			special = true,
+			popups = true,
+		},
+	},
+})
+

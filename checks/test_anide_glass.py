@@ -22,14 +22,36 @@ class QuickshellBarTest(unittest.TestCase):
             self.assertNotIn("/home/", file_path.read_text())
 
         theme_data = json.loads((QS_DIR / "theme.json").read_text())
-        for key in ("barBg", "mainBg", "surfaceBg", "mainFg", "subFg", "actBg", "accentSecondary", "actFg", "cornerRadius"):
+        for key in (
+            "barBg",
+            "mainBg",
+            "surfaceBg",
+            "layer2Bg",
+            "mainFg",
+            "subFg",
+            "actBg",
+            "accentSecondary",
+            "onSecondaryContainer",
+            "actFg",
+            "cornerRadius",
+        ):
             self.assertIn(key, theme_data)
-        self.assertEqual(theme_data["cornerRadius"], 18)
+        self.assertEqual(theme_data["cornerRadius"], 23)
 
         shell_qml = (QS_DIR / "shell.qml").read_text()
         for corner in ('"top-left"', '"top-right"', '"bottom-left"', '"bottom-right"'):
             self.assertIn(corner, shell_qml)
-        self.assertIn("RoundCorner", shell_qml)
+        for end4_component in (
+            "component BarGroup",
+            "component CircularResourceRing",
+            "component CircleUtilButton",
+            "leftCenterGroup",
+            "middleCenterGroup",
+            "rightCenterGroup",
+            "activeIndicator",
+            "RoundCorner",
+        ):
+            self.assertIn(end4_component, shell_qml)
 
     def test_quickshell_manifest_and_autostart(self):
         manifest = (ROOT / "Scripts/dots/quickshell.toml").read_text()

@@ -48,18 +48,20 @@ ensure_config() {
     if [[ ! -f "${QS_CONFIG_DIR}/theme.json" ]]; then
         cat >"${QS_CONFIG_DIR}/theme.json" <<'EOF'
 {
-  "barBg": "#0d1117",
-  "mainBg": "#0d1117",
-  "surfaceBg": "#161c24",
-  "mainFg": "#e6edf3",
-  "subFg": "#8b949e",
-  "actBg": "#7dcfff",
-  "accentSecondary": "#bb9af7",
-  "actFg": "#0d1117",
-  "hvrBg": "#212936",
-  "hvrFg": "#e6edf3",
-  "borderColor": "#2a3444",
-  "cornerRadius": 18
+  "barBg": "#141313",
+  "mainBg": "#141313",
+  "surfaceBg": "#1c1b1c",
+  "layer2Bg": "#2b2a2a",
+  "mainFg": "#e6e1e1",
+  "subFg": "#948f94",
+  "actBg": "#cbc4cb",
+  "accentSecondary": "#4d4b4d",
+  "onSecondaryContainer": "#ece6e9",
+  "actFg": "#322f34",
+  "hvrBg": "#2b2a2a",
+  "hvrFg": "#e6e1e1",
+  "borderColor": "#49464a",
+  "cornerRadius": 23
 }
 EOF
     fi

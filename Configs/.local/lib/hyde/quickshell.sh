@@ -33,6 +33,10 @@ is_qs_running() {
 }
 
 stop_waybar() {
+    if command -v systemctl >/dev/null 2>&1; then
+        systemctl --user stop "hyde-${XDG_SESSION_DESKTOP:-Hyprland}-bar.service" "hyde-Hyprland-bar.service" "waybar.service" >/dev/null 2>&1 || true
+        systemctl --user reset-failed "hyde-${XDG_SESSION_DESKTOP:-Hyprland}-bar.service" "hyde-Hyprland-bar.service" "waybar.service" >/dev/null 2>&1 || true
+    fi
     pkill -u "${USER:-$(id -un)}" -x waybar >/dev/null 2>&1 || true
 }
 
@@ -44,17 +48,18 @@ ensure_config() {
     if [[ ! -f "${QS_CONFIG_DIR}/theme.json" ]]; then
         cat >"${QS_CONFIG_DIR}/theme.json" <<'EOF'
 {
-  "barBg": "#101419",
-  "mainBg": "#101419",
-  "surfaceBg": "#1a2028",
-  "mainFg": "#93cee9",
-  "subFg": "#7aa8c4",
-  "actBg": "#93cee9",
-  "actFg": "#101419",
-  "hvrBg": "#27323f",
-  "hvrFg": "#93cee9",
-  "borderColor": "#2c3847",
-  "cornerRadius": 16
+  "barBg": "#0d1117",
+  "mainBg": "#0d1117",
+  "surfaceBg": "#161c24",
+  "mainFg": "#e6edf3",
+  "subFg": "#8b949e",
+  "actBg": "#7dcfff",
+  "accentSecondary": "#bb9af7",
+  "actFg": "#0d1117",
+  "hvrBg": "#212936",
+  "hvrFg": "#e6edf3",
+  "borderColor": "#2a3444",
+  "cornerRadius": 18
 }
 EOF
     fi

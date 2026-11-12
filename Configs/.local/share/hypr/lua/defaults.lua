@@ -6,7 +6,15 @@ hl.config({
 		inactive_opacity = 0.75,
 		fullscreen_opacity = 1,
 		blur = {
+			enabled = true,
+			size = 8,
+			passes = 3,
+			noise = 0.035,
+			contrast = 1.05,
+			brightness = 0.95,
+			vibrancy = 0.25,
 			special = true,
+			popups = true,
 		},
 	},
 	input = {

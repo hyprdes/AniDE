@@ -30,18 +30,23 @@ class QuickshellBarTest(unittest.TestCase):
             "mainFg",
             "subFg",
             "actBg",
+            "glowColor",
+            "glowSecondary",
             "accentSecondary",
             "onSecondaryContainer",
             "actFg",
+            "barOpacity",
+            "pillOpacity",
             "cornerRadius",
         ):
             self.assertIn(key, theme_data)
-        self.assertEqual(theme_data["cornerRadius"], 23)
+        self.assertEqual(theme_data["cornerRadius"], 24)
 
         shell_qml = (QS_DIR / "shell.qml").read_text()
         for corner in ('"top-left"', '"top-right"', '"bottom-left"', '"bottom-right"'):
             self.assertIn(corner, shell_qml)
         for end4_component in (
+            "component DreamyMistCanvas",
             "component BarGroup",
             "component CircularResourceRing",
             "component CircleUtilButton",

@@ -165,7 +165,7 @@ ensure_config() {
     fi
 
     if [[ -n "${src_dir}" ]]; then
-        for qml_file in shell.qml Colors.qml RoundCorner.qml; do
+        for qml_file in shell.qml Colors.qml RoundCorner.qml LisaGlassIcon.qml CircleUtilButton.qml ClippedProgressBar.qml; do
             if [[ -f "${src_dir}/${qml_file}" ]] && ! cmp -s "${src_dir}/${qml_file}" "${QS_CONFIG_DIR}/${qml_file}" 2>/dev/null; then
                 cp -f "${src_dir}/${qml_file}" "${QS_CONFIG_DIR}/${qml_file}" 2>/dev/null || true
             fi

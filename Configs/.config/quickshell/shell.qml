@@ -1,5 +1,5 @@
-// AniDE Quickshell Bar — Sculpted Dark Matte-Glass Screen Frame (modeled on @bee_ui.ux image-7.png)
-// Top 5-Orb Sculpted Notch + Top-Left Frosted Pill + Top-Right Pocket Capsule + Bottom 4-Pill + 1-Orb Dock
+// AniDE Quickshell Bar — Single Top Bar in @bee_ui.ux Sculpted Dark Matte-Glass Style (image-7.png)
+// Top-Left Frosted White Pill + Soft Oblong Resource Pill | Top-Center Sculpted 3D Orb Notch | Top-Right Multi-Pill Dock Capsule
 // GPL-3.0-or-later; see CREDITS.md.
 import Quickshell
 import Quickshell.Io
@@ -19,7 +19,7 @@ ShellRoot {
 
     property string timeText: Qt.formatDateTime(new Date(), "HH:mm")
     property string dateText: Qt.formatDateTime(new Date(), "ddd, dd/MM")
-    property int volumeLevel: 0
+    property int volumeLevel: 65
     property bool volumeMuted: false
     property bool micMuted: false
     property int brightnessLevel: 100
@@ -104,7 +104,7 @@ ShellRoot {
         id: statusProc
         command: [
             "sh", "-c",
-            "vol=$(pamixer --get-volume 2>/dev/null || echo 0); " +
+            "vol=$(pamixer --get-volume 2>/dev/null || echo 65); " +
             "mute=$(pamixer --get-mute 2>/dev/null || echo false); " +
             "micm=$(pamixer --default-source --get-mute 2>/dev/null || echo false); " +
             "br=$(brightnessctl -m 2>/dev/null | awk -F, '{gsub(/%/,\"\",$4); print $4}' | head -n1); " +
@@ -203,22 +203,22 @@ ShellRoot {
                         shellRoot.wallStamp = wstamp;
                         var dc = dcols.split(",");
                         if (dc.length >= 8 && dc[0] !== "") {
-                            theme.barBg = theme.normHex(dc[0]);
-                            theme.mainBg = theme.normHex(dc[0]);
-                            if (dc[1]) theme.surfaceBg = theme.normHex(dc[1]);
-                            if (dc[2]) theme.layer2Bg = theme.normHex(dc[2]);
-                            if (dc[3]) theme.subFg = theme.normHex(dc[3]);
-                            if (dc[4]) theme.mainFg = theme.normHex(dc[4]);
-                            if (dc[5]) theme.accentSecondary = theme.normHex(dc[5]);
+                            // Subtle 14% atmospheric wallpaper tint on top of the @bee_ui.ux dark smoky matte-glass palette
+                            theme.barBg = theme.subtleTint("#0c0f13", dc[0], 0.14);
+                            theme.mainBg = theme.subtleTint("#11151a", dc[0], 0.14);
+                            if (dc[1]) theme.surfaceBg = theme.subtleTint("#1d2229", dc[1], 0.14);
+                            if (dc[2]) theme.layer2Bg = theme.subtleTint("#2c333d", dc[2], 0.14);
+                            if (dc[3]) theme.subFg = theme.subtleTint("#8c96a4", dc[3], 0.12);
+                            if (dc[4]) theme.mainFg = theme.subtleTint("#e8edf3", dc[4], 0.10);
+                            if (dc[5]) theme.accentSecondary = theme.subtleTint("#323944", dc[5], 0.14);
                             if (dc[6]) {
-                                theme.actBg = theme.normHex(dc[6]);
-                                theme.glowColor = theme.normHex(dc[6]);
+                                theme.actBg = theme.subtleTint("#e4e9f0", dc[6], 0.12);
+                                theme.glowColor = theme.subtleTint("#93c5fd", dc[6], 0.20);
                             }
                             if (dc[7]) {
-                                theme.secondaryFg = theme.normHex(dc[7]);
-                                theme.glowSecondary = theme.normHex(dc[7]);
+                                theme.secondaryFg = theme.subtleTint("#dde4ed", dc[7], 0.12);
+                                theme.glowSecondary = theme.subtleTint("#cbd5e1", dc[7], 0.15);
                             }
-                            theme.actFg = theme.normHex(dc[0]);
                             shellRoot.paintGeneration += 1;
                         }
                     }
@@ -227,9 +227,9 @@ ShellRoot {
         }
     }
 
-    // ── Reusable Sculpted Matte-Glass Components (matching @bee_ui.ux image-7.png) ──
+    // ── Reusable @bee_ui.ux Sculpted Matte-Glass Components (image-7.png) ──
 
-    // 0. DreamyMistCanvas: Soft vertical matte-glass gradient fill inside sculpted capsules
+    // 0. DreamyMistCanvas: Soft vertical matte-glass sheen inside sculpted capsules
     component DreamyMistCanvas: Canvas {
         id: mistCanvas
         property color baseColor: theme.surfaceBg
@@ -257,15 +257,15 @@ ShellRoot {
         }
     }
 
-    // 1. BarGroup: Sculpted oblong matte-glass capsule with subtle 1px specular border (image-7.png)
+    // 1. BarGroup: Soft matte-charcoal oblong inner pill (`(═══)` inside sculpted dock capsule, matching image-7.png)
     component BarGroup: Rectangle {
         id: grpRoot
         property real padding: 10
-        height: 28
-        radius: 14
+        height: 26
+        radius: 13
         color: Qt.alpha(theme.layer2Bg, theme.pillOpacity)
         border.width: 1
-        border.color: Qt.alpha(theme.borderColor, 0.38)
+        border.color: Qt.alpha(theme.borderColor, 0.35)
 
         Behavior on color {
             ColorAnimation { duration: 300 }
@@ -298,15 +298,15 @@ ShellRoot {
                 var cx = width / 2;
                 var cy = height / 2;
                 var rOuter = width / 2;
-                var rInner = rOuter - 2.4;
+                var rInner = rOuter - 2.2;
 
                 // 1. Softly translucent matte circle track
                 ctx.beginPath();
                 ctx.arc(cx, cy, rOuter, 0, Math.PI * 2, false);
-                ctx.fillStyle = Qt.alpha(ringRoot.trackColor, 0.45);
+                ctx.fillStyle = Qt.alpha(ringRoot.trackColor, 0.42);
                 ctx.fill();
 
-                // 2. Progress arc
+                // 2. Progress arc in frosted silver-white
                 var clamped = Math.max(0.0, Math.min(1.0, ringRoot.value));
                 if (clamped > 0.01) {
                     ctx.beginPath();
@@ -320,7 +320,7 @@ ShellRoot {
                 // 3. Inner dark matte cutout
                 ctx.beginPath();
                 ctx.arc(cx, cy, rInner, 0, Math.PI * 2, false);
-                ctx.fillStyle = Qt.alpha(theme.barBg, 0.85);
+                ctx.fillStyle = Qt.alpha(theme.surfaceBg, 0.85);
                 ctx.fill();
             }
         }
@@ -334,7 +334,7 @@ ShellRoot {
         }
     }
 
-    // 3. CircleUtilButton: Matte circular icon orb (22x22)
+    // 3. CircleUtilButton: 3D matte circular icon orb (22x22)
     component CircleUtilButton: Rectangle {
         id: utilBtn
         property string iconText: ""
@@ -343,9 +343,9 @@ ShellRoot {
         implicitWidth: 22
         implicitHeight: 22
         radius: 11
-        color: utilMouse.containsMouse ? Qt.alpha(theme.hvrBg, 0.80) : Qt.alpha(theme.surfaceBg, 0.65)
+        color: utilMouse.containsMouse ? Qt.alpha(theme.hvrBg, 0.78) : Qt.alpha(theme.layer2Bg, 0.52)
         border.width: 1
-        border.color: Qt.alpha(theme.borderColor, 0.35)
+        border.color: Qt.alpha(theme.borderColor, 0.36)
 
         Behavior on color {
             ColorAnimation { duration: 150 }
@@ -368,8 +368,7 @@ ShellRoot {
         }
     }
 
-    // ── 1. TOP SCULPTED BAR WINDOW (matching top of image-7.png) ──
-    // Top-Left Frosted Pill + Top-Center 5-Orb Sculpted Notch Island + Top-Right Recessed Pocket Capsule
+    // ── SINGLE TOP SCULPTED BAR WINDOW (matching @bee_ui.ux image-7.png — NO bottom bar!) ──
     Variants {
         model: Quickshell.screens
 
@@ -406,7 +405,7 @@ ShellRoot {
                 item: barContent
             }
 
-            // Main Top Sculpted Frame Band
+            // Main Top Sculpted Dark Matte-Glass Frame Band
             Rectangle {
                 id: barContent
                 anchors {
@@ -421,7 +420,7 @@ ShellRoot {
                     ColorAnimation { duration: 300 }
                 }
 
-                // Subtle 1px bottom specular border along the top frame (matching image-7.png)
+                // Crisp 1px bottom specular rim along the top frame (matching image-7.png)
                 Rectangle {
                     anchors {
                         bottom: parent.bottom
@@ -429,10 +428,10 @@ ShellRoot {
                         right: parent.right
                     }
                     height: 1
-                    color: Qt.alpha(theme.borderColor, 0.45)
+                    color: Qt.alpha(theme.borderColor, 0.42)
                 }
 
-                // ── 1A. TOP-LEFT SECTION: Frosted White Pill Badge (matching top-left of image-7.png) + Active Window ──
+                // ── 1. TOP-LEFT SECTION: Frosted White Pill (`[ ✦ ]`) + Soft Oblong Resource Pill (`leftCenterGroup`) + Active Window ──
                 MouseArea {
                     id: leftSideArea
                     anchors {
@@ -454,19 +453,19 @@ ShellRoot {
 
                     RowLayout {
                         anchors.fill: parent
-                        spacing: 10
+                        spacing: 8
 
-                        // Top-left frosted white pill badge (exact match to top-left white capsule in image-7.png)
+                        // Signature Frosted White Capsule Pill in top-left corner (exact match to top-left of image-7.png)
                         Rectangle {
                             id: leftSidebarBtn
                             Layout.alignment: Qt.AlignVCenter
-                            Layout.leftMargin: 16
+                            Layout.leftMargin: 14
                             implicitWidth: 34
-                            implicitHeight: 18
-                            radius: 9
+                            implicitHeight: 19
+                            radius: 9.5
                             color: leftBtnMouse.containsMouse
                                 ? theme.mainFg
-                                : Qt.alpha(theme.actBg, 0.90)
+                                : Qt.alpha(theme.actBg, 0.92)
 
                             Behavior on color {
                                 ColorAnimation { duration: 150 }
@@ -497,23 +496,150 @@ ShellRoot {
                             }
                         }
 
-                        // Subtle Active Window Title
-                        Text {
-                            Layout.fillWidth: true
-                            Layout.rightMargin: 24
+                        // Sculpted Left Capsule containing Oblong Resource Pill + Oblong Media Pill
+                        Rectangle {
                             Layout.alignment: Qt.AlignVCenter
-                            elide: Text.ElideRight
-                            text: (Hyprland.activeToplevel && Hyprland.activeToplevel.title)
-                                ? Hyprland.activeToplevel.title
-                                : (shellRoot.activeWinTitle !== "" ? shellRoot.activeWinTitle : "")
-                            color: theme.subFg
-                            font.family: "JetBrainsMono Nerd Font"
-                            font.pixelSize: 11
+                            implicitWidth: leftDockRow.implicitWidth + 10
+                            height: 34
+                            radius: 17
+                            border.width: 1
+                            border.color: Qt.alpha(theme.borderColor, 0.55)
+
+                            gradient: Gradient {
+                                orientation: Gradient.Vertical
+                                GradientStop { position: 0.0; color: Qt.alpha(theme.barBg, 0.90) }
+                                GradientStop { position: 0.65; color: Qt.alpha(theme.surfaceBg, 0.78) }
+                                GradientStop { position: 1.0; color: Qt.alpha(theme.layer2Bg, 0.70) }
+                            }
+
+                            RowLayout {
+                                id: leftDockRow
+                                anchors.centerIn: parent
+                                spacing: 6
+
+                                // Oblong Pill 1: Resources (RAM, Swap, CPU)
+                                BarGroup {
+                                    id: leftCenterGroup
+                                    padding: 8
+                                    implicitWidth: resRow.implicitWidth + padding * 2
+
+                                    RowLayout {
+                                        id: resRow
+                                        anchors.centerIn: parent
+                                        spacing: 6
+
+                                        RowLayout {
+                                            spacing: 3
+                                            CircularResourceRing {
+                                                value: shellRoot.memoryUsage
+                                                iconText: "󰍛"
+                                                primaryColor: shellRoot.memoryUsage >= 0.90 ? theme.errorColor : theme.secondaryFg
+                                            }
+                                            Text {
+                                                text: Math.round(shellRoot.memoryUsage * 100).toString()
+                                                color: theme.mainFg
+                                                font.family: "JetBrainsMono Nerd Font"
+                                                font.pixelSize: 11
+                                            }
+                                        }
+
+                                        RowLayout {
+                                            spacing: 3
+                                            CircularResourceRing {
+                                                value: shellRoot.swapUsage
+                                                iconText: "󰓡"
+                                                primaryColor: shellRoot.swapUsage >= 0.90 ? theme.errorColor : theme.secondaryFg
+                                            }
+                                            Text {
+                                                text: Math.round(shellRoot.swapUsage * 100).toString()
+                                                color: theme.mainFg
+                                                font.family: "JetBrainsMono Nerd Font"
+                                                font.pixelSize: 11
+                                            }
+                                        }
+
+                                        RowLayout {
+                                            spacing: 3
+                                            CircularResourceRing {
+                                                value: shellRoot.cpuUsage
+                                                iconText: "󰻠"
+                                                primaryColor: shellRoot.cpuUsage >= 0.90 ? theme.errorColor : theme.secondaryFg
+                                            }
+                                            Text {
+                                                text: Math.round(shellRoot.cpuUsage * 100).toString()
+                                                color: theme.mainFg
+                                                font.family: "JetBrainsMono Nerd Font"
+                                                font.pixelSize: 11
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Oblong Pill 2: Media / AniSub ("No media" / active track)
+                                BarGroup {
+                                    id: mediaPillGroup
+                                    padding: 8
+                                    implicitWidth: mediaWidget.implicitWidth + padding * 2
+
+                                    RowLayout {
+                                        id: mediaWidget
+                                        anchors.centerIn: parent
+                                        readonly property var activePlayer: (Mpris.players && Mpris.players.values && Mpris.players.values.length > 0)
+                                            ? Mpris.players.values[0]
+                                            : null
+                                        readonly property bool hasTrack: activePlayer !== null && activePlayer.trackTitle !== ""
+                                        spacing: 5
+
+                                        CircularResourceRing {
+                                            value: (mediaWidget.activePlayer && mediaWidget.activePlayer.length > 0)
+                                                ? (mediaWidget.activePlayer.position / mediaWidget.activePlayer.length)
+                                                : (mediaWidget.hasTrack && mediaWidget.activePlayer.isPlaying ? 0.65 : 0.0)
+                                            iconText: (mediaWidget.hasTrack && mediaWidget.activePlayer.isPlaying) ? "" : "󰎈"
+                                            primaryColor: theme.secondaryFg
+                                        }
+
+                                        Item {
+                                            implicitWidth: 82
+                                            implicitHeight: 20
+
+                                            Text {
+                                                anchors.centerIn: parent
+                                                width: parent.width
+                                                horizontalAlignment: Text.AlignHCenter
+                                                elide: Text.ElideRight
+                                                text: mediaWidget.hasTrack
+                                                    ? (mediaWidget.activePlayer.trackTitle + (mediaWidget.activePlayer.trackArtist ? (" • " + mediaWidget.activePlayer.trackArtist) : ""))
+                                                    : "No media"
+                                                color: theme.mainFg
+                                                font.family: "JetBrainsMono Nerd Font"
+                                                font.pixelSize: 11
+                                            }
+
+                                            MouseArea {
+                                                anchors.fill: parent
+                                                acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: mouse => {
+                                                    if (!mediaWidget.hasTrack || mouse.button === Qt.LeftButton) {
+                                                        shellRoot.runCmd(["hyde-shell", "rofi.movie"]);
+                                                    } else if (mouse.button === Qt.MiddleButton && mediaWidget.activePlayer) {
+                                                        mediaWidget.activePlayer.togglePlaying();
+                                                    } else if (mouse.button === Qt.RightButton && mediaWidget.activePlayer) {
+                                                        mediaWidget.activePlayer.next();
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
+
+                        Item { Layout.fillWidth: true }
                     }
                 }
 
-                // ── 1B. TOP-CENTER SCULPTED NOTCH ISLAND: 5 Circular Matte Orbs (matching top-center of image-7.png) ──
+                // ── 2. TOP-CENTER SCULPTED NOTCH ISLAND: 5 Circular 3D Matte Orbs `[ ●  ●  ●  ●  ● ]` (exact match to top-center of image-7.png) ──
                 Rectangle {
                     id: middleCenterGroup
                     anchors {
@@ -521,23 +647,24 @@ ShellRoot {
                         verticalCenter: parent.verticalCenter
                     }
                     width: wsContainer.implicitWidth + 28
-                    height: 36
-                    radius: 18
+                    height: 34
+                    radius: 17
                     border.width: 1
                     border.color: Qt.alpha(theme.borderColor, 0.65)
 
+                    // Sculpted 3D dark-to-smoky-silver vertical gradient matching the top notch in image-7.png
                     gradient: Gradient {
                         orientation: Gradient.Vertical
-                        GradientStop { position: 0.0; color: Qt.alpha(theme.barBg, 0.96) }
-                        GradientStop { position: 0.65; color: Qt.alpha(theme.surfaceBg, 0.88) }
-                        GradientStop { position: 1.0; color: Qt.alpha(theme.layer2Bg, 0.82) }
+                        GradientStop { position: 0.0; color: Qt.alpha(theme.barBg, 0.95) }
+                        GradientStop { position: 0.60; color: Qt.alpha(theme.surfaceBg, 0.86) }
+                        GradientStop { position: 1.0; color: Qt.alpha(theme.layer2Bg, 0.80) }
                     }
 
                     Item {
                         id: wsContainer
                         anchors.centerIn: parent
                         readonly property real orbSize: 18
-                        readonly property real orbPitch: 32 // 18px orb + 14px spacing
+                        readonly property real orbPitch: 30 // 18px orb + 12px spacing
                         readonly property int targetIndex: barWindow.localOrbIndex
 
                         property real idx1: targetIndex
@@ -559,9 +686,9 @@ ShellRoot {
                         }
 
                         implicitWidth: orbPitch * 5 - (orbPitch - orbSize)
-                        implicitHeight: 24
+                        implicitHeight: 22
 
-                        // Layer 1: 5 Circular Matte Workspace Orbs (exact match to top-center 5 orbs in image-7.png)
+                        // Layer 1: 5 Circular 3D Matte Workspace Orbs (exact match to top-center 5 orbs in image-7.png)
                         Repeater {
                             model: 5
 
@@ -579,7 +706,7 @@ ShellRoot {
                                 width: wsContainer.orbSize
                                 height: parent.height
 
-                                // Matte 3D circular orb background
+                                // 3D Matte Circular Orb
                                 Rectangle {
                                     anchors.centerIn: parent
                                     width: wsContainer.orbSize
@@ -587,16 +714,16 @@ ShellRoot {
                                     radius: wsContainer.orbSize / 2
                                     border.width: 1
                                     border.color: wsSlot.isOcc
-                                        ? Qt.alpha(theme.borderColor, 0.65)
-                                        : Qt.alpha(theme.borderColor, 0.30)
+                                        ? Qt.alpha(theme.borderColor, 0.60)
+                                        : Qt.alpha(theme.borderColor, 0.28)
 
                                     gradient: Gradient {
                                         orientation: Gradient.Vertical
                                         GradientStop {
                                             position: 0.0
                                             color: wsSlot.isOcc
-                                                ? Qt.alpha(theme.layer2Bg, 0.90)
-                                                : Qt.alpha(theme.surfaceBg, 0.78)
+                                                ? Qt.alpha(theme.layer2Bg, 0.88)
+                                                : Qt.alpha(theme.surfaceBg, 0.72)
                                         }
                                         GradientStop {
                                             position: 1.0
@@ -606,13 +733,13 @@ ShellRoot {
                                         }
                                     }
 
-                                    // Subtle center dot or icon for occupied non-active orb
+                                    // Subtle center dot for occupied non-active orb
                                     Rectangle {
                                         visible: wsSlot.isOcc && !wsSlot.isActive
                                         anchors.centerIn: parent
-                                        width: 5
-                                        height: 5
-                                        radius: 2.5
+                                        width: 4.5
+                                        height: 4.5
+                                        radius: 2.25
                                         color: Qt.alpha(theme.secondaryFg, 0.75)
                                     }
                                 }
@@ -634,7 +761,7 @@ ShellRoot {
                             }
                         }
 
-                        // Layer 2: Liquid Stretchy Active Orb Indicator (Frosted glow orb)
+                        // Layer 2: Liquid Stretchy Frosted-White Active Orb Indicator
                         Rectangle {
                             id: activeIndicator
                             z: 2
@@ -662,7 +789,7 @@ ShellRoot {
                     }
                 }
 
-                // ── 1C. TOP-RIGHT RECESSED POCKET CAPSULE: [ ●  ──────────   ● ] (matching top-right of image-7.png) ──
+                // ── 3. TOP-RIGHT SCULPTED CAPSULE: Oblong Clock Pill + Oblong `[ • ───── • ]` Status Pill + Circular `(●)` Orb ──
                 MouseArea {
                     id: rightSideArea
                     anchors {
@@ -682,7 +809,6 @@ ShellRoot {
                         statusProc.running = true;
                     }
 
-                    // Recessed Top-Right Pocket Pill (`[ • ──────────  • ]` from image-7.png)
                     Rectangle {
                         id: rightCenterGroup
                         anchors {
@@ -690,77 +816,297 @@ ShellRoot {
                             rightMargin: 14
                             verticalCenter: parent.verticalCenter
                         }
-                        implicitWidth: topRightPocketRow.implicitWidth + 20
-                        height: 30
-                        radius: 15
-                        color: Qt.alpha(theme.surfaceBg, 0.72)
+                        implicitWidth: rightDockRow.implicitWidth + 10
+                        height: 34
+                        radius: 17
                         border.width: 1
                         border.color: Qt.alpha(theme.borderColor, 0.55)
 
+                        gradient: Gradient {
+                            orientation: Gradient.Vertical
+                            GradientStop { position: 0.0; color: Qt.alpha(theme.barBg, 0.90) }
+                            GradientStop { position: 0.65; color: Qt.alpha(theme.surfaceBg, 0.78) }
+                            GradientStop { position: 1.0; color: Qt.alpha(theme.layer2Bg, 0.70) }
+                        }
+
                         RowLayout {
-                            id: topRightPocketRow
+                            id: rightDockRow
                             anchors.centerIn: parent
-                            spacing: 8
+                            spacing: 6
 
-                            // Left small frosted dot (`•` in top-right pill of image-7.png)
-                            Rectangle {
-                                implicitWidth: 10
-                                implicitHeight: 8
-                                radius: 4
-                                color: shellRoot.networkName !== "" ? theme.actBg : theme.subFg
+                            // Oblong Pill A: Clock & Date (HH:mm • ddd, dd/MM)
+                            BarGroup {
+                                id: clockPillGroup
+                                padding: 10
+                                implicitWidth: clockRow.implicitWidth + padding * 2
 
-                                MouseArea {
-                                    anchors.fill: parent
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: shellRoot.runCmd(["nm-connection-editor"])
+                                RowLayout {
+                                    id: clockRow
+                                    anchors.centerIn: parent
+                                    spacing: 5
+
+                                    Text {
+                                        text: shellRoot.timeText
+                                        color: theme.mainFg
+                                        font.family: "JetBrainsMono Nerd Font"
+                                        font.pixelSize: 12
+                                        font.weight: Font.Medium
+                                    }
+
+                                    Text {
+                                        text: "•"
+                                        color: theme.subFg
+                                        font.family: "JetBrainsMono Nerd Font"
+                                        font.pixelSize: 10
+                                    }
+
+                                    Text {
+                                        text: shellRoot.dateText
+                                        color: theme.secondaryFg
+                                        font.family: "JetBrainsMono Nerd Font"
+                                        font.pixelSize: 11
+                                    }
                                 }
                             }
 
-                            // Middle sleek horizontal bar (`──────────` in top-right pill of image-7.png)
-                            Rectangle {
-                                implicitWidth: 74
-                                implicitHeight: 8
-                                radius: 4
-                                color: Qt.alpha(theme.layer2Bg, 0.85)
-                                clip: true
+                            // Oblong Pill B: Top-Right Pocket Style `[ •  ──────   • ]` + Quick Status Icons & Battery
+                            BarGroup {
+                                id: statusPillGroup
+                                padding: 8
+                                implicitWidth: statusPillRow.implicitWidth + padding * 2
 
-                                Rectangle {
-                                    width: Math.max(14, parent.width * Math.max(0.15, Math.min(1.0, (100 - shellRoot.volumeMuted * 100) * (shellRoot.volumeLevel > 0 ? shellRoot.volumeLevel : 65) / 100.0)))
-                                    height: parent.height
-                                    radius: 4
-                                    color: Qt.alpha(theme.actBg, 0.90)
-                                }
+                                RowLayout {
+                                    id: statusPillRow
+                                    anchors.centerIn: parent
+                                    spacing: 7
 
-                                MouseArea {
-                                    anchors.fill: parent
-                                    acceptedButtons: Qt.LeftButton | Qt.RightButton
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: mouse => {
-                                        if (mouse.button === Qt.RightButton) {
-                                            shellRoot.runCmd(["pavucontrol"]);
-                                        } else {
-                                            shellRoot.runCmd(["hyde-shell", "anide-settings"]);
+                                    CircleUtilButton {
+                                        iconText: "󰆞"
+                                        onTriggered: shellRoot.runCmd(["hyde-shell", "screenshot", "s"])
+                                    }
+
+                                    CircleUtilButton {
+                                        iconText: "󰈊"
+                                        onTriggered: shellRoot.runCmd(["hyprpicker", "-a"])
+                                    }
+
+                                    // System Tray icons
+                                    RowLayout {
+                                        visible: SystemTray.items && SystemTray.items.values && SystemTray.items.values.length > 0
+                                        spacing: 4
+
+                                        Repeater {
+                                            model: SystemTray.items
+
+                                            Rectangle {
+                                                id: traySlot
+                                                required property var modelData
+                                                implicitWidth: 20
+                                                implicitHeight: 20
+                                                radius: 10
+                                                color: trayMouse.containsMouse ? theme.hvrBg : "transparent"
+
+                                                Image {
+                                                    anchors.centerIn: parent
+                                                    width: 14
+                                                    height: 14
+                                                    source: traySlot.modelData.icon || ""
+                                                    sourceSize.width: 14
+                                                    sourceSize.height: 14
+                                                }
+
+                                                MouseArea {
+                                                    id: trayMouse
+                                                    anchors.fill: parent
+                                                    hoverEnabled: true
+                                                    acceptedButtons: Qt.LeftButton | Qt.RightButton
+                                                    cursorShape: Qt.PointingHandCursor
+                                                    onClicked: mouse => {
+                                                        if (mouse.button === Qt.RightButton) {
+                                                            traySlot.modelData.secondaryActivate();
+                                                        } else {
+                                                            traySlot.modelData.activate();
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // Bluetooth
+                                    Text {
+                                        text: shellRoot.bluetoothConnected
+                                            ? "󰂱"
+                                            : (shellRoot.bluetoothOn ? "󰂯" : "󰂲")
+                                        color: theme.mainFg
+                                        font.family: "JetBrainsMono Nerd Font"
+                                        font.pixelSize: 13
+
+                                        MouseArea {
+                                            anchors.fill: parent
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: shellRoot.runCmd(["blueman-manager"])
+                                        }
+                                    }
+
+                                    // Wi-Fi
+                                    Text {
+                                        text: shellRoot.networkName !== "" ? "󰤨" : "󰤭"
+                                        color: theme.mainFg
+                                        font.family: "JetBrainsMono Nerd Font"
+                                        font.pixelSize: 13
+
+                                        MouseArea {
+                                            anchors.fill: parent
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: shellRoot.runCmd(["nm-connection-editor"])
+                                        }
+                                    }
+
+                                    // Mic
+                                    Text {
+                                        text: shellRoot.micMuted ? "󰍭" : "󰍬"
+                                        color: theme.mainFg
+                                        font.family: "JetBrainsMono Nerd Font"
+                                        font.pixelSize: 13
+
+                                        MouseArea {
+                                            anchors.fill: parent
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: {
+                                                shellRoot.runCmd(["pamixer", "--default-source", "-t"]);
+                                                statusProc.running = true;
+                                            }
+                                        }
+                                    }
+
+                                    // Volume icon + sleek frosted horizontal bar (`──────` from top-right pill of image-7.png)
+                                    RowLayout {
+                                        spacing: 4
+
+                                        Text {
+                                            text: shellRoot.volumeMuted
+                                                ? "󰝟"
+                                                : (shellRoot.volumeLevel < 35 ? "󰕿" : (shellRoot.volumeLevel < 70 ? "󰖀" : "󰕾"))
+                                            color: theme.mainFg
+                                            font.family: "JetBrainsMono Nerd Font"
+                                            font.pixelSize: 13
+
+                                            MouseArea {
+                                                anchors.fill: parent
+                                                acceptedButtons: Qt.LeftButton | Qt.RightButton
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: mouse => {
+                                                    if (mouse.button === Qt.RightButton) {
+                                                        shellRoot.runCmd(["pavucontrol"]);
+                                                    } else {
+                                                        shellRoot.runCmd(["pamixer", "-t"]);
+                                                        statusProc.running = true;
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        Rectangle {
+                                            implicitWidth: 38
+                                            implicitHeight: 6
+                                            radius: 3
+                                            color: Qt.alpha(theme.barBg, 0.75)
+                                            clip: true
+
+                                            Rectangle {
+                                                width: shellRoot.volumeMuted
+                                                    ? 0
+                                                    : Math.max(4, parent.width * Math.max(0.0, Math.min(1.0, shellRoot.volumeLevel / 100.0)))
+                                                height: parent.height
+                                                radius: 3
+                                                color: Qt.alpha(theme.actBg, 0.90)
+                                            }
+                                        }
+                                    }
+
+                                    // Frosted White Battery Badge (`92`, matching the right dot/pill in image-7.png)
+                                    Item {
+                                        implicitWidth: 30
+                                        implicitHeight: 16
+
+                                        Rectangle {
+                                            anchors.fill: parent
+                                            radius: 8
+                                            color: Qt.alpha(theme.accentSecondary, 0.55)
+                                            clip: true
+
+                                            Rectangle {
+                                                width: Math.max(6, parent.width * Math.max(0.0, Math.min(1.0, shellRoot.batteryLevel)))
+                                                height: parent.height
+                                                radius: 8
+                                                color: (shellRoot.batteryLevel <= 0.20 && !shellRoot.batteryCharging)
+                                                    ? theme.errorColor
+                                                    : Qt.alpha(theme.actBg, 0.92)
+                                            }
+
+                                            RowLayout {
+                                                anchors.centerIn: parent
+                                                spacing: 0
+
+                                                Text {
+                                                    visible: shellRoot.batteryCharging
+                                                    text: ""
+                                                    color: theme.actFg
+                                                    font.family: "JetBrainsMono Nerd Font"
+                                                    font.pixelSize: 8
+                                                }
+
+                                                Text {
+                                                    text: Math.round(Math.max(0, shellRoot.batteryLevel * 100)).toString()
+                                                    color: theme.actFg
+                                                    font.family: "JetBrainsMono Nerd Font"
+                                                    font.pixelSize: 9
+                                                    font.bold: true
+                                                }
+                                            }
                                         }
                                     }
                                 }
                             }
 
-                            // Small spacer matching the gap before the right dot in image-7.png
-                            Item { implicitWidth: 10; implicitHeight: 1 }
-
-                            // Right small frosted badge (`•` on far right of top-right pill in image-7.png)
+                            // Rightmost 3D Matte Circular Orb (`(●)` on the far right of the capsule in image-7.png)
                             Rectangle {
-                                implicitWidth: 14
-                                implicitHeight: 8
-                                radius: 4
-                                color: (shellRoot.batteryLevel <= 0.20 && !shellRoot.batteryCharging)
-                                    ? theme.errorColor
-                                    : Qt.alpha(theme.actBg, 0.92)
+                                id: rightOrbBtn
+                                implicitWidth: 26
+                                implicitHeight: 26
+                                radius: 13
+                                color: rightOrbMouse.containsMouse
+                                    ? Qt.alpha(theme.hvrBg, 0.85)
+                                    : Qt.alpha(theme.layer2Bg, 0.62)
+                                border.width: 1
+                                border.color: Qt.alpha(theme.borderColor, 0.45)
+
+                                Behavior on color {
+                                    ColorAnimation { duration: 150 }
+                                }
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "󰒓"
+                                    color: theme.mainFg
+                                    font.family: "JetBrainsMono Nerd Font"
+                                    font.pixelSize: 12
+                                }
 
                                 MouseArea {
+                                    id: rightOrbMouse
                                     anchors.fill: parent
+                                    hoverEnabled: true
+                                    acceptedButtons: Qt.LeftButton | Qt.RightButton
                                     cursorShape: Qt.PointingHandCursor
-                                    onClicked: shellRoot.runCmd(["hyde-shell", "logoutlaunch", "1"])
+                                    onClicked: mouse => {
+                                        if (mouse.button === Qt.RightButton) {
+                                            shellRoot.runCmd(["hyde-shell", "logoutlaunch", "1"]);
+                                        } else {
+                                            shellRoot.runCmd(["hyde-shell", "anide-settings"]);
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -768,7 +1114,7 @@ ShellRoot {
                 }
             }
 
-            // ── Top-Left & Top-Right Concave Screen Corners (matching curved inner frame in image-7.png) ──
+            // ── Top-Left & Top-Right Concave Screen Corners ──
             RoundCorner {
                 anchors {
                     top: barContent.bottom
@@ -793,8 +1139,7 @@ ShellRoot {
         }
     }
 
-    // ── 2. BOTTOM SCULPTED DOCK BAR + BOTTOM SCREEN CORNERS (matching bottom of image-7.png) ──
-    // Centered Sculpted Capsule with 4 Oblong Rounded Pills + 1 Circular Orb on the Right: [ (═══) (═══) (═══) (═══) (●) ]
+    // ── BOTTOM SCREEN CORNERS ONLY (NO bottom bar! Zero exclusiveZone, pass-through input mask) ──
     Variants {
         model: Quickshell.screens
 
@@ -803,7 +1148,6 @@ ShellRoot {
             required property var modelData
             screen: modelData
 
-            readonly property int dockHeight: 40
             readonly property int cornerSize: theme.cornerRadius
 
             anchors {
@@ -817,18 +1161,15 @@ ShellRoot {
                 right: 0
             }
 
-            exclusiveZone: dockHeight
-            implicitHeight: dockHeight + cornerSize
+            exclusiveZone: 0
+            implicitHeight: cornerSize
             color: "transparent"
 
-            mask: Region {
-                item: bottomDockCapsule
-            }
+            mask: Region {}
 
-            // Bottom-Left & Bottom-Right Concave Screen Corners
             RoundCorner {
                 anchors {
-                    bottom: bottomFrameStrip.top
+                    bottom: parent.bottom
                     left: parent.left
                 }
                 corner: "bottom-left"
@@ -839,442 +1180,13 @@ ShellRoot {
 
             RoundCorner {
                 anchors {
-                    bottom: bottomFrameStrip.top
+                    bottom: parent.bottom
                     right: parent.right
                 }
                 corner: "bottom-right"
                 cornerSize: bottomCornerWindow.cornerSize
                 fillColor: theme.barBg
                 fillAlpha: theme.barOpacity
-            }
-
-            // Subtle bottom screen frame edge strip (matching bottom frame line in image-7.png)
-            Rectangle {
-                id: bottomFrameStrip
-                anchors {
-                    bottom: parent.bottom
-                    left: parent.left
-                    right: parent.right
-                }
-                height: 6
-                color: Qt.alpha(theme.barBg, theme.barOpacity)
-
-                Rectangle {
-                    anchors {
-                        top: parent.top
-                        left: parent.left
-                        right: parent.right
-                    }
-                    height: 1
-                    color: Qt.alpha(theme.borderColor, 0.45)
-                }
-            }
-
-            // ── BOTTOM-CENTER SCULPTED DOCK CAPSULE: [ (═══) (═══) (═══) (═══) (●) ] (exact match to bottom of image-7.png) ──
-            Rectangle {
-                id: bottomDockCapsule
-                anchors {
-                    bottom: parent.bottom
-                    bottomMargin: 2
-                    horizontalCenter: parent.horizontalCenter
-                }
-                width: bottomDockRow.implicitWidth + 20
-                height: 36
-                radius: 18
-                border.width: 1
-                border.color: Qt.alpha(theme.borderColor, 0.65)
-
-                gradient: Gradient {
-                    orientation: Gradient.Vertical
-                    GradientStop { position: 0.0; color: Qt.alpha(theme.surfaceBg, 0.88) }
-                    GradientStop { position: 0.5; color: Qt.alpha(theme.barBg, 0.94) }
-                    GradientStop { position: 1.0; color: Qt.alpha(theme.barBg, 0.98) }
-                }
-
-                RowLayout {
-                    id: bottomDockRow
-                    anchors.centerIn: parent
-                    spacing: 8
-
-                    // ── OBLONG PILL 1: Resources (RAM, Swap, CPU) ──
-                    BarGroup {
-                        id: leftCenterGroup
-                        padding: 10
-                        implicitWidth: resRow.implicitWidth + padding * 2
-
-                        RowLayout {
-                            id: resRow
-                            anchors.centerIn: parent
-                            spacing: 8
-
-                            RowLayout {
-                                spacing: 4
-                                CircularResourceRing {
-                                    value: shellRoot.memoryUsage
-                                    iconText: "󰍛"
-                                    primaryColor: shellRoot.memoryUsage >= 0.90 ? theme.errorColor : theme.secondaryFg
-                                }
-                                Text {
-                                    text: Math.round(shellRoot.memoryUsage * 100).toString()
-                                    color: theme.mainFg
-                                    font.family: "JetBrainsMono Nerd Font"
-                                    font.pixelSize: 11
-                                }
-                            }
-
-                            RowLayout {
-                                spacing: 4
-                                CircularResourceRing {
-                                    value: shellRoot.swapUsage
-                                    iconText: "󰓡"
-                                    primaryColor: shellRoot.swapUsage >= 0.90 ? theme.errorColor : theme.secondaryFg
-                                }
-                                Text {
-                                    text: Math.round(shellRoot.swapUsage * 100).toString()
-                                    color: theme.mainFg
-                                    font.family: "JetBrainsMono Nerd Font"
-                                    font.pixelSize: 11
-                                }
-                            }
-
-                            RowLayout {
-                                spacing: 4
-                                CircularResourceRing {
-                                    value: shellRoot.cpuUsage
-                                    iconText: "󰻠"
-                                    primaryColor: shellRoot.cpuUsage >= 0.90 ? theme.errorColor : theme.secondaryFg
-                                }
-                                Text {
-                                    text: Math.round(shellRoot.cpuUsage * 100).toString()
-                                    color: theme.mainFg
-                                    font.family: "JetBrainsMono Nerd Font"
-                                    font.pixelSize: 11
-                                }
-                            }
-                        }
-                    }
-
-                    // ── OBLONG PILL 2: Media / AniSub ("No media" / active track) ──
-                    BarGroup {
-                        id: mediaPillGroup
-                        padding: 10
-                        implicitWidth: mediaWidget.implicitWidth + padding * 2
-
-                        RowLayout {
-                            id: mediaWidget
-                            anchors.centerIn: parent
-                            readonly property var activePlayer: (Mpris.players && Mpris.players.values && Mpris.players.values.length > 0)
-                                ? Mpris.players.values[0]
-                                : null
-                            readonly property bool hasTrack: activePlayer !== null && activePlayer.trackTitle !== ""
-                            spacing: 6
-
-                            CircularResourceRing {
-                                value: (mediaWidget.activePlayer && mediaWidget.activePlayer.length > 0)
-                                    ? (mediaWidget.activePlayer.position / mediaWidget.activePlayer.length)
-                                    : (mediaWidget.hasTrack && mediaWidget.activePlayer.isPlaying ? 0.65 : 0.0)
-                                iconText: (mediaWidget.hasTrack && mediaWidget.activePlayer.isPlaying) ? "" : "󰎈"
-                                primaryColor: theme.secondaryFg
-                            }
-
-                            Item {
-                                implicitWidth: 86
-                                implicitHeight: 22
-
-                                Text {
-                                    anchors.centerIn: parent
-                                    width: parent.width
-                                    horizontalAlignment: Text.AlignHCenter
-                                    elide: Text.ElideRight
-                                    text: mediaWidget.hasTrack
-                                        ? (mediaWidget.activePlayer.trackTitle + (mediaWidget.activePlayer.trackArtist ? (" • " + mediaWidget.activePlayer.trackArtist) : ""))
-                                        : "No media"
-                                    color: theme.mainFg
-                                    font.family: "JetBrainsMono Nerd Font"
-                                    font.pixelSize: 11
-                                }
-
-                                MouseArea {
-                                    anchors.fill: parent
-                                    acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: mouse => {
-                                        if (!mediaWidget.hasTrack || mouse.button === Qt.LeftButton) {
-                                            shellRoot.runCmd(["hyde-shell", "rofi.movie"]);
-                                        } else if (mouse.button === Qt.MiddleButton && mediaWidget.activePlayer) {
-                                            mediaWidget.activePlayer.togglePlaying();
-                                        } else if (mouse.button === Qt.RightButton && mediaWidget.activePlayer) {
-                                            mediaWidget.activePlayer.next();
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // ── OBLONG PILL 3: Clock & Date (HH:mm • ddd, dd/MM) ──
-                    BarGroup {
-                        id: clockPillGroup
-                        padding: 12
-                        implicitWidth: clockRow.implicitWidth + padding * 2
-
-                        RowLayout {
-                            id: clockRow
-                            anchors.centerIn: parent
-                            spacing: 5
-
-                            Text {
-                                text: shellRoot.timeText
-                                color: theme.mainFg
-                                font.family: "JetBrainsMono Nerd Font"
-                                font.pixelSize: 12
-                                font.weight: Font.Medium
-                            }
-
-                            Text {
-                                text: "•"
-                                color: theme.subFg
-                                font.family: "JetBrainsMono Nerd Font"
-                                font.pixelSize: 10
-                            }
-
-                            Text {
-                                text: shellRoot.dateText
-                                color: theme.secondaryFg
-                                font.family: "JetBrainsMono Nerd Font"
-                                font.pixelSize: 11
-                            }
-                        }
-                    }
-
-                    // ── OBLONG PILL 4: Status & Quick Controls (Bluetooth, Wi-Fi, Mic, Volume, Battery, Tray) ──
-                    BarGroup {
-                        id: statusPillGroup
-                        padding: 10
-                        implicitWidth: statusPillRow.implicitWidth + padding * 2
-
-                        RowLayout {
-                            id: statusPillRow
-                            anchors.centerIn: parent
-                            spacing: 8
-
-                            CircleUtilButton {
-                                iconText: "󰆞"
-                                onTriggered: shellRoot.runCmd(["hyde-shell", "screenshot", "s"])
-                            }
-
-                            CircleUtilButton {
-                                iconText: "󰈊"
-                                onTriggered: shellRoot.runCmd(["hyprpicker", "-a"])
-                            }
-
-                            // System Tray icons (if any)
-                            RowLayout {
-                                visible: SystemTray.items && SystemTray.items.values && SystemTray.items.values.length > 0
-                                spacing: 4
-
-                                Repeater {
-                                    model: SystemTray.items
-
-                                    Rectangle {
-                                        id: traySlot
-                                        required property var modelData
-                                        implicitWidth: 20
-                                        implicitHeight: 20
-                                        radius: 10
-                                        color: trayMouse.containsMouse ? theme.hvrBg : "transparent"
-
-                                        Image {
-                                            anchors.centerIn: parent
-                                            width: 14
-                                            height: 14
-                                            source: traySlot.modelData.icon || ""
-                                            sourceSize.width: 14
-                                            sourceSize.height: 14
-                                        }
-
-                                        MouseArea {
-                                            id: trayMouse
-                                            anchors.fill: parent
-                                            hoverEnabled: true
-                                            acceptedButtons: Qt.LeftButton | Qt.RightButton
-                                            cursorShape: Qt.PointingHandCursor
-                                            onClicked: mouse => {
-                                                if (mouse.button === Qt.RightButton) {
-                                                    traySlot.modelData.secondaryActivate();
-                                                } else {
-                                                    traySlot.modelData.activate();
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            // Bluetooth
-                            Text {
-                                text: shellRoot.bluetoothConnected
-                                    ? "󰂱"
-                                    : (shellRoot.bluetoothOn ? "󰂯" : "󰂲")
-                                color: theme.mainFg
-                                font.family: "JetBrainsMono Nerd Font"
-                                font.pixelSize: 13
-
-                                MouseArea {
-                                    anchors.fill: parent
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: shellRoot.runCmd(["blueman-manager"])
-                                }
-                            }
-
-                            // Wi-Fi
-                            Text {
-                                text: shellRoot.networkName !== "" ? "󰤨" : "󰤭"
-                                color: theme.mainFg
-                                font.family: "JetBrainsMono Nerd Font"
-                                font.pixelSize: 13
-
-                                MouseArea {
-                                    anchors.fill: parent
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: shellRoot.runCmd(["nm-connection-editor"])
-                                }
-                            }
-
-                            // Mic
-                            Text {
-                                text: shellRoot.micMuted ? "󰍭" : "󰍬"
-                                color: theme.mainFg
-                                font.family: "JetBrainsMono Nerd Font"
-                                font.pixelSize: 13
-
-                                MouseArea {
-                                    anchors.fill: parent
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: {
-                                        shellRoot.runCmd(["pamixer", "--default-source", "-t"]);
-                                        statusProc.running = true;
-                                    }
-                                }
-                            }
-
-                            // Volume
-                            Text {
-                                text: shellRoot.volumeMuted
-                                    ? "󰝟"
-                                    : (shellRoot.volumeLevel < 35 ? "󰕿" : (shellRoot.volumeLevel < 70 ? "󰖀" : "󰕾"))
-                                color: theme.mainFg
-                                font.family: "JetBrainsMono Nerd Font"
-                                font.pixelSize: 13
-
-                                MouseArea {
-                                    anchors.fill: parent
-                                    acceptedButtons: Qt.LeftButton | Qt.RightButton
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: mouse => {
-                                        if (mouse.button === Qt.RightButton) {
-                                            shellRoot.runCmd(["pavucontrol"]);
-                                        } else {
-                                            shellRoot.runCmd(["pamixer", "-t"]);
-                                            statusProc.running = true;
-                                        }
-                                    }
-                                    onWheel: event => {
-                                        if (event.angleDelta.y > 0) {
-                                            shellRoot.runCmd(["pamixer", "-i", "5"]);
-                                        } else if (event.angleDelta.y < 0) {
-                                            shellRoot.runCmd(["pamixer", "-d", "5"]);
-                                        }
-                                        statusProc.running = true;
-                                    }
-                                }
-                            }
-
-                            // Compact Battery Pill (⚡92)
-                            Item {
-                                implicitWidth: 30
-                                implicitHeight: 16
-
-                                Rectangle {
-                                    anchors.fill: parent
-                                    radius: 8
-                                    color: Qt.alpha(theme.accentSecondary, 0.55)
-                                    clip: true
-
-                                    Rectangle {
-                                        width: Math.max(6, parent.width * Math.max(0.0, Math.min(1.0, shellRoot.batteryLevel)))
-                                        height: parent.height
-                                        radius: 8
-                                        color: (shellRoot.batteryLevel <= 0.20 && !shellRoot.batteryCharging)
-                                            ? theme.errorColor
-                                            : theme.secondaryFg
-                                    }
-
-                                    RowLayout {
-                                        anchors.centerIn: parent
-                                        spacing: 0
-
-                                        Text {
-                                            visible: shellRoot.batteryCharging
-                                            text: ""
-                                            color: theme.actFg
-                                            font.family: "JetBrainsMono Nerd Font"
-                                            font.pixelSize: 8
-                                        }
-
-                                        Text {
-                                            text: Math.round(Math.max(0, shellRoot.batteryLevel * 100)).toString()
-                                            color: theme.actFg
-                                            font.family: "JetBrainsMono Nerd Font"
-                                            font.pixelSize: 9
-                                            font.bold: true
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // ── 5TH ELEMENT: Rightmost Circular Matte Button (`(●)` on the right of bottom dock in image-7.png) ──
-                    Rectangle {
-                        id: rightOrbBtn
-                        implicitWidth: 28
-                        implicitHeight: 28
-                        radius: 14
-                        color: rightOrbMouse.containsMouse
-                            ? Qt.alpha(theme.hvrBg, 0.85)
-                            : Qt.alpha(theme.layer2Bg, 0.68)
-                        border.width: 1
-                        border.color: Qt.alpha(theme.borderColor, 0.45)
-
-                        Behavior on color {
-                            ColorAnimation { duration: 150 }
-                        }
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: "󰒓"
-                            color: theme.mainFg
-                            font.family: "JetBrainsMono Nerd Font"
-                            font.pixelSize: 13
-                        }
-
-                        MouseArea {
-                            id: rightOrbMouse
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            acceptedButtons: Qt.LeftButton | Qt.RightButton
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: mouse => {
-                                if (mouse.button === Qt.RightButton) {
-                                    shellRoot.runCmd(["hyde-shell", "logoutlaunch", "1"]);
-                                } else {
-                                    shellRoot.runCmd(["hyde-shell", "anide-settings"]);
-                                }
-                            }
-                        }
-                    }
-                }
             }
         }
     }

@@ -297,10 +297,10 @@ ShellRoot {
                 var rOuter = width / 2;
                 var rInner = rOuter - 2.6;
 
-                // 1. Filled tonal circle background (colSecondaryContainer)
+                // 1. Filled tonal circle background (softly translucent colSecondaryContainer)
                 ctx.beginPath();
                 ctx.arc(cx, cy, rOuter, 0, Math.PI * 2, false);
-                ctx.fillStyle = Qt.alpha(ringRoot.trackColor, 0.92);
+                ctx.fillStyle = Qt.alpha(ringRoot.trackColor, 0.45);
                 ctx.fill();
 
                 // 2. Progress pie/arc in colOnSecondaryContainer
@@ -314,10 +314,10 @@ ShellRoot {
                     ctx.fill();
                 }
 
-                // 3. Inner dark circle for crisp icon contrast
+                // 3. Inner circle for crisp icon contrast
                 ctx.beginPath();
                 ctx.arc(cx, cy, rInner, 0, Math.PI * 2, false);
-                ctx.fillStyle = Qt.alpha(theme.accentSecondary, 0.95);
+                ctx.fillStyle = Qt.alpha(theme.surfaceBg, 0.78);
                 ctx.fill();
             }
         }
@@ -340,7 +340,7 @@ ShellRoot {
         implicitWidth: 22
         implicitHeight: 22
         radius: 11
-        color: utilMouse.containsMouse ? theme.hvrBg : theme.layer2Bg
+        color: utilMouse.containsMouse ? Qt.alpha(theme.hvrBg, 0.75) : Qt.alpha(theme.layer2Bg, 0.48)
 
         Behavior on color {
             ColorAnimation { duration: 150 }
@@ -696,7 +696,7 @@ ShellRoot {
                                             + (occSlot.nextOcc ? wsContainer.activeMargin * 2 : 0)
                                         height: wsContainer.activeSize
                                         radius: wsContainer.activeSize / 2
-                                        color: theme.accentSecondary
+                                        color: Qt.alpha(theme.accentSecondary, 0.46)
                                     }
                                 }
                             }
@@ -753,9 +753,7 @@ ShellRoot {
                                         width: 18
                                         height: 18
                                         radius: 9
-                                        color: wsSlot.isActive
-                                            ? "transparent"
-                                            : Qt.alpha(theme.secondaryFg, 0.14)
+                                        color: "transparent"
 
                                         Text {
                                             anchors.centerIn: parent
@@ -854,7 +852,7 @@ ShellRoot {
                                 Rectangle {
                                     anchors.fill: parent
                                     radius: 9
-                                    color: theme.accentSecondary
+                                    color: Qt.alpha(theme.accentSecondary, 0.48)
                                     clip: true
 
                                     Rectangle {

@@ -15,7 +15,7 @@
   "hvrBg": "#38303d",
   "hvrFg": "#f5eff7",
   "borderColor": "#49414e",
-  "barOpacity": 0.85,
-  "pillOpacity": 0.90,
+  "barOpacity": 0.74,
+  "pillOpacity": 0.42,
   "cornerRadius": 23
 }

@@ -20,8 +20,8 @@ QtObject {
     property color borderColor: "#49414e"
     property color errorColor: "#ffb4ab"
     property color errorFg: "#690005"
-    property real barOpacity: 0.85           // Material 3 Tonal Spot transparency
-    property real pillOpacity: 0.90
+    property real barOpacity: 0.74           // Soft Material 3 Tonal Spot bar transparency
+    property real pillOpacity: 0.42          // Soft end-4 colLayer1 capsule translucency (1 - 0.57)
     property int cornerRadius: 23            // Appearance.rounding.screenRounding (23px Hug corners)
     property int groupRadius: 16             // Smooth capsule rounding inside 40px bar
     property string wallBlurPath: ""

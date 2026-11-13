@@ -1,5 +1,5 @@
-// AniDE Quickshell Bar — Single Top Floating Frosted Sea-Glass Pill Bar (image-8.png style)
-// Translucent Deep Slate-Teal Glass Capsules | Crisp 1.2px Diagonal Specular Rim | Soft Frosted Inner Active Pill | Clean Silver-Ice Icons
+// AniDE Quickshell Bar — Frosted Sea-Glass Stadium Pill Bar (image-8.png style) + Concave Rounded Screen Corners + Caffeine Toggle
+// Translucent Deep Slate-Teal Glass Capsules | Crisp 1.2px Specular Rim | Soft Frosted Inner Active Pill | Clean Silver-Ice Icons
 // GPL-3.0-or-later; see CREDITS.md.
 import Quickshell
 import Quickshell.Io
@@ -31,6 +31,7 @@ ShellRoot {
     property string networkName: "wlan0"
     property bool bluetoothOn: true
     property bool bluetoothConnected: false
+    property bool caffeineActive: false
     property string activeWinClass: ""
     property string activeWinTitle: ""
     property var wsClasses: ({})     // map of wsId -> window class string
@@ -90,7 +91,7 @@ ShellRoot {
         }
     }
 
-    // Clock, system telemetry & live wallpaper (.dcol) polling
+    // Clock, system telemetry, caffeine state & live wallpaper (.dcol) polling
     Timer {
         interval: 2000
         running: true
@@ -158,8 +159,13 @@ ShellRoot {
             "  x29=\"${dcol_2xa9:-${wallbash_2xa9:-}}\"; " +
             "  dcols=\"${p1},${x12},${x13},${x16},${x19},${x23},${x28},${x29}\"; " +
             "fi; " +
-            "printf '%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\\n' " +
-            "\"$vol\" \"$mute\" \"$micm\" \"$br\" \"$cpu\" \"$ram\" \"$swp\" \"$bat\" \"$bstat\" \"$net\" \"$bton\" \"$btcon\" \"$wclass\" \"$wtitle\" \"$wsmap\" \"$wblr\" \"$wstamp\" \"$dcols\""
+            "caf=0; cfile=\"${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/hyde/caffeine\"; " +
+            "if [ -r \"$cfile\" ]; then " +
+            "  IFS='|' read -r cint cpid < \"$cfile\" || true; " +
+            "  if [ \"$cint\" = \"1\" ] && [ -n \"$cpid\" ] && kill -0 \"$cpid\" 2>/dev/null; then caf=1; fi; " +
+            "fi; " +
+            "printf '%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\\n' " +
+            "\"$vol\" \"$mute\" \"$micm\" \"$br\" \"$cpu\" \"$ram\" \"$swp\" \"$bat\" \"$bstat\" \"$net\" \"$bton\" \"$btcon\" \"$wclass\" \"$wtitle\" \"$wsmap\" \"$wblr\" \"$wstamp\" \"$dcols\" \"$caf\""
         ]
         stdout: SplitParser {
             onRead: data => {
@@ -229,13 +235,16 @@ ShellRoot {
                         }
                     }
                 }
+                if (parts.length >= 19) {
+                    shellRoot.caffeineActive = (parts[18] === "1");
+                }
             }
         }
     }
 
     // ── Reusable Frosted Sea-Glass Pill Components (image-8.png style) ──
 
-    // 0. DreamyMistCanvas: Renders the exact Frosted Sea-Glass Stadium Pill + 1.2px Diagonal Specular Rim of image-8.png
+    // 0. DreamyMistCanvas: Renders the Frosted Sea-Glass Stadium Sheen + 1.2px Diagonal Specular Rim of image-8.png
     component DreamyMistCanvas: Canvas {
         id: mistCanvas
         property color baseColor: theme.surfaceBg
@@ -261,76 +270,75 @@ ShellRoot {
             ctx.reset();
             if (width <= 4 || height <= 4) return;
             var r = height / 2;
-
-            function stadiumPath(inset) {
-                var ri = Math.max(1, r - inset);
-                ctx.beginPath();
-                ctx.moveTo(inset + ri, inset);
-                ctx.lineTo(width - inset - ri, inset);
-                ctx.arc(width - inset - ri, height / 2, ri, -Math.PI / 2, Math.PI / 2, false);
-                ctx.lineTo(inset + ri, height - inset);
-                ctx.arc(inset + ri, height / 2, ri, Math.PI / 2, -Math.PI / 2, false);
-                ctx.closePath();
-            }
+            var inset = 0.75;
+            var ri = Math.max(1, r - inset);
 
             // 1. Main Translucent Sea-Glass Horizontal-Diagonal Gradient (deep left -> luminous right, matching image-8.png)
-            stadiumPath(0.6);
+            ctx.beginPath();
+            ctx.moveTo(inset + ri, inset);
+            ctx.lineTo(width - inset - ri, inset);
+            ctx.arc(width - inset - ri, height / 2, ri, -Math.PI / 2, Math.PI / 2, false);
+            ctx.lineTo(inset + ri, height - inset);
+            ctx.arc(inset + ri, height / 2, ri, Math.PI / 2, -Math.PI / 2, false);
+            ctx.closePath();
+
             var bodyGrad = ctx.createLinearGradient(0, height * 0.2, width, height * 0.8);
-            bodyGrad.addColorStop(0.0, shellRoot.cssRgba(theme.barBg, Math.min(0.86, baseOpacity + 0.08)));
-            bodyGrad.addColorStop(0.46, shellRoot.cssRgba(theme.surfaceBg, baseOpacity));
-            bodyGrad.addColorStop(1.0, shellRoot.cssRgba(theme.layer2Bg, Math.max(0.54, baseOpacity - 0.06)));
+            bodyGrad.addColorStop(0.0, shellRoot.cssRgba(theme.barBg, 0.82));
+            bodyGrad.addColorStop(0.48, shellRoot.cssRgba(theme.surfaceBg, 0.76));
+            bodyGrad.addColorStop(1.0, shellRoot.cssRgba(theme.layer2Bg, 0.70));
             ctx.fillStyle = bodyGrad;
             ctx.fill();
 
-            // 2. Right-Side Frosted Sea-Glass Inner Diffusion (matches the soft cyan-frost glow on the right of image-8.png)
+            // 2. Right-Side Frosted Sea-Glass Inner Diffusion + Top Frost Veil
             ctx.save();
-            stadiumPath(1.0);
             ctx.clip();
             var rightGlow = ctx.createRadialGradient(width * 0.88, height * 0.48, 2, width * 0.85, height * 0.5, width * 0.52);
-            rightGlow.addColorStop(0.0, shellRoot.cssRgba(glowPrimary, 0.12));
+            rightGlow.addColorStop(0.0, shellRoot.cssRgba(glowPrimary, 0.14));
             rightGlow.addColorStop(0.55, shellRoot.cssRgba(glowAlt, 0.05));
             rightGlow.addColorStop(1.0, "rgba(0,0,0,0)");
             ctx.fillStyle = rightGlow;
             ctx.fillRect(0, 0, width, height);
 
-            // 3. Delicate Top-to-Bottom Frost Veil
             var sheenGrad = ctx.createLinearGradient(0, 0, 0, height);
-            sheenGrad.addColorStop(0.0, "rgba(225, 245, 252, 0.09)");
+            sheenGrad.addColorStop(0.0, "rgba(225, 245, 252, 0.10)");
             sheenGrad.addColorStop(0.45, "rgba(185, 222, 236, 0.02)");
-            sheenGrad.addColorStop(1.0, "rgba(6, 14, 18, 0.15)");
+            sheenGrad.addColorStop(1.0, "rgba(6, 14, 18, 0.16)");
             ctx.fillStyle = sheenGrad;
             ctx.fillRect(0, 0, width, height);
             ctx.restore();
 
-            // 4. Crisp 1.2px Diagonal Specular Glass Rim (brighter at top-left & bottom-right curves, matching image-8.png)
-            stadiumPath(0.75);
+            // 3. Crisp 1.25px Diagonal Specular Glass Rim (brighter at top-left & bottom-right curves, matching image-8.png)
+            ctx.beginPath();
+            ctx.moveTo(inset + ri, inset);
+            ctx.lineTo(width - inset - ri, inset);
+            ctx.arc(width - inset - ri, height / 2, ri, -Math.PI / 2, Math.PI / 2, false);
+            ctx.lineTo(inset + ri, height - inset);
+            ctx.arc(inset + ri, height / 2, ri, Math.PI / 2, -Math.PI / 2, false);
+            ctx.closePath();
+
             var rimGrad = ctx.createLinearGradient(0, 0, width, height);
-            rimGrad.addColorStop(0.0, shellRoot.cssRgba(glowPrimary, 0.52));
-            rimGrad.addColorStop(0.32, shellRoot.cssRgba(glowAlt, 0.20));
-            rimGrad.addColorStop(0.68, shellRoot.cssRgba(glowAlt, 0.18));
-            rimGrad.addColorStop(1.0, shellRoot.cssRgba(glowPrimary, 0.46));
+            rimGrad.addColorStop(0.0, shellRoot.cssRgba(glowPrimary, 0.55));
+            rimGrad.addColorStop(0.32, shellRoot.cssRgba(glowAlt, 0.22));
+            rimGrad.addColorStop(0.68, shellRoot.cssRgba(glowAlt, 0.20));
+            rimGrad.addColorStop(1.0, shellRoot.cssRgba(glowPrimary, 0.48));
             ctx.lineWidth = 1.25;
             ctx.strokeStyle = rimGrad;
             ctx.stroke();
         }
     }
 
-    // 1. BarGroup: Floating Frosted Sea-Glass Stadium Pill Capsule (height: 40, radius: 20, matching image-8.png)
-    component BarGroup: Item {
+    // 1. BarGroup: Hardware-rounded Stadium Pill Capsule (height: 36, radius: 18, matching image-8.png)
+    component BarGroup: Rectangle {
         id: grpRoot
-        property real padding: 5
-        height: 40
+        property real padding: 4
+        width: implicitWidth
+        height: 36
+        radius: 18
+        color: Qt.alpha(theme.surfaceBg, 0.78)
+        border.width: 1
+        border.color: Qt.alpha(theme.borderColor, 0.42)
 
-        // Soft ambient drop shadow beneath the floating glass capsule
-        Rectangle {
-            anchors.fill: parent
-            anchors.topMargin: 2
-            anchors.bottomMargin: -2
-            radius: height / 2
-            color: Qt.rgba(0.02, 0.05, 0.07, 0.30)
-        }
-
-        // Frosted Sea-Glass Stadium Body + Specular Rim
+        // Frosted Sea-Glass Stadium Gradient + Diagonal Specular Rim
         DreamyMistCanvas {
             anchors.fill: parent
             baseColor: theme.surfaceBg
@@ -394,19 +402,22 @@ ShellRoot {
         }
     }
 
-    // 3. CircleUtilButton: Clean Icon Button sitting directly on the glass capsule (soft inner frosted pill on hover)
+    // 3. CircleUtilButton: Clean Icon Button sitting directly on the glass capsule (soft inner frosted pill when active/hovered)
     component CircleUtilButton: Rectangle {
         id: utilBtn
         property string iconText: ""
+        property bool activeState: false
         signal triggered()
         signal rightTriggered()
 
         implicitWidth: 28
         implicitHeight: 28
         radius: 14
-        color: utilMouse.containsMouse
-            ? Qt.rgba(0.84, 0.93, 0.96, 0.16)
-            : "transparent"
+        color: utilBtn.activeState
+            ? Qt.rgba(0.86, 0.94, 0.98, 0.22)
+            : (utilMouse.containsMouse ? Qt.rgba(0.84, 0.93, 0.96, 0.16) : "transparent")
+        border.width: utilBtn.activeState ? 1 : 0
+        border.color: Qt.rgba(0.92, 0.97, 1.0, 0.14)
 
         Behavior on color {
             ColorAnimation { duration: 150 }
@@ -415,7 +426,7 @@ ShellRoot {
         Text {
             anchors.centerIn: parent
             text: utilBtn.iconText
-            color: utilMouse.containsMouse ? theme.mainFg : theme.secondaryFg
+            color: (utilBtn.activeState || utilMouse.containsMouse) ? theme.mainFg : theme.secondaryFg
             font.family: "JetBrainsMono Nerd Font"
             font.pixelSize: 14
         }
@@ -436,7 +447,7 @@ ShellRoot {
         }
     }
 
-    // ── SINGLE TOP FLOATING FROSTED SEA-GLASS PILL BAR (matching image-8.png — NO bottom bar, NO opaque screen frame) ──
+    // ── SINGLE TOP BAR WITH CONCAVE ROUNDED CORNERS + FROSTED SEA-GLASS STADIUM CAPSULES (image-8.png style) ──
     Variants {
         model: Quickshell.screens
 
@@ -445,7 +456,7 @@ ShellRoot {
             required property var modelData
             screen: modelData
 
-            readonly property int barHeight: 50
+            readonly property int barHeight: 44
             readonly property int cornerSize: theme.cornerRadius
             readonly property int activeWsId: (Hyprland.focusedMonitor && Hyprland.focusedMonitor.activeWorkspace)
                 ? Hyprland.focusedMonitor.activeWorkspace.id
@@ -466,15 +477,15 @@ ShellRoot {
             }
 
             exclusiveZone: barHeight
-            implicitHeight: barHeight
+            implicitHeight: barHeight + cornerSize
             color: "transparent"
 
             mask: Region {
                 item: barContent
             }
 
-            // Transparent top container holding the 3 floating Frosted Sea-Glass Stadium Capsules
-            Item {
+            // Main Top Bar Backdrop seamlessly connecting into Top-Left & Top-Right Concave RoundCorners
+            Rectangle {
                 id: barContent
                 anchors {
                     top: parent.top
@@ -482,8 +493,13 @@ ShellRoot {
                     right: parent.right
                 }
                 height: barWindow.barHeight
+                color: Qt.alpha(theme.barBg, theme.barOpacity)
 
-                // ── 1. TOP-LEFT FLOATING FROSTED GLASS CAPSULE (`leftCenterGroup`) ──
+                Behavior on color {
+                    ColorAnimation { duration: 300 }
+                }
+
+                // ── 1. TOP-LEFT FROSTED SEA-GLASS STADIUM CAPSULE (`leftCenterGroup`) ──
                 MouseArea {
                     id: leftSideArea
                     anchors {
@@ -507,32 +523,32 @@ ShellRoot {
                         id: leftCenterGroup
                         anchors {
                             left: parent.left
-                            leftMargin: 14
+                            leftMargin: 12
                             verticalCenter: parent.verticalCenter
                         }
-                        padding: 5
-                        implicitWidth: leftPillRow.implicitWidth + padding * 2 + 6
+                        padding: 4
+                        implicitWidth: leftPillRow.implicitWidth + 14
 
                         RowLayout {
                             id: leftPillRow
                             anchors {
                                 left: parent.left
-                                leftMargin: 5
+                                leftMargin: 4
                                 verticalCenter: parent.verticalCenter
                             }
-                            spacing: 12
+                            spacing: 11
 
                             // Leftmost Active-Style Soft Frosted Inner Pill (matches the Home pill on the left of image-8.png!)
                             Rectangle {
                                 id: leftSidebarBtn
-                                implicitWidth: 46
-                                implicitHeight: 30
-                                radius: 15
+                                implicitWidth: 44
+                                implicitHeight: 28
+                                radius: 14
                                 color: leftBtnMouse.containsMouse
-                                    ? Qt.rgba(0.86, 0.94, 0.98, 0.25)
-                                    : Qt.rgba(0.84, 0.93, 0.96, 0.17)
+                                    ? Qt.rgba(0.86, 0.94, 0.98, 0.26)
+                                    : Qt.rgba(0.84, 0.93, 0.96, 0.18)
                                 border.width: 1
-                                border.color: Qt.rgba(0.92, 0.97, 1.0, 0.10)
+                                border.color: Qt.rgba(0.92, 0.97, 1.0, 0.12)
 
                                 Behavior on color {
                                     ColorAnimation { duration: 150 }
@@ -543,7 +559,7 @@ ShellRoot {
                                     text: "󰋜"
                                     color: theme.mainFg
                                     font.family: "JetBrainsMono Nerd Font"
-                                    font.pixelSize: 16
+                                    font.pixelSize: 15
                                 }
 
                                 MouseArea {
@@ -628,10 +644,10 @@ ShellRoot {
                                     : null
                                 readonly property bool hasTrack: activePlayer !== null && activePlayer.trackTitle !== ""
                                 implicitWidth: mediaRow.implicitWidth + 14
-                                implicitHeight: 30
-                                radius: 15
+                                implicitHeight: 28
+                                radius: 14
                                 color: mediaMouse.containsMouse
-                                    ? Qt.rgba(0.84, 0.93, 0.96, 0.15)
+                                    ? Qt.rgba(0.84, 0.93, 0.96, 0.16)
                                     : "transparent"
 
                                 RowLayout {
@@ -679,22 +695,22 @@ ShellRoot {
                     }
                 }
 
-                // ── 2. TOP-CENTER FLOATING FROSTED SEA-GLASS PILL (`middleCenterGroup` — 1:1 visual match to image-8.png) ──
+                // ── 2. TOP-CENTER FROSTED SEA-GLASS STADIUM PILL (`middleCenterGroup` — 1:1 visual match to image-8.png) ──
                 BarGroup {
                     id: middleCenterGroup
                     anchors {
                         horizontalCenter: parent.horizontalCenter
                         verticalCenter: parent.verticalCenter
                     }
-                    padding: 5
-                    width: wsContainer.implicitWidth + 10
+                    padding: 4
+                    implicitWidth: wsContainer.implicitWidth + 8
 
                     Item {
                         id: wsContainer
                         anchors.centerIn: parent
-                        readonly property real pillWidth: 50
-                        readonly property real pillHeight: 30
-                        readonly property real pillPitch: 56
+                        readonly property real pillWidth: 48
+                        readonly property real pillHeight: 28
+                        readonly property real pillPitch: 54
                         readonly property int targetIndex: barWindow.localOrbIndex
 
                         property real idx1: targetIndex
@@ -727,9 +743,9 @@ ShellRoot {
                             width: Math.abs(wsContainer.idx1 - wsContainer.idx2) * wsContainer.pillPitch + wsContainer.pillWidth
                             height: wsContainer.pillHeight
                             radius: wsContainer.pillHeight / 2
-                            color: Qt.rgba(0.84, 0.93, 0.96, 0.17)
+                            color: Qt.rgba(0.84, 0.93, 0.96, 0.18)
                             border.width: 1
-                            border.color: Qt.rgba(0.92, 0.97, 1.0, 0.10)
+                            border.color: Qt.rgba(0.92, 0.97, 1.0, 0.12)
                         }
 
                         // Layer 2: 5 Workspace Slots sitting directly on the Frosted Sea-Glass Capsule (Home, Check-circle, Calendar, Target, Terminal)
@@ -762,7 +778,7 @@ ShellRoot {
                                     text: shellRoot.iconForWorkspaceSlot(wsSlot.index)
                                     color: wsSlot.isActive ? theme.mainFg : theme.secondaryFg
                                     font.family: "JetBrainsMono Nerd Font"
-                                    font.pixelSize: wsSlot.isActive ? 16 : 15
+                                    font.pixelSize: wsSlot.isActive ? 15 : 14
 
                                     Behavior on color {
                                         ColorAnimation { duration: 180 }
@@ -774,7 +790,7 @@ ShellRoot {
                                     visible: wsSlot.isOcc && !wsSlot.isActive
                                     anchors {
                                         bottom: parent.bottom
-                                        bottomMargin: 3
+                                        bottomMargin: 2.5
                                         horizontalCenter: parent.horizontalCenter
                                     }
                                     width: 3.5
@@ -802,7 +818,7 @@ ShellRoot {
                     }
                 }
 
-                // ── 3. TOP-RIGHT FLOATING FROSTED GLASS CAPSULE (`rightCenterGroup`) ──
+                // ── 3. TOP-RIGHT FROSTED SEA-GLASS STADIUM CAPSULE (`rightCenterGroup`) ──
                 MouseArea {
                     id: rightSideArea
                     anchors {
@@ -826,20 +842,35 @@ ShellRoot {
                         id: rightCenterGroup
                         anchors {
                             right: parent.right
-                            rightMargin: 14
+                            rightMargin: 12
                             verticalCenter: parent.verticalCenter
                         }
-                        padding: 5
-                        implicitWidth: rightDockRow.implicitWidth + padding * 2 + 6
+                        padding: 4
+                        implicitWidth: rightDockRow.implicitWidth + 14
 
                         RowLayout {
                             id: rightDockRow
                             anchors {
                                 right: parent.right
-                                rightMargin: 5
+                                rightMargin: 4
                                 verticalCenter: parent.verticalCenter
                             }
-                            spacing: 10
+                            spacing: 9
+
+                            // Coffee / Caffeine Toggle Button (`󰅶` when active, `󰛊` when inactive)
+                            CircleUtilButton {
+                                id: caffeineBtn
+                                iconText: shellRoot.caffeineActive ? "󰅶" : "󰛊"
+                                activeState: shellRoot.caffeineActive
+                                onTriggered: {
+                                    shellRoot.caffeineActive = !shellRoot.caffeineActive;
+                                    shellRoot.runCmd(["hyde-shell", "caffeine", "-t"]);
+                                }
+                                onRightTriggered: {
+                                    shellRoot.caffeineActive = !shellRoot.caffeineActive;
+                                    shellRoot.runCmd(["hyde-shell", "caffeine", "-t"]);
+                                }
+                            }
 
                             // Screenshot utility button (left-click: region snip `s`, right-click: full screen `p`)
                             CircleUtilButton {
@@ -1016,14 +1047,14 @@ ShellRoot {
                             // Rightmost Active-Style Soft Frosted Inner Pill: Clock, Date & Settings (mirrors the active pill of image-8.png)
                             Rectangle {
                                 id: rightClockPill
-                                implicitWidth: clockPillRow.implicitWidth + 22
-                                implicitHeight: 30
-                                radius: 15
+                                implicitWidth: clockPillRow.implicitWidth + 20
+                                implicitHeight: 28
+                                radius: 14
                                 color: rightClockMouse.containsMouse
-                                    ? Qt.rgba(0.86, 0.94, 0.98, 0.25)
-                                    : Qt.rgba(0.84, 0.93, 0.96, 0.17)
+                                    ? Qt.rgba(0.86, 0.94, 0.98, 0.26)
+                                    : Qt.rgba(0.84, 0.93, 0.96, 0.18)
                                 border.width: 1
-                                border.color: Qt.rgba(0.92, 0.97, 1.0, 0.10)
+                                border.color: Qt.rgba(0.92, 0.97, 1.0, 0.12)
 
                                 Behavior on color {
                                     ColorAnimation { duration: 150 }
@@ -1084,9 +1115,8 @@ ShellRoot {
                 }
             }
 
-            // Hidden screen-corner components retained for contract compatibility (fillAlpha: 0.0)
+            // ── Top-Left & Top-Right Concave Rounded Bar Corners ("bo góc lõm thanh bar") ──
             RoundCorner {
-                visible: false
                 anchors {
                     top: barContent.bottom
                     left: parent.left
@@ -1094,11 +1124,10 @@ ShellRoot {
                 corner: "top-left"
                 cornerSize: barWindow.cornerSize
                 fillColor: theme.barBg
-                fillAlpha: 0.0
+                fillAlpha: theme.barOpacity
             }
 
             RoundCorner {
-                visible: false
                 anchors {
                     top: barContent.bottom
                     right: parent.right
@@ -1106,31 +1135,59 @@ ShellRoot {
                 corner: "top-right"
                 cornerSize: barWindow.cornerSize
                 fillColor: theme.barBg
-                fillAlpha: 0.0
+                fillAlpha: theme.barOpacity
+            }
+        }
+    }
+
+    // ── BOTTOM CONCAVE SCREEN CORNERS ONLY (NO bottom bar! exclusiveZone: 0, click-through mask) ──
+    Variants {
+        model: Quickshell.screens
+
+        PanelWindow {
+            id: bottomCornerWindow
+            required property var modelData
+            screen: modelData
+
+            readonly property int cornerSize: theme.cornerRadius
+
+            anchors {
+                bottom: true
+                left: true
+                right: true
+            }
+            margins {
+                bottom: 0
+                left: 0
+                right: 0
             }
 
+            exclusiveZone: 0
+            implicitHeight: cornerSize
+            color: "transparent"
+
+            mask: Region {}
+
             RoundCorner {
-                visible: false
                 anchors {
                     bottom: parent.bottom
                     left: parent.left
                 }
                 corner: "bottom-left"
-                cornerSize: barWindow.cornerSize
+                cornerSize: bottomCornerWindow.cornerSize
                 fillColor: theme.barBg
-                fillAlpha: 0.0
+                fillAlpha: theme.barOpacity
             }
 
             RoundCorner {
-                visible: false
                 anchors {
                     bottom: parent.bottom
                     right: parent.right
                 }
                 corner: "bottom-right"
-                cornerSize: barWindow.cornerSize
+                cornerSize: bottomCornerWindow.cornerSize
                 fillColor: theme.barBg
-                fillAlpha: 0.0
+                fillAlpha: theme.barOpacity
             }
         }
     }

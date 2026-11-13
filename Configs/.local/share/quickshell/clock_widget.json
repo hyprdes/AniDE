@@ -1,0 +1,12 @@
+{
+  "visible": true,
+  "x": 72,
+  "y": 96,
+  "ledColor": "#ffffff",
+  "bgColor": "#050507",
+  "bgOpacity": 0.94,
+  "glowIntensity": 0.88,
+  "use12Hour": true,
+  "scale": 1.0,
+  "syncWallpaper": false
+}

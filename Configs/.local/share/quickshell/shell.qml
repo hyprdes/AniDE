@@ -166,6 +166,48 @@ ShellRoot {
         return icons[slotIndex % icons.length];
     }
 
+    // Wallpaper dominant-tone sampler (end-4 style): the bar palette derives
+    // from the wallpaper image itself, so the sync works even without wallbash.
+    Image {
+        id: wallSamplerSource
+        width: 16
+        height: 16
+        opacity: 0
+        source: shellRoot.wallBlurUrl
+        sourceSize: Qt.size(16, 16)
+        asynchronous: true
+        cache: false
+        property bool readyForSample: false
+        onStatusChanged: {
+            readyForSample = (status === Image.Ready);
+            if (readyForSample) wallSampler.requestPaint();
+        }
+    }
+    Canvas {
+        id: wallSampler
+        width: 16
+        height: 16
+        opacity: 0
+        onPaint: {
+            if (!wallSamplerSource.readyForSample) return;
+            if (theme.wallSyncSource === "dcol") return;
+            var ctx = getContext("2d");
+            ctx.clearRect(0, 0, 16, 16);
+            ctx.drawImage(wallSamplerSource, 0, 0, 16, 16);
+            var d = ctx.getImageData(0, 0, 16, 16).data;
+            var r = 0, g = 0, b = 0, count = 0;
+            for (var i = 0; i < d.length; i += 4) {
+                r += d[i]; g += d[i + 1]; b += d[i + 2];
+                count++;
+            }
+            if (count > 0) {
+                theme.wallSyncSource = "image";
+                theme.syncWallTone(r / count / 255, g / count / 255, b / count / 255);
+                shellRoot.paintGeneration += 1;
+            }
+        }
+    }
+
     // Live theme.json hot-reload
     FileView {
         id: themeFile
@@ -335,6 +377,7 @@ ShellRoot {
                                 theme.secondaryFg = theme.subtleTint("#3c4054", dc[7], 0.20);
                                 theme.glowSecondary = theme.subtleTint("#6366f1", dc[7], 0.12);
                             }
+                            theme.wallSyncSource = "dcol";
                             shellRoot.paintGeneration += 1;
                         }
                     }

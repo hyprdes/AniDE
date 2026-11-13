@@ -27,6 +27,34 @@ QtObject {
     property int groupRadius: 17             // Stadium BarGroup radius (height 34 / 2)
     property string wallBlurPath: ""
 
+    // Palette source arbitration: "dcol" when wallbash colors drove the last
+    // update (richer semantic palette), "image" when the QML wallpaper sampler
+    // did (works without wallbash). The sampler defers to wallbash.
+    property string wallSyncSource: "none"
+
+    function rgbHex(r, g, b) {
+        function h(v) {
+            var s = Math.round(Math.max(0, Math.min(1, v)) * 255).toString(16);
+            return s.length < 2 ? "0" + s : s;
+        }
+        return "#" + h(r) + h(g) + h(b);
+    }
+
+    // Derive the whole pale palette from the wallpaper's dominant tone
+    // (end-4 ii style: bar colors come straight from the wallpaper image).
+    function syncWallTone(r, g, b) {
+        var tone = rgbHex(r, g, b);
+        barBg = subtleTint("#e8e7ef", tone, 0.42);
+        mainBg = subtleTint("#eceaf3", tone, 0.40);
+        surfaceBg = subtleTint("#f4f3f9", tone, 0.38);
+        layer2Bg = subtleTint("#e2e1eb", tone, 0.48);
+        mainFg = subtleTint("#232637", tone, 0.25);
+        subFg = subtleTint("#5b6074", tone, 0.28);
+        secondaryFg = subtleTint("#3b3f53", tone, 0.25);
+        accentSecondary = subtleTint("#d9d7e5", tone, 0.35);
+        borderColor = subtleTint("#c8c6d5", tone, 0.30);
+    }
+
     function normHex(val) {
         if (!val) return "";
         var s = val.toString().trim();

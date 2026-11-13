@@ -2,27 +2,27 @@ import QtQuick
 
 QtObject {
     id: colors
-    // Sculpted Dark Matte-Glass UI palette (modeled on @bee_ui.ux image-7.png + dynamic Wallbash tinting)
-    property color barBg: "#0e1115"          // Deep obsidian outer frame & notch base
-    property color mainBg: "#12161b"         // Dark glass base
-    property color surfaceBg: "#262c34"      // Matte charcoal-slate capsule surface
-    property color layer2Bg: "#323943"       // Oblong inner pill & inactive orb surface
-    property color mainFg: "#e6ebf0"         // Crisp frosted white text/icons
-    property color subFg: "#8b95a1"          // Muted cool slate subtext
-    property color actBg: "#e2e8f0"          // Frosted silver-white active pill/orb highlight
-    property color glowColor: "#7dd3fc"      // Subtle ice-cyan ambient highlight
+    // @bee_ui.ux Sculpted Dark Smoky Matte-Glass + Frosted Silver-White palette (image-7.png)
+    property color barBg: "#0c0f13"          // Deep carbon-obsidian outer frame
+    property color mainBg: "#11151a"         // Dark smoky glass base
+    property color surfaceBg: "#1d2229"      // Sculpted island capsule dark matte base
+    property color layer2Bg: "#2c333d"       // Soft matte oblong inner pill & orb surface
+    property color mainFg: "#e8edf3"         // Crisp frosted white text/icons
+    property color subFg: "#8c96a4"          // Soft cool slate muted text
+    property color actBg: "#e4e9f0"          // Frosted silver-white active pill/orb (matches image-7.png)
+    property color glowColor: "#93c5fd"      // Subtle cool atmospheric rim glow
     property color glowSecondary: "#cbd5e1"
-    property color accentSecondary: "#333b45"// Matte slate secondary pill fill
-    property color secondaryFg: "#dde4ed"    // Crisp foreground on secondary pills
-    property color actFg: "#0f1318"          // Dark foreground on frosted white active pill
-    property color hvrBg: "#3d4652"          // Hover state for pills & orbs
+    property color accentSecondary: "#323944"// Matte charcoal occupied pill/orb surface
+    property color secondaryFg: "#dde4ed"    // Crisp light foreground on matte pills
+    property color actFg: "#0e1217"          // Deep dark icon/text on frosted white active pill
+    property color hvrBg: "#3b4350"          // Soft hover state for matte pills & orbs
     property color hvrFg: "#f8fafc"
-    property color borderColor: "#38414d"    // Crisp 1px specular rim border
+    property color borderColor: "#434c59"    // Crisp 1px specular glass rim highlight
     property color errorColor: "#ffb4ab"
     property color errorFg: "#690005"
-    property real barOpacity: 0.86           // Sculpted dark glass frame opacity
-    property real pillOpacity: 0.56          // Soft matte-glass oblong pill translucency
-    property int cornerRadius: 23            // Concave screen & notch corner radius
+    property real barOpacity: 0.78           // Soft smoky glass bar translucency
+    property real pillOpacity: 0.52          // Soft matte oblong pill translucency
+    property int cornerRadius: 23            // Concave screen corner radius
     property int groupRadius: 16
     property string wallBlurPath: ""
 
@@ -33,26 +33,31 @@ QtObject {
         return s.charAt(0) === "#" ? s : ("#" + s);
     }
 
+    // Blend a small atmospheric hint (12-15%) of wallpaper color into the @bee_ui.ux dark matte-glass base
+    function subtleTint(baseHex, tintHex, amount) {
+        var b = Qt.color(baseHex);
+        if (!tintHex || tintHex === "") return b;
+        var t = Qt.color(normHex(tintHex));
+        return Qt.tint(b, Qt.rgba(t.r, t.g, t.b, amount));
+    }
+
     function applyJson(raw) {
         if (!raw) return;
         try {
             var data = JSON.parse(raw);
-            if (data.barBg) barBg = normHex(data.barBg);
-            if (data.mainBg) mainBg = normHex(data.mainBg);
-            if (data.surfaceBg) surfaceBg = normHex(data.surfaceBg);
-            if (data.layer2Bg) layer2Bg = normHex(data.layer2Bg);
-            if (data.mainFg) mainFg = normHex(data.mainFg);
-            if (data.subFg) subFg = normHex(data.subFg);
-            if (data.actBg) actBg = normHex(data.actBg);
-            if (data.glowColor) glowColor = normHex(data.glowColor);
-            if (data.glowSecondary) glowSecondary = normHex(data.glowSecondary);
-            if (data.accentSecondary) accentSecondary = normHex(data.accentSecondary);
-            if (data.onSecondaryContainer) secondaryFg = normHex(data.onSecondaryContainer);
-            if (data.secondaryFg) secondaryFg = normHex(data.secondaryFg);
-            if (data.actFg) actFg = normHex(data.actFg);
-            if (data.hvrBg) hvrBg = normHex(data.hvrBg);
-            if (data.hvrFg) hvrFg = normHex(data.hvrFg);
-            if (data.borderColor) borderColor = normHex(data.borderColor);
+            if (data.barBg) barBg = subtleTint("#0c0f13", data.barBg, 0.14);
+            if (data.mainBg) mainBg = subtleTint("#11151a", data.mainBg, 0.14);
+            if (data.surfaceBg) surfaceBg = subtleTint("#1d2229", data.surfaceBg, 0.14);
+            if (data.layer2Bg) layer2Bg = subtleTint("#2c333d", data.layer2Bg, 0.14);
+            if (data.mainFg) mainFg = subtleTint("#e8edf3", data.mainFg, 0.10);
+            if (data.subFg) subFg = subtleTint("#8c96a4", data.subFg, 0.12);
+            if (data.actBg) actBg = subtleTint("#e4e9f0", data.actBg, 0.12);
+            if (data.glowColor) glowColor = subtleTint("#93c5fd", data.glowColor, 0.20);
+            if (data.glowSecondary) glowSecondary = subtleTint("#cbd5e1", data.glowSecondary, 0.15);
+            if (data.accentSecondary) accentSecondary = subtleTint("#323944", data.accentSecondary, 0.14);
+            if (data.onSecondaryContainer) secondaryFg = subtleTint("#dde4ed", data.onSecondaryContainer, 0.12);
+            if (data.secondaryFg) secondaryFg = subtleTint("#dde4ed", data.secondaryFg, 0.12);
+            if (data.borderColor) borderColor = subtleTint("#434c59", data.borderColor, 0.15);
             if (data.barOpacity !== undefined) barOpacity = Number(data.barOpacity);
             if (data.pillOpacity !== undefined) pillOpacity = Number(data.pillOpacity);
             if (data.cornerRadius !== undefined) cornerRadius = Number(data.cornerRadius) || 23;

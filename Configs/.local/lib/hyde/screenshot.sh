@@ -114,8 +114,16 @@ fi
 
 run_annotation_tool() {
     if [[ $annotation_tool == "satty" ]]; then
-        "$annotation_tool" "${annotation_args[@]}" \
-            || GSK_RENDERER="${GSK_RENDERER:-gl}" "$annotation_tool" "${annotation_args[@]}"
+        # Satty needs a compatible GTK renderer when launched from Hyprland's
+        # environment: default GSK_RENDERER to gl, but keep an explicit user
+        # choice. If the defaulted run fails (some GL stacks crash), retry
+        # once without forcing a renderer instead of losing the annotation.
+        if [[ -n ${GSK_RENDERER+x} ]]; then
+            "$annotation_tool" "${annotation_args[@]}"
+        else
+            GSK_RENDERER=gl "$annotation_tool" "${annotation_args[@]}" \
+                || env -u GSK_RENDERER "$annotation_tool" "${annotation_args[@]}"
+        fi
     else
         "$annotation_tool" "${annotation_args[@]}"
     fi

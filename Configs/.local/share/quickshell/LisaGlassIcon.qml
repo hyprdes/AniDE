@@ -1,6 +1,9 @@
 // LisaGlassIcon: @lisa.p.ng 4-layer glassmorphic duo-tone icon (image-10.png error-state icon set)
-// Layer 1: vibrant orange-coral offset backing shape | Layer 2: frosted indigo-violet glass + warm bleed
-// Layer 3: crisp white specular rim arc + corner spark | Layer 4: snow-white foreground glyph
+// Layer 1: vibrant orange-coral organic backing (blob / orbit ring / tilted card)
+// Layer 2: thin orange outline echo (signature of the set)
+// Layer 3: frosted glass with warm orange -> violet -> deep royal blue gradient + warm inner bleed
+// Layer 4: delicate white rim arcs + rounded corner spark
+// Layer 5: snow-white foreground glyph
 // File-based component (not inline): immune to QML inline-component ordering quirks ("X is not a type").
 import QtQuick
 
@@ -15,95 +18,159 @@ Item {
     property real sparkY: 0.16
     property real sparkSize: 0.13
     property real sparkRot: 0
+    // 0 = offset organic blob, 1 = orbit ring, 2 = tilted backing card
+    property int variant: 0
 
     implicitWidth: 28
     implicitHeight: 28
 
-    // Layer 1 — vibrant orange-coral offset backing shape
-    Rectangle {
-        x: iconRoot.width * 0.16
-        y: iconRoot.height * 0.15
-        width: iconRoot.width * 0.82
-        height: iconRoot.height * 0.78
-        radius: width * 0.36
-        rotation: -8
-        color: iconRoot.accentColor
-    }
+    onVariantChanged: art.requestPaint()
+    onAccentColorChanged: art.requestPaint()
+    onArcStartChanged: art.requestPaint()
+    onArcSweepChanged: art.requestPaint()
+    onSparkXChanged: art.requestPaint()
+    onSparkYChanged: art.requestPaint()
+    onSparkSizeChanged: art.requestPaint()
+    onSparkRotChanged: art.requestPaint()
 
-    // Layer 2 — frosted indigo-violet glass foreground + warm orange inner refraction bleed
-    Item {
-        x: 0
-        y: iconRoot.height * 0.04
-        width: iconRoot.width * 0.92
-        height: iconRoot.height * 0.88
-
-        Rectangle {
-            width: parent.width * 0.92
-            height: parent.height * 0.92
-            radius: width * 0.36
-            rotation: -6
-            gradient: Gradient {
-                GradientStop { position: 0.0; color: "#e6686de0" }
-                GradientStop { position: 0.55; color: "#e6454d9c" }
-                GradientStop { position: 1.0; color: "#e6353d8c" }
-            }
-        }
-        Rectangle {
-            x: parent.width * 0.10
-            y: parent.height * 0.56
-            width: parent.width * 0.42
-            height: parent.height * 0.32
-            radius: width * 0.5
-            rotation: -10
-            color: "#4d662209"
-        }
-        Rectangle {
-            x: parent.width * 0.16
-            y: parent.height * 0.60
-            width: parent.width * 0.30
-            height: parent.height * 0.22
-            radius: width * 0.5
-            rotation: -10
-            color: "#33662209"
-        }
-    }
-
-    // Layer 3 — crisp rounded pure-white specular rim arc along the outer curve
     Canvas {
-        id: rimCanvas
+        id: art
         anchors.fill: parent
         antialiasing: true
+        onWidthChanged: requestPaint()
+        onHeightChanged: requestPaint()
+
         onPaint: {
             var ctx = getContext("2d");
             ctx.reset();
-            ctx.strokeStyle = "#ffffff";
-            ctx.lineWidth = Math.max(1.6, iconRoot.width * 0.07);
-            ctx.lineCap = "round";
+            var w = width;
+            var h = height;
+            if (w <= 2 || h <= 2) return;
+
+            // organic squircle-blob path (superellipse)
+            function blob(cx, cy, rx, ry, rot, n) {
+                var steps = 72;
+                ctx.save();
+                ctx.translate(cx, cy);
+                ctx.rotate(rot * Math.PI / 180);
+                ctx.beginPath();
+                for (var i = 0; i <= steps; i++) {
+                    var t = i / steps * Math.PI * 2;
+                    var ct = Math.cos(t);
+                    var st = Math.sin(t);
+                    var x = rx * Math.sign(ct) * Math.pow(Math.abs(ct), 2 / n);
+                    var y = ry * Math.sign(st) * Math.pow(Math.abs(st), 2 / n);
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.closePath();
+                ctx.restore();
+            }
+
+            var cx = w * 0.485;
+            var cy = h * 0.52;
+
+            // ── Layer 1: vibrant orange-coral backing ──
+            ctx.fillStyle = iconRoot.accentColor;
+            if (iconRoot.variant === 1) {
+                // orbit ring crossing behind the glass + soft backing blob
+                blob(cx + w * 0.115, cy + h * 0.115, w * 0.365, h * 0.345, -12, 3.2);
+                ctx.fill();
+                ctx.save();
+                ctx.translate(cx, cy);
+                ctx.rotate(-24 * Math.PI / 180);
+                ctx.beginPath();
+                ctx.ellipse(0, 0, w * 0.485, h * 0.24, 0, 0, Math.PI * 2);
+                ctx.lineWidth = w * 0.085;
+                ctx.strokeStyle = iconRoot.accentColor;
+                ctx.stroke();
+                ctx.restore();
+            } else if (iconRoot.variant === 2) {
+                // tilted rounded backing card
+                blob(cx + w * 0.125, cy - h * 0.095, w * 0.415, h * 0.345, 20, 5.4);
+                ctx.fill();
+            } else {
+                // offset organic blob
+                blob(cx + w * 0.15, cy + h * 0.13, w * 0.375, h * 0.355, -10, 3.2);
+                ctx.fill();
+            }
+
+            // ── Layer 2: thin orange outline echo (signature of the set) ──
             ctx.beginPath();
-            var s = iconRoot.arcStart * Math.PI / 180;
-            var e = (iconRoot.arcStart + iconRoot.arcSweep) * Math.PI / 180;
-            ctx.arc(iconRoot.width * 0.46, iconRoot.height * 0.5, iconRoot.width * 0.44, s, e);
+            blob(cx + w * 0.075, cy - h * 0.06, w * 0.455, h * 0.435, -6, 3.4);
+            ctx.strokeStyle = iconRoot.accentColor;
+            ctx.lineWidth = w * 0.034;
+            ctx.lineJoin = "round";
             ctx.stroke();
+
+            // ── Layer 3: frosted glass, warm orange -> violet -> deep royal blue ──
+            blob(cx - w * 0.015, cy - h * 0.01, w * 0.405, h * 0.385, -6, 3.4);
+            var glass = ctx.createLinearGradient(cx - w * 0.10, cy - h * 0.42, cx + w * 0.10, cy + h * 0.42);
+            glass.addColorStop(0.00, "#e77a52");
+            glass.addColorStop(0.26, "#b25f92");
+            glass.addColorStop(0.58, "#7a55a8");
+            glass.addColorStop(1.00, "#2b2fa6");
+            ctx.fillStyle = glass;
+            ctx.fill();
+
+            // warm orange inner refraction bleed (clipped inside the glass)
+            ctx.save();
+            blob(cx - w * 0.015, cy - h * 0.01, w * 0.405, h * 0.385, -6, 3.4);
+            ctx.clip();
+            var bleed = ctx.createRadialGradient(cx + w * 0.02, cy - h * 0.2, w * 0.02, cx + w * 0.02, cy - h * 0.2, w * 0.52);
+            bleed.addColorStop(0.0, "rgba(255,106,42,0.55)");
+            bleed.addColorStop(0.55, "rgba(255,106,42,0.16)");
+            bleed.addColorStop(1.0, "rgba(255,106,42,0)");
+            ctx.fillStyle = bleed;
+            ctx.fillRect(0, 0, w, h);
+            // deep cool base shading
+            var shade = ctx.createLinearGradient(0, cy, 0, h);
+            shade.addColorStop(0.0, "rgba(20,22,90,0)");
+            shade.addColorStop(1.0, "rgba(14,16,72,0.35)");
+            ctx.fillStyle = shade;
+            ctx.fillRect(0, 0, w, h);
+            ctx.restore();
+
+            // ── Layer 4: delicate white rim arcs + chunky corner spark ──
+            ctx.lineCap = "round";
+            ctx.strokeStyle = "#ffffff";
+            var r = w * 0.432;
+            var main = iconRoot.arcStart * Math.PI / 180;
+            var mainEnd = (iconRoot.arcStart + iconRoot.arcSweep) * Math.PI / 180;
+            ctx.lineWidth = w * 0.045;
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, main, mainEnd);
+            ctx.stroke();
+            // short secondary rim segment on the opposite edge
+            var sec = (iconRoot.arcStart + 158) * Math.PI / 180;
+            ctx.lineWidth = w * 0.04;
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, sec, sec + 0.58);
+            ctx.stroke();
+
+            if (iconRoot.sparkSize > 0.1) {
+                var sx = w * iconRoot.sparkX;
+                var sy = h * iconRoot.sparkY;
+                var L = w * iconRoot.sparkSize * 1.95;
+                ctx.save();
+                ctx.translate(sx, sy);
+                ctx.rotate(iconRoot.sparkRot * Math.PI / 180);
+                ctx.lineWidth = L * 0.30;
+                ctx.beginPath();
+                ctx.moveTo(-L / 2, 0);
+                ctx.lineTo(L / 2, 0);
+                ctx.moveTo(0, -L / 2);
+                ctx.lineTo(0, L / 2);
+                ctx.stroke();
+                ctx.restore();
+            }
         }
-        onWidthChanged: requestPaint()
-        onHeightChanged: requestPaint()
     }
 
-    // tiny white + corner spark
-    Text {
-        x: iconRoot.width * iconRoot.sparkX - width / 2
-        y: iconRoot.height * iconRoot.sparkY - height / 2
-        rotation: iconRoot.sparkRot
-        text: iconRoot.sparkSize > 0.1 ? "+" : ""
-        font.pixelSize: iconRoot.width * iconRoot.sparkSize * 2.2
-        font.bold: true
-        color: "#ffffff"
-    }
-
-    // Layer 4 — snow-white foreground glyph
+    // Layer 5 — snow-white foreground glyph
     Text {
         anchors.centerIn: parent
-        anchors.verticalCenterOffset: iconRoot.height * 0.04
+        anchors.verticalCenterOffset: iconRoot.height * 0.03
         text: iconRoot.glyph
         font.family: "JetBrainsMono Nerd Font"
         font.pixelSize: iconRoot.width * iconRoot.glyphScale

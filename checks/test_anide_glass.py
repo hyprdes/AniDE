@@ -72,6 +72,8 @@ class QuickshellBarTest(unittest.TestCase):
             "component CircularResourceRing",
             "component CircleUtilButton",
             "component DesktopClockCanvas",
+            "component LisaGlassIcon",
+            "component ClippedProgressBar",
             "leftCenterGroup",
             "middleCenterGroup",
             "rightCenterGroup",
@@ -80,6 +82,11 @@ class QuickshellBarTest(unittest.TestCase):
             "desktopClockWindow",
             "clockCustomizerPopup",
             "RoundCorner",
+            "leftSidebarBtn",
+            "rightStatusPill",
+            "activeWinClass",
+            "activeWinTitle",
+            "middleSection",
         ):
             self.assertIn(end4_component, shell_qml)
         self.assertNotIn("WlrLayershell.namespace", shell_qml)

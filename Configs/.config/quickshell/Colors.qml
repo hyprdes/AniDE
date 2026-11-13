@@ -2,28 +2,28 @@ import QtQuick
 
 QtObject {
     id: colors
-    // Frosted Sea-Glass / Translucent Deep Slate-Teal Pill Palette (matching image-8.png)
-    property color barBg: "#0f1c22"          // Deep abyssal sea-glass left gradient stop
-    property color mainBg: "#14252d"         // Translucent deep slate-teal glass base
-    property color surfaceBg: "#1c343f"      // Mid-capsule frosted sea-glass slate
-    property color layer2Bg: "#274755"       // Right-side luminous frosted teal-cyan glass
-    property color mainFg: "#f4f9fc"         // Pure crisp snow-white for active icon/text
-    property color subFg: "#7e9aa6"          // Soft muted sea-glass slate
-    property color actBg: "#374c56"          // Soft frosted inner pill surface (matching left Home pill in image-8.png)
-    property color glowColor: "#cbeaf5"      // Icy sea-glass specular rim highlight
-    property color glowSecondary: "#94c5d6"  // Secondary soft cyan-ice rim reflection
-    property color accentSecondary: "#2c434d"// Subtle frosted ring/track background
-    property color secondaryFg: "#a9c1ca"    // Clean frosted ice-silver for inactive icons/text (matching right 3 icons in image-8.png)
-    property color actFg: "#f5f9fc"          // Pure snow-white icon/text inside active inner pill
-    property color hvrBg: "#415a66"          // Soft frosted inner pill hover state
+    // end-4 Illogical Impulse (ii) + Liquid Glass + @lisa.p.ng (image-10.png) Orange-Coral & Frosted Indigo-Violet Palette
+    property color barBg: "#0e1017"          // Deep obsidian-indigo Hug bar frame
+    property color mainBg: "#12141f"         // Dark indigo-obsidian base
+    property color surfaceBg: "#1e2238"      // Liquid glass capsule deep indigo surface
+    property color layer2Bg: "#313866"       // Frosted indigo-violet inner glass layer
+    property color mainFg: "#ffffff"         // Pure snow-white foreground text & icons
+    property color subFg: "#9ca3c9"          // Soft lavender-slate muted text
+    property color actBg: "#ff4f18"          // Vibrant @lisa.p.ng orange-coral accent (image-10.png)
+    property color glowColor: "#ff5722"      // Warm orange-coral subsurface glow
+    property color glowSecondary: "#6366f1"  // Frosted indigo-violet glass refraction glow
+    property color accentSecondary: "#3d4582"// Translucent indigo-violet occupied pill/track surface
+    property color secondaryFg: "#e2e6ff"    // Crisp ice-lavender text/icons
+    property color actFg: "#ffffff"          // Pure snow-white active icon/text
+    property color hvrBg: "#464f96"          // Frosted indigo hover state
     property color hvrFg: "#ffffff"
-    property color borderColor: "#b8dce8"    // Crisp 1px icy specular glass border
+    property color borderColor: "#8b93e8"    // Liquid glass specular border highlight
     property color errorColor: "#ffb4ab"
     property color errorFg: "#690005"
-    property real barOpacity: 0.72           // Translucent frosted glass capsule opacity
-    property real pillOpacity: 0.22          // Soft frosted inner pill translucency
+    property real barOpacity: 0.80           // Translucent Liquid Glass bar opacity
+    property real pillOpacity: 0.58          // Liquid Glass BarGroup capsule opacity
     property int cornerRadius: 23
-    property int groupRadius: 20             // Full stadium pill radius (height 40 / 2)
+    property int groupRadius: 17             // Stadium BarGroup radius (height 34 / 2)
     property string wallBlurPath: ""
 
     function normHex(val) {
@@ -33,7 +33,7 @@ QtObject {
         return s.charAt(0) === "#" ? s : ("#" + s);
     }
 
-    // Blend a subtle 14% atmospheric wallpaper tint into the image-8.png frosted sea-glass palette
+    // Blend a subtle 14% atmospheric wallpaper tint while preserving the @lisa.p.ng indigo-glass + orange-coral palette
     function subtleTint(baseHex, tintHex, amount) {
         var b = Qt.color(baseHex);
         if (!tintHex || tintHex === "") return b;
@@ -45,19 +45,19 @@ QtObject {
         if (!raw) return;
         try {
             var data = JSON.parse(raw);
-            if (data.barBg) barBg = subtleTint("#0f1c22", data.barBg, 0.14);
-            if (data.mainBg) mainBg = subtleTint("#14252d", data.mainBg, 0.14);
-            if (data.surfaceBg) surfaceBg = subtleTint("#1c343f", data.surfaceBg, 0.14);
-            if (data.layer2Bg) layer2Bg = subtleTint("#274755", data.layer2Bg, 0.14);
-            if (data.mainFg) mainFg = subtleTint("#f4f9fc", data.mainFg, 0.08);
-            if (data.subFg) subFg = subtleTint("#7e9aa6", data.subFg, 0.12);
-            if (data.actBg) actBg = subtleTint("#374c56", data.actBg, 0.14);
-            if (data.glowColor) glowColor = subtleTint("#cbeaf5", data.glowColor, 0.16);
-            if (data.glowSecondary) glowSecondary = subtleTint("#94c5d6", data.glowSecondary, 0.16);
-            if (data.accentSecondary) accentSecondary = subtleTint("#2c434d", data.accentSecondary, 0.14);
-            if (data.onSecondaryContainer) secondaryFg = subtleTint("#a9c1ca", data.onSecondaryContainer, 0.10);
-            if (data.secondaryFg) secondaryFg = subtleTint("#a9c1ca", data.secondaryFg, 0.10);
-            if (data.borderColor) borderColor = subtleTint("#b8dce8", data.borderColor, 0.14);
+            if (data.barBg) barBg = subtleTint("#0e1017", data.barBg, 0.14);
+            if (data.mainBg) mainBg = subtleTint("#12141f", data.mainBg, 0.14);
+            if (data.surfaceBg) surfaceBg = subtleTint("#1e2238", data.surfaceBg, 0.14);
+            if (data.layer2Bg) layer2Bg = subtleTint("#313866", data.layer2Bg, 0.14);
+            if (data.mainFg) mainFg = subtleTint("#ffffff", data.mainFg, 0.06);
+            if (data.subFg) subFg = subtleTint("#9ca3c9", data.subFg, 0.12);
+            if (data.actBg) actBg = subtleTint("#ff4f18", data.actBg, 0.10);
+            if (data.glowColor) glowColor = subtleTint("#ff5722", data.glowColor, 0.10);
+            if (data.glowSecondary) glowSecondary = subtleTint("#6366f1", data.glowSecondary, 0.16);
+            if (data.accentSecondary) accentSecondary = subtleTint("#3d4582", data.accentSecondary, 0.14);
+            if (data.onSecondaryContainer) secondaryFg = subtleTint("#e2e6ff", data.onSecondaryContainer, 0.10);
+            if (data.secondaryFg) secondaryFg = subtleTint("#e2e6ff", data.secondaryFg, 0.10);
+            if (data.borderColor) borderColor = subtleTint("#8b93e8", data.borderColor, 0.14);
             if (data.barOpacity !== undefined) barOpacity = Number(data.barOpacity);
             if (data.pillOpacity !== undefined) pillOpacity = Number(data.pillOpacity);
             if (data.cornerRadius !== undefined) cornerRadius = Number(data.cornerRadius) || 23;

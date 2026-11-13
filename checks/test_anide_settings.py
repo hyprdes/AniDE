@@ -12,8 +12,9 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "Configs/.local/lib/hyde/pygui/anide_settings.py"
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 try:
-    from PyQt6 import QtWidgets
+    from PyQt6 import QtCore, QtWidgets
 except ImportError:
+    QtCore = None
     QtWidgets = None
 
 
@@ -78,6 +79,23 @@ class SettingsTest(unittest.TestCase):
             self.assertEqual(window.search.text(), "")
             self.assertEqual(window.stack.currentIndex(), 1)
             window.close()
+
+    def test_image12_glass_design_contract(self):
+        window = self.module.SettingsWindow()
+        self.assertTrue(bool(window.windowFlags() & QtCore.Qt.WindowType.FramelessWindowHint))
+        self.assertIsInstance(window.centralWidget(), self.module.RootPanel)
+        self.assertEqual(window.hero.objectName(), "hero")
+        self.assertTrue(window.toggle.isCheckable())
+        self.assertTrue(window.toggle.isChecked())
+        self.assertEqual(window.closeBtn.text(), "\u2715")
+        self.assertEqual(window.titlePill.text(), self.module.SECTIONS[0][0])
+        window.select_section(2)
+        self.assertEqual(window.titlePill.text(), self.module.SECTIONS[2][0])
+        self.assertEqual(window.subPill.text(), self.module.SECTIONS[2][2])
+        nav_texts = [b.text() for b in window.findChildren(QtWidgets.QPushButton) if b.objectName() == "nav"]
+        for title, icon, _subtitle, _actions in self.module.SECTIONS:
+            self.assertIn(f"{icon}   {title}".replace("&", "&&"), nav_texts)
+        window.close()
 
     def test_commands_are_fixed_argv(self):
         for _, _, _, actions in self.module.SECTIONS:

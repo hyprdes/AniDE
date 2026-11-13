@@ -16,7 +16,16 @@ class QuickshellBarTest(unittest.TestCase):
         self.assertFalse((ROOT / "Configs/.local/share/wallbash/theme/waybar.dcol").exists())
 
     def test_quickshell_files_and_wallbash_theme(self):
-        for filename in ("shell.qml", "Colors.qml", "RoundCorner.qml", "theme.json", "clock_widget.json"):
+        for filename in (
+            "shell.qml",
+            "Colors.qml",
+            "RoundCorner.qml",
+            "LisaGlassIcon.qml",
+            "CircleUtilButton.qml",
+            "ClippedProgressBar.qml",
+            "theme.json",
+            "clock_widget.json",
+        ):
             file_path = QS_DIR / filename
             share_path = ROOT / "Configs/.local/share/quickshell" / filename
             self.assertTrue(file_path.is_file(), f"missing {filename}")
@@ -70,10 +79,10 @@ class QuickshellBarTest(unittest.TestCase):
             "component DreamyMistCanvas",
             "component BarGroup",
             "component CircularResourceRing",
-            "component CircleUtilButton",
             "component DesktopClockCanvas",
-            "component LisaGlassIcon",
-            "component ClippedProgressBar",
+            "LisaGlassIcon {",
+            "CircleUtilButton {",
+            "ClippedProgressBar {",
             "leftCenterGroup",
             "middleCenterGroup",
             "rightCenterGroup",
@@ -93,24 +102,39 @@ class QuickshellBarTest(unittest.TestCase):
         self.assertNotIn("parent.parent.", shell_qml)
         self.assertNotIn("WheelHandler", shell_qml)
 
-        # Inline components must be declared before first use: forward
-        # references fail with "X is not a type" on some Qt builds.
-        for inline_type in ("LisaGlassIcon", "ClippedProgressBar"):
-            decl = shell_qml.index(f"component {inline_type}")
-            use = shell_qml.index(f"{inline_type} {{")
-            self.assertLess(
-                decl,
-                use,
-                f"{inline_type} is used before its inline component declaration",
-            )
+        # The icon system lives in file-based components (immune to QML inline
+        # component ordering quirks such as "X is not a type"); the remaining
+        # inline components must be declared before first use.
+        for file_type in ("LisaGlassIcon", "CircleUtilButton", "ClippedProgressBar"):
+            self.assertNotIn(f"component {file_type}", shell_qml)
+        decl = shell_qml.index("component DreamyMistCanvas")
+        use = shell_qml.index("DreamyMistCanvas {")
+        self.assertLess(
+            decl,
+            use,
+            "DreamyMistCanvas is used before its inline component declaration",
+        )
 
         restore_psv = (ROOT / "Scripts/restore_cfg.psv").read_text()
-        self.assertIn("S|${HOME}/.config/quickshell|shell.qml Colors.qml RoundCorner.qml|hyprland", restore_psv)
+        self.assertIn(
+            "S|${HOME}/.config/quickshell|shell.qml Colors.qml RoundCorner.qml LisaGlassIcon.qml CircleUtilButton.qml ClippedProgressBar.qml|hyprland",
+            restore_psv,
+        )
         self.assertIn("O|${HOME}/.local/share|quickshell|hyprland", restore_psv)
 
     def test_quickshell_manifest_and_autostart(self):
         manifest = (ROOT / "Scripts/dots/quickshell.toml").read_text()
         self.assertIn('source_root = "Configs/.config/quickshell"', manifest)
+        # every runtime QML type must be deployed to both launch locations
+        for qml_file in (
+            "shell.qml",
+            "Colors.qml",
+            "RoundCorner.qml",
+            "LisaGlassIcon.qml",
+            "CircleUtilButton.qml",
+            "ClippedProgressBar.qml",
+        ):
+            self.assertGreaterEqual(manifest.count(f'"{qml_file}"'), 2, qml_file)
 
         core_group = (ROOT / "Scripts/dots-groups/core.toml").read_text()
         self.assertIn('"../dots/quickshell.toml"', core_group)
@@ -132,7 +156,7 @@ class QuickshellBarTest(unittest.TestCase):
         self.assertIn('"hyde/screenshot/grimblast"', hyde_toml)
         lib_sync = hyde_toml.split('source_root = "Configs/.local/lib"', 1)[1]
         self.assertIn(
-            'ignored_paths = [".*", "__pycache__", "hyde/screenshot/grimblast"]',
+            'ignored_paths = [".*", "__pycache__", "hyde/screenshot/grimblast", "screenshot/grimblast"]',
             lib_sync.split("[[", 1)[0],
         )
 

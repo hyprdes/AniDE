@@ -9,13 +9,28 @@ paru = ["quickshell"]
 action = "sync"
 source_root = "Configs/.config/quickshell"
 target_root = "${XDG_CONFIG_HOME}/quickshell"
-paths = ["shell.qml", "Colors.qml", "RoundCorner.qml"]
+paths = [
+    "shell.qml",
+    "Colors.qml",
+    "RoundCorner.qml",
+    "LisaGlassIcon.qml",
+    "CircleUtilButton.qml",
+    "ClippedProgressBar.qml",
+]
 
 [[quickshell.files]]
 action = "sync"
 source_root = "Configs/.config/quickshell"
 target_root = "${XDG_DATA_HOME}/quickshell"
-paths = ["shell.qml", "Colors.qml", "RoundCorner.qml", "theme.json"]
+paths = [
+    "shell.qml",
+    "Colors.qml",
+    "RoundCorner.qml",
+    "LisaGlassIcon.qml",
+    "CircleUtilButton.qml",
+    "ClippedProgressBar.qml",
+    "theme.json",
+]
 
 [[quickshell.files]]
 action = "preserve"

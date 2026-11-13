@@ -315,13 +315,13 @@ ShellRoot {
                         shellRoot.wallStamp = wstamp;
                         var dc = dcols.split(",");
                         if (dc.length >= 8 && dc[0] !== "") {
-                            theme.barBg = theme.subtleTint("#ebeaf2", dc[0], 0.12);
-                            theme.mainBg = theme.subtleTint("#f0eff6", dc[0], 0.12);
-                            if (dc[1]) theme.surfaceBg = theme.subtleTint("#f5f4fa", dc[1], 0.12);
-                            if (dc[2]) theme.layer2Bg = theme.subtleTint("#e3e2ec", dc[2], 0.12);
-                            if (dc[3]) theme.subFg = theme.subtleTint("#5c6174", dc[3], 0.12);
-                            if (dc[4]) theme.mainFg = theme.subtleTint("#242739", dc[4], 0.10);
-                            if (dc[5]) theme.accentSecondary = theme.subtleTint("#d9d7e5", dc[5], 0.12);
+                            theme.barBg = theme.subtleTint("#ebeaf2", dc[0], 0.35);
+                            theme.mainBg = theme.subtleTint("#f0eff6", dc[0], 0.35);
+                            if (dc[1]) theme.surfaceBg = theme.subtleTint("#f5f4fa", dc[1], 0.35);
+                            if (dc[2]) theme.layer2Bg = theme.subtleTint("#e3e2ec", dc[2], 0.35);
+                            if (dc[3]) theme.subFg = theme.subtleTint("#5c6174", dc[3], 0.20);
+                            if (dc[4]) theme.mainFg = theme.subtleTint("#242739", dc[4], 0.20);
+                            if (dc[5]) theme.accentSecondary = theme.subtleTint("#d9d7e5", dc[5], 0.30);
                             if (dc[6]) {
                                 theme.actBg = theme.subtleTint("#ff4f18", dc[6], 0.10);
                                 theme.glowColor = theme.subtleTint("#ff5722", dc[6], 0.10);
@@ -332,7 +332,7 @@ ShellRoot {
                                 }
                             }
                             if (dc[7]) {
-                                theme.secondaryFg = theme.subtleTint("#3c4054", dc[7], 0.10);
+                                theme.secondaryFg = theme.subtleTint("#3c4054", dc[7], 0.20);
                                 theme.glowSecondary = theme.subtleTint("#6366f1", dc[7], 0.12);
                             }
                             shellRoot.paintGeneration += 1;
@@ -749,10 +749,27 @@ ShellRoot {
                     right: parent.right
                 }
                 height: barWindow.barHeight
-                color: Qt.alpha(theme.barBg, theme.barOpacity)
+                color: "transparent"
 
-                Behavior on color {
-                    ColorAnimation { duration: 300 }
+                // Wallpaper tone backdrop (wall.blur / wall.set): the bar carries the
+                // wallpaper's colors underneath the pale white veil (image-11.png request)
+                Image {
+                    id: barWallBackdrop
+                    anchors.fill: parent
+                    source: shellRoot.wallBlurUrl
+                    fillMode: Image.PreserveAspectCrop
+                    asynchronous: true
+                    cache: false
+                    visible: status === Image.Ready
+                }
+
+                Rectangle {
+                    anchors.fill: parent
+                    color: Qt.alpha(theme.barBg, theme.barOpacity)
+
+                    Behavior on color {
+                        ColorAnimation { duration: 300 }
+                    }
                 }
 
                 // ── 1. LEFT SECTION (end-4 Illogical Impulse): Launcher + 2-line ActiveWindow ──

@@ -23,7 +23,10 @@ action = "sync"
 source_root = "Configs/.local/lib"
 target_root = "${HOME}/.local/lib"
 paths = "hyde"
-ignored_paths = [".*", "__pycache__"]
+# hyde/screenshot/grimblast is owned by the [grimblast] unit below (upstream
+# hyprwm/contrib copy at ${HOME}/.local/lib/hyde/screenshot/grimblast); the hyde
+# dot must not claim it or deploy dies with "File conflict ... (owned by grimblast)".
+ignored_paths = [".*", "__pycache__", "hyde/screenshot/grimblast"]
 
 # [[hyde.files]]
 # action = "sync"

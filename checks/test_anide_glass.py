@@ -93,6 +93,17 @@ class QuickshellBarTest(unittest.TestCase):
         self.assertNotIn("parent.parent.", shell_qml)
         self.assertNotIn("WheelHandler", shell_qml)
 
+        # Inline components must be declared before first use: forward
+        # references fail with "X is not a type" on some Qt builds.
+        for inline_type in ("LisaGlassIcon", "ClippedProgressBar"):
+            decl = shell_qml.index(f"component {inline_type}")
+            use = shell_qml.index(f"{inline_type} {{")
+            self.assertLess(
+                decl,
+                use,
+                f"{inline_type} is used before its inline component declaration",
+            )
+
         restore_psv = (ROOT / "Scripts/restore_cfg.psv").read_text()
         self.assertIn("S|${HOME}/.config/quickshell|shell.qml Colors.qml RoundCorner.qml|hyprland", restore_psv)
         self.assertIn("O|${HOME}/.local/share|quickshell|hyprland", restore_psv)
@@ -111,6 +122,19 @@ class QuickshellBarTest(unittest.TestCase):
         qs_script = ROOT / "Configs/.local/lib/hyde/quickshell.sh"
         self.assertTrue(qs_script.is_file())
         subprocess.run(["bash", "-n", str(qs_script)], check=True)
+
+    def test_hyde_manifest_leaves_upstream_grimblast_ownership_alone(self):
+        hyde_toml = (ROOT / "Scripts/dots/hyde.toml").read_text()
+        # The [grimblast] unit owns ${HOME}/.local/lib/hyde/screenshot/grimblast;
+        # if the hyde dot claims the same target, deploy dies with
+        # "File conflict ... (owned by grimblast)".
+        self.assertIn("[grimblast]", hyde_toml)
+        self.assertIn('"hyde/screenshot/grimblast"', hyde_toml)
+        lib_sync = hyde_toml.split('source_root = "Configs/.local/lib"', 1)[1]
+        self.assertIn(
+            'ignored_paths = [".*", "__pycache__", "hyde/screenshot/grimblast"]',
+            lib_sync.split("[[", 1)[0],
+        )
 
     def test_hyprland_rounding_and_border(self):
         hypr_defaults = (ROOT / "Configs/.local/share/hypr/lua/defaults.lua").read_text()

@@ -540,65 +540,7 @@ ShellRoot {
         }
     }
 
-    // 3. CircleUtilButton: @lisa.p.ng layered duo-tone glass icon button (image-10.png error-state icon set)
-    component CircleUtilButton: Item {
-        id: utilBtn
-        property string iconText: ""
-        property color accentColor: theme.actBg
-        property bool glas: true
-        property bool activeState: false
-        signal triggered()
-        signal rightTriggered()
-
-        implicitWidth: 28
-        implicitHeight: 28
-
-        Rectangle {
-            anchors.fill: parent
-            radius: width / 2
-            visible: utilBtn.activeState
-            color: Qt.rgba(1.0, 0.31, 0.09, 0.22)
-            border.width: 1
-            border.color: Qt.rgba(1.0, 0.31, 0.09, 0.50)
-        }
-        Rectangle {
-            anchors.fill: parent
-            radius: width / 2
-            visible: !utilBtn.activeState && utilMouse.containsMouse
-            color: Qt.rgba(0.41, 0.43, 0.90, 0.30)
-        }
-
-        LisaGlassIcon {
-            anchors.centerIn: parent
-            width: utilBtn.glas ? 26 : Math.round(parent.width * 0.8)
-            height: width
-            glyph: utilBtn.iconText
-            glyphScale: 0.52
-            accentColor: utilBtn.accentColor
-            arcStart: -210
-            arcSweep: 90
-            sparkX: 0.86
-            sparkY: 0.14
-            sparkSize: 0
-        }
-
-        MouseArea {
-            id: utilMouse
-            anchors.fill: parent
-            hoverEnabled: true
-            acceptedButtons: Qt.LeftButton | Qt.RightButton
-            cursorShape: Qt.PointingHandCursor
-            onClicked: mouse => {
-                if (mouse.button === Qt.RightButton) {
-                    utilBtn.rightTriggered();
-                } else {
-                    utilBtn.triggered();
-                }
-            }
-        }
-    }
-
-    // 3b. LisaGlassIcon: @lisa.p.ng 4-layer glassmorphic duo-tone icon (image-10.png)
+    // 3. LisaGlassIcon: @lisa.p.ng 4-layer glassmorphic duo-tone icon (image-10.png)
     // Layer 1: vibrant orange-coral offset backing shape | Layer 2: frosted indigo-violet glass + warm bleed
     // Layer 3: crisp white specular rim arc + corner spark | Layer 4: snow-white foreground glyph
     component LisaGlassIcon: Item {
@@ -709,7 +651,7 @@ ShellRoot {
         }
     }
 
-    // 3c. ClippedProgressBar: OneUI 7 style clipped capsule progress bar
+    // 4. ClippedProgressBar: OneUI 7 style clipped capsule progress bar
     component ClippedProgressBar: Item {
         id: progressRoot
         property real value: 0.0
@@ -756,7 +698,65 @@ ShellRoot {
     }
 
 
-    // 4. DesktopClockCanvas: 5x7 Rounded-Square LED Dot-Matrix Clock Renderer (exact match to image-9.png)
+    // 5. CircleUtilButton: @lisa.p.ng layered duo-tone glass icon button (image-10.png error-state icon set)
+    component CircleUtilButton: Item {
+        id: utilBtn
+        property string iconText: ""
+        property color accentColor: theme.actBg
+        property bool glas: true
+        property bool activeState: false
+        signal triggered()
+        signal rightTriggered()
+
+        implicitWidth: 28
+        implicitHeight: 28
+
+        Rectangle {
+            anchors.fill: parent
+            radius: width / 2
+            visible: utilBtn.activeState
+            color: Qt.rgba(1.0, 0.31, 0.09, 0.22)
+            border.width: 1
+            border.color: Qt.rgba(1.0, 0.31, 0.09, 0.50)
+        }
+        Rectangle {
+            anchors.fill: parent
+            radius: width / 2
+            visible: !utilBtn.activeState && utilMouse.containsMouse
+            color: Qt.rgba(0.41, 0.43, 0.90, 0.30)
+        }
+
+        LisaGlassIcon {
+            anchors.centerIn: parent
+            width: utilBtn.glas ? 26 : Math.round(parent.width * 0.8)
+            height: width
+            glyph: utilBtn.iconText
+            glyphScale: 0.52
+            accentColor: utilBtn.accentColor
+            arcStart: -210
+            arcSweep: 90
+            sparkX: 0.86
+            sparkY: 0.14
+            sparkSize: 0
+        }
+
+        MouseArea {
+            id: utilMouse
+            anchors.fill: parent
+            hoverEnabled: true
+            acceptedButtons: Qt.LeftButton | Qt.RightButton
+            cursorShape: Qt.PointingHandCursor
+            onClicked: mouse => {
+                if (mouse.button === Qt.RightButton) {
+                    utilBtn.rightTriggered();
+                } else {
+                    utilBtn.triggered();
+                }
+            }
+        }
+    }
+
+    // 6. DesktopClockCanvas: 5x7 Rounded-Square LED Dot-Matrix Clock Renderer (exact match to image-9.png)
     component DesktopClockCanvas: Canvas {
         id: ledCanvas
         property string digits: shellRoot.clockUse12Hour ? shellRoot.clock12HourDigits : shellRoot.clock24HourDigits

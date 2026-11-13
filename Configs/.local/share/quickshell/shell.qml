@@ -43,13 +43,13 @@ ShellRoot {
     property string wallDynamicHex: "#67e8f9"
     property int paintGeneration: 0
 
-    // ── Draggable Desktop LED Dot-Matrix Clock Widget State (image-9.png) ──
+    // ── Draggable Desktop LED Dot-Matrix Clock Widget State (image-9.png, no background) ──
     property bool clockWidgetVisible: true
     property int clockWidgetX: 72
     property int clockWidgetY: 96
     property color clockLedColor: "#ffffff"
-    property color clockBgColor: "#050507"
-    property real clockBgOpacity: 0.94
+    property color clockBgColor: "transparent"
+    property real clockBgOpacity: 0.0
     property real clockGlowIntensity: 0.88
     property bool clockUse12Hour: true
     property real clockScale: 1.0
@@ -1546,7 +1546,7 @@ ShellRoot {
                     }
                 }
 
-                // ── Main Draggable LED Dot-Matrix Clock Card (exact match to image-9.png) ──
+                // ── Main Draggable LED Dot-Matrix Clock Widget (NO background — pure floating LED dots on wallpaper) ──
                 Rectangle {
                     id: clockCard
                     x: shellRoot.clockWidgetX
@@ -1554,11 +1554,9 @@ ShellRoot {
                     width: Math.round(396 * shellRoot.clockScale)
                     height: Math.round(196 * shellRoot.clockScale)
                     radius: Math.round(16 * shellRoot.clockScale)
-                    color: Qt.alpha(shellRoot.clockBgColor, shellRoot.clockBgOpacity)
-                    border.width: clockDragArea.pressed ? 1.5 : (shellRoot.clockBgOpacity > 0.05 ? 1 : 0)
-                    border.color: clockDragArea.pressed
-                        ? Qt.alpha(shellRoot.clockLedColor, 0.65)
-                        : Qt.rgba(1, 1, 1, 0.11)
+                    color: "transparent"
+                    border.width: 0
+                    border.color: "transparent"
 
                     // Sync external coordinate updates when not actively dragging
                     Connections {
@@ -1848,13 +1846,13 @@ ShellRoot {
                             }
                         }
 
-                        // Section 3: Card Background Presets (Obsidian Black, Sea-Glass, Slate, Clear)
+                        // Section 3: LED Glow Intensity Presets (Soft, Normal, Neon, Max)
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: 6
 
                             Text {
-                                text: "Card:"
+                                text: "Glow:"
                                 color: "#a9c1ca"
                                 font.family: "JetBrainsMono Nerd Font"
                                 font.pixelSize: 11
@@ -1862,40 +1860,41 @@ ShellRoot {
 
                             Repeater {
                                 model: [
-                                    { label: "Black", bg: "#050507", op: 0.94 },
-                                    { label: "Glass", bg: "#0f1c22", op: 0.76 },
-                                    { label: "Slate", bg: "#14161e", op: 0.88 },
-                                    { label: "Clear", bg: "#050507", op: 0.00 }
+                                    { label: "Soft", glow: 0.45 },
+                                    { label: "Normal", glow: 0.88 },
+                                    { label: "Neon", glow: 1.18 },
+                                    { label: "Max", glow: 1.45 }
                                 ]
 
                                 Rectangle {
-                                    id: bgPresetBtn
+                                    id: glowPresetBtn
                                     required property var modelData
+                                    readonly property bool isSelected: Math.abs(shellRoot.clockGlowIntensity - modelData.glow) < 0.10
                                     Layout.fillWidth: true
                                     implicitHeight: 24
                                     radius: 12
-                                    color: bgPresetMouse.containsMouse
-                                        ? Qt.rgba(1, 1, 1, 0.18)
-                                        : Qt.rgba(1, 1, 1, 0.09)
+                                    color: isSelected
+                                        ? Qt.rgba(0.84, 0.93, 0.96, 0.24)
+                                        : (glowPresetMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.18) : Qt.rgba(1, 1, 1, 0.09))
                                     border.width: 1
-                                    border.color: Qt.rgba(1, 1, 1, 0.16)
+                                    border.color: isSelected ? "#ffffff" : Qt.rgba(1, 1, 1, 0.16)
 
                                     Text {
                                         anchors.centerIn: parent
-                                        text: bgPresetBtn.modelData.label
+                                        text: glowPresetBtn.modelData.label
                                         color: "#f4f9fc"
                                         font.family: "JetBrainsMono Nerd Font"
                                         font.pixelSize: 10
+                                        font.bold: isSelected
                                     }
 
                                     MouseArea {
-                                        id: bgPresetMouse
+                                        id: glowPresetMouse
                                         anchors.fill: parent
                                         hoverEnabled: true
                                         cursorShape: Qt.PointingHandCursor
                                         onClicked: {
-                                            shellRoot.clockBgColor = Qt.color(bgPresetBtn.modelData.bg);
-                                            shellRoot.clockBgOpacity = bgPresetBtn.modelData.op;
+                                            shellRoot.clockGlowIntensity = glowPresetBtn.modelData.glow;
                                             shellRoot.clockPaintTick += 1;
                                             shellRoot.saveClockConfig();
                                         }

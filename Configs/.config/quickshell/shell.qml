@@ -846,11 +846,13 @@ ShellRoot {
                                 glyph: "󰋜"
                                 glyphScale: 0.52
                                 accentColor: theme.actBg
+                                variant: 1
                                 arcStart: -215
                                 arcSweep: 100
                                 sparkX: 0.88
                                 sparkY: 0.12
                                 sparkSize: 0.12
+                                sparkRot: 0
                             }
 
                             MouseArea {
@@ -1324,6 +1326,12 @@ ShellRoot {
                                 iconText: shellRoot.caffeineActive ? "󰅶" : "󰛋"
                                 activeState: shellRoot.caffeineActive
                                 accentColor: shellRoot.caffeineActive ? theme.actBg : theme.glowSecondary
+                                iconVariant: 2
+                                iconArcStart: -205
+                                iconArcSweep: 95
+                                iconSparkX: 0.88
+                                iconSparkY: 0.13
+                                iconSparkRot: 45
                                 onTriggered: {
                                     shellRoot.caffeineActive = !shellRoot.caffeineActive;
                                     shellRoot.runCmd(["hyde-shell", "caffeine", "-t"]);
@@ -1339,6 +1347,11 @@ ShellRoot {
                                 id: screenshotBtn
                                 iconText: "󰆞"
                                 accentColor: theme.actBg
+                                iconVariant: 0
+                                iconArcStart: -215
+                                iconArcSweep: 105
+                                iconSparkX: 0.87
+                                iconSparkY: 0.135
                                 onTriggered: shellRoot.runCmd(["hyde-shell", "screenshot", "s"])
                                 onRightTriggered: shellRoot.runCmd(["hyde-shell", "screenshot", "p"])
                             }
@@ -1348,6 +1361,12 @@ ShellRoot {
                                 id: colorPickBtn
                                 iconText: "󰈊"
                                 accentColor: theme.actBg
+                                iconVariant: 2
+                                iconArcStart: -230
+                                iconArcSweep: 110
+                                iconSparkX: 0.86
+                                iconSparkY: 0.15
+                                iconSparkRot: 45
                                 onTriggered: shellRoot.runCmd(["hyprpicker", "-a"])
                                 onRightTriggered: shellRoot.runCmd(["hyprpicker", "-a"])
                             }
@@ -1357,6 +1376,11 @@ ShellRoot {
                                 id: anisubBtn
                                 iconText: "󰐊"
                                 accentColor: theme.glowSecondary
+                                iconVariant: 0
+                                iconArcStart: -185
+                                iconArcSweep: 85
+                                iconSparkX: 0.88
+                                iconSparkY: 0.12
                                 onTriggered: shellRoot.runCmd(["hyde-shell", "rofi.movie"])
                                 onRightTriggered: shellRoot.runCmd(["hyde-shell", "rofi.movie"])
                             }
@@ -1485,6 +1509,11 @@ ShellRoot {
                                         ? "󰂱"
                                         : (shellRoot.bluetoothOn ? "󰂯" : "󰂲")
                                     accentColor: theme.glowSecondary
+                                    iconVariant: 0
+                                    iconArcStart: -225
+                                    iconArcSweep: 95
+                                    iconSparkX: 0.87
+                                    iconSparkY: 0.13
                                     onTriggered: shellRoot.runCmd(["blueman-manager"])
                                     onRightTriggered: shellRoot.runCmd(["blueman-manager"])
                                 }
@@ -1493,6 +1522,12 @@ ShellRoot {
                                     id: wifiBtn
                                     iconText: shellRoot.networkName !== "" ? "󰤨" : "󰤭"
                                     accentColor: theme.glowSecondary
+                                    iconVariant: 1
+                                    iconArcStart: -195
+                                    iconArcSweep: 90
+                                    iconSparkX: 0.88
+                                    iconSparkY: 0.135
+                                    iconSparkRot: 45
                                     onTriggered: shellRoot.runCmd(["nm-connection-editor"])
                                     onRightTriggered: shellRoot.runCmd(["nm-connection-editor"])
                                 }
@@ -1501,6 +1536,11 @@ ShellRoot {
                                     id: micBtn
                                     iconText: shellRoot.micMuted ? "󰍭" : "󰍬"
                                     accentColor: theme.actBg
+                                    iconVariant: 2
+                                    iconArcStart: -200
+                                    iconArcSweep: 100
+                                    iconSparkX: 0.86
+                                    iconSparkY: 0.14
                                     onTriggered: {
                                         shellRoot.runCmd(["pamixer", "--default-source", "-t"]);
                                         statusProc.running = true;
@@ -1517,6 +1557,12 @@ ShellRoot {
                                         ? "󰝟"
                                         : (shellRoot.volumeLevel < 35 ? "󰕿" : (shellRoot.volumeLevel < 70 ? "󰖀" : "󰕾"))
                                     accentColor: theme.actBg
+                                    iconVariant: 0
+                                    iconArcStart: -240
+                                    iconArcSweep: 115
+                                    iconSparkX: 0.86
+                                    iconSparkY: 0.145
+                                    iconSparkRot: 45
                                     onTriggered: {
                                         shellRoot.runCmd(["pamixer", "-t"]);
                                         statusProc.running = true;
@@ -1528,6 +1574,11 @@ ShellRoot {
                                     id: settingsBtn
                                     iconText: "󰒓"
                                     accentColor: theme.glowSecondary
+                                    iconVariant: 1
+                                    iconArcStart: -230
+                                    iconArcSweep: 110
+                                    iconSparkX: 0.88
+                                    iconSparkY: 0.13
                                     onTriggered: shellRoot.runCmd(["hyde-shell", "anide-settings"])
                                     onRightTriggered: shellRoot.runCmd(["hyde-shell", "logoutlaunch", "1"])
                                 }

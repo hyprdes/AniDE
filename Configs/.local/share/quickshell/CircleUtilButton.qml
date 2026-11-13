@@ -8,6 +8,13 @@ Item {
     property color accentColor: "#ff4f18"
     property bool glas: true
     property bool activeState: false
+    property int iconVariant: 0
+    property real iconArcStart: -210
+    property real iconArcSweep: 90
+    property real iconSparkX: 0.86
+    property real iconSparkY: 0.14
+    property real iconSparkSize: 0.11
+    property real iconSparkRot: 0
     signal triggered()
     signal rightTriggered()
 
@@ -36,11 +43,13 @@ Item {
         glyph: utilBtn.iconText
         glyphScale: 0.52
         accentColor: utilBtn.accentColor
-        arcStart: -210
-        arcSweep: 90
-        sparkX: 0.86
-        sparkY: 0.14
-        sparkSize: 0
+        variant: utilBtn.iconVariant
+        arcStart: utilBtn.iconArcStart
+        arcSweep: utilBtn.iconArcSweep
+        sparkX: utilBtn.iconSparkX
+        sparkY: utilBtn.iconSparkY
+        sparkSize: utilBtn.iconSparkSize
+        sparkRot: utilBtn.iconSparkRot
     }
 
     MouseArea {

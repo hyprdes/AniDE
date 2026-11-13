@@ -75,16 +75,16 @@ sync_wallpaper_theme() {
         (
             # shellcheck disable=SC1090
             source "${dcol_file}" 2>/dev/null || true
-            p1="${dcol_pry1:-${wallbash_pry1:-#151217}}"
-            x12="${dcol_1xa2:-${wallbash_1xa2:-#211c24}}"
-            x13="${dcol_1xa3:-${wallbash_1xa3:-#2e2732}}"
-            x14="${dcol_1xa4:-${wallbash_1xa4:-#49414e}}"
-            x16="${dcol_1xa6:-${wallbash_1xa6:-#988d9e}}"
-            x19="${dcol_1xa9:-${wallbash_1xa9:-#e9e0eb}}"
-            x23="${dcol_2xa3:-${wallbash_2xa3:-#3b3242}}"
-            x24="${dcol_2xa4:-${wallbash_2xa4:-#38303d}}"
-            x28="${dcol_2xa8:-${wallbash_2xa8:-#dcbff2}}"
-            x29="${dcol_2xa9:-${wallbash_2xa9:-#e8def8}}"
+            p1="${dcol_pry1:-${wallbash_pry1:-#0e1115}}"
+            x12="${dcol_1xa2:-${wallbash_1xa2:-#262c34}}"
+            x13="${dcol_1xa3:-${wallbash_1xa3:-#323943}}"
+            x14="${dcol_1xa4:-${wallbash_1xa4:-#38414d}}"
+            x16="${dcol_1xa6:-${wallbash_1xa6:-#8b95a1}}"
+            x19="${dcol_1xa9:-${wallbash_1xa9:-#e6ebf0}}"
+            x23="${dcol_2xa3:-${wallbash_2xa3:-#333b45}}"
+            x24="${dcol_2xa4:-${wallbash_2xa4:-#3d4652}}"
+            x28="${dcol_2xa8:-${wallbash_2xa8:-#e2e8f0}}"
+            x29="${dcol_2xa9:-${wallbash_2xa9:-#dde4ed}}"
 
             [[ "${p1}" == \#* ]] || p1="#${p1}"
             [[ "${x12}" == \#* ]] || x12="#${x12}"
@@ -115,8 +115,8 @@ sync_wallpaper_theme() {
   "hvrBg": "${x24}",
   "hvrFg": "${x19}",
   "borderColor": "${x14}",
-  "barOpacity": 0.85,
-  "pillOpacity": 0.90,
+  "barOpacity": 0.86,
+  "pillOpacity": 0.56,
   "cornerRadius": 23,
   "wallBlurPath": "${blur_path}"
 }
@@ -130,23 +130,23 @@ EOF
         cat >"${tmp_json}" <<EOF
 {
   "preset": "end4-tonal-spot",
-  "barBg": "#151217",
-  "mainBg": "#151217",
-  "surfaceBg": "#211c24",
-  "layer2Bg": "#2e2732",
-  "mainFg": "#e9e0eb",
-  "subFg": "#988d9e",
-  "actBg": "#dcbff2",
-  "glowColor": "#dcbff2",
-  "glowSecondary": "#e8def8",
-  "accentSecondary": "#3b3242",
-  "onSecondaryContainer": "#e8def8",
-  "actFg": "#24172e",
-  "hvrBg": "#38303d",
-  "hvrFg": "#f5eff7",
-  "borderColor": "#49414e",
-  "barOpacity": 0.85,
-  "pillOpacity": 0.90,
+  "barBg": "#0e1115",
+  "mainBg": "#12161b",
+  "surfaceBg": "#262c34",
+  "layer2Bg": "#323943",
+  "mainFg": "#e6ebf0",
+  "subFg": "#8b95a1",
+  "actBg": "#e2e8f0",
+  "glowColor": "#7dd3fc",
+  "glowSecondary": "#cbd5e1",
+  "accentSecondary": "#333b45",
+  "onSecondaryContainer": "#dde4ed",
+  "actFg": "#0f1318",
+  "hvrBg": "#3d4652",
+  "hvrFg": "#f8fafc",
+  "borderColor": "#38414d",
+  "barOpacity": 0.86,
+  "pillOpacity": 0.56,
   "cornerRadius": 23,
   "wallBlurPath": "${blur_path}"
 }
@@ -165,18 +165,9 @@ ensure_config() {
     fi
 
     if [[ -n "${src_dir}" ]]; then
-        local force_sync=0
-        if [[ -f "${QS_CONFIG_DIR}/shell.qml" ]] && grep -qE 'WlrLayershell\.namespace|parent\.parent\.winClass' "${QS_CONFIG_DIR}/shell.qml" 2>/dev/null; then
-            force_sync=1
-        fi
-        if [[ -f "${QS_CONFIG_DIR}/Colors.qml" ]] && grep -qE 'Behavior on barBg|property color onErrorColor|property color onSecondaryContainer' "${QS_CONFIG_DIR}/Colors.qml" 2>/dev/null; then
-            force_sync=1
-        fi
         for qml_file in shell.qml Colors.qml RoundCorner.qml; do
-            if [[ -f "${src_dir}/${qml_file}" ]]; then
-                if [[ "${force_sync}" -eq 1 || ! -f "${QS_CONFIG_DIR}/${qml_file}" || "${src_dir}/${qml_file}" -nt "${QS_CONFIG_DIR}/${qml_file}" ]]; then
-                    cp -f "${src_dir}/${qml_file}" "${QS_CONFIG_DIR}/${qml_file}" 2>/dev/null || true
-                fi
+            if [[ -f "${src_dir}/${qml_file}" ]] && ! cmp -s "${src_dir}/${qml_file}" "${QS_CONFIG_DIR}/${qml_file}" 2>/dev/null; then
+                cp -f "${src_dir}/${qml_file}" "${QS_CONFIG_DIR}/${qml_file}" 2>/dev/null || true
             fi
         done
     fi

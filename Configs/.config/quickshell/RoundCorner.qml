@@ -3,8 +3,8 @@ import QtQuick
 Canvas {
     id: root
     property int cornerSize: 23
-    property color fillColor: "#151217"
-    property real fillAlpha: 0.85
+    property color fillColor: "#0e1115"
+    property real fillAlpha: 0.86
     // "top-left" | "top-right" | "bottom-left" | "bottom-right"
     property string corner: "top-left"
 

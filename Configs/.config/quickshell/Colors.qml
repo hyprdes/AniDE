@@ -2,28 +2,28 @@ import QtQuick
 
 QtObject {
     id: colors
-    // end-4 Illogical Impulse (ii) Material 3 Dark "Tonal Spot" palette (matches image-5.png)
-    property color barBg: "#151217"          // colLayer0
-    property color mainBg: "#151217"         // m3background
-    property color surfaceBg: "#211c24"      // colLayer1 (BarGroup capsule background)
-    property color layer2Bg: "#2e2732"       // colLayer2 (CircleUtilButton background)
-    property color mainFg: "#e9e0eb"         // colOnLayer0 / colOnLayer1
-    property color subFg: "#988d9e"          // colSubtext / colOnLayer1Inactive
-    property color actBg: "#dcbff2"          // colPrimary (active workspace indicator)
-    property color glowColor: "#dcbff2"
-    property color glowSecondary: "#e8def8"
-    property color accentSecondary: "#3b3242"// colSecondaryContainer (connected occupied workspaces & ring track)
-    property color secondaryFg: "#e8def8"    // colOnSecondaryContainer (ring fill & battery fill)
-    property color actFg: "#24172e"          // colOnPrimary
-    property color hvrBg: "#38303d"          // colLayer1Hover
-    property color hvrFg: "#f5eff7"
-    property color borderColor: "#49414e"
+    // Sculpted Dark Matte-Glass UI palette (modeled on @bee_ui.ux image-7.png + dynamic Wallbash tinting)
+    property color barBg: "#0e1115"          // Deep obsidian outer frame & notch base
+    property color mainBg: "#12161b"         // Dark glass base
+    property color surfaceBg: "#262c34"      // Matte charcoal-slate capsule surface
+    property color layer2Bg: "#323943"       // Oblong inner pill & inactive orb surface
+    property color mainFg: "#e6ebf0"         // Crisp frosted white text/icons
+    property color subFg: "#8b95a1"          // Muted cool slate subtext
+    property color actBg: "#e2e8f0"          // Frosted silver-white active pill/orb highlight
+    property color glowColor: "#7dd3fc"      // Subtle ice-cyan ambient highlight
+    property color glowSecondary: "#cbd5e1"
+    property color accentSecondary: "#333b45"// Matte slate secondary pill fill
+    property color secondaryFg: "#dde4ed"    // Crisp foreground on secondary pills
+    property color actFg: "#0f1318"          // Dark foreground on frosted white active pill
+    property color hvrBg: "#3d4652"          // Hover state for pills & orbs
+    property color hvrFg: "#f8fafc"
+    property color borderColor: "#38414d"    // Crisp 1px specular rim border
     property color errorColor: "#ffb4ab"
     property color errorFg: "#690005"
-    property real barOpacity: 0.85           // Material 3 Tonal Spot transparency
-    property real pillOpacity: 0.90
-    property int cornerRadius: 23            // Appearance.rounding.screenRounding (23px Hug corners)
-    property int groupRadius: 16             // Smooth capsule rounding inside 40px bar
+    property real barOpacity: 0.86           // Sculpted dark glass frame opacity
+    property real pillOpacity: 0.56          // Soft matte-glass oblong pill translucency
+    property int cornerRadius: 23            // Concave screen & notch corner radius
+    property int groupRadius: 16
     property string wallBlurPath: ""
 
     function normHex(val) {

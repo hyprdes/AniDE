@@ -6,7 +6,7 @@ Item {
     id: progressRoot
     property real value: 0.0
     property color fill: "#ff4f18"
-    property color trackColor: Qt.rgba(0.55, 0.58, 0.91, 0.18)
+    property color trackColor: Qt.rgba(0.15, 0.16, 0.24, 0.14)
 
     implicitWidth: 42
     implicitHeight: 12

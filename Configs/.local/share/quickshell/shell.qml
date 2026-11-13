@@ -315,16 +315,16 @@ ShellRoot {
                         shellRoot.wallStamp = wstamp;
                         var dc = dcols.split(",");
                         if (dc.length >= 8 && dc[0] !== "") {
-                            theme.barBg = theme.subtleTint("#0f1c22", dc[0], 0.14);
-                            theme.mainBg = theme.subtleTint("#14252d", dc[0], 0.14);
-                            if (dc[1]) theme.surfaceBg = theme.subtleTint("#1c343f", dc[1], 0.14);
-                            if (dc[2]) theme.layer2Bg = theme.subtleTint("#274755", dc[2], 0.14);
-                            if (dc[3]) theme.subFg = theme.subtleTint("#7e9aa6", dc[3], 0.12);
-                            if (dc[4]) theme.mainFg = theme.subtleTint("#f4f9fc", dc[4], 0.08);
-                            if (dc[5]) theme.accentSecondary = theme.subtleTint("#2c434d", dc[5], 0.14);
+                            theme.barBg = theme.subtleTint("#ebeaf2", dc[0], 0.12);
+                            theme.mainBg = theme.subtleTint("#f0eff6", dc[0], 0.12);
+                            if (dc[1]) theme.surfaceBg = theme.subtleTint("#f5f4fa", dc[1], 0.12);
+                            if (dc[2]) theme.layer2Bg = theme.subtleTint("#e3e2ec", dc[2], 0.12);
+                            if (dc[3]) theme.subFg = theme.subtleTint("#5c6174", dc[3], 0.12);
+                            if (dc[4]) theme.mainFg = theme.subtleTint("#242739", dc[4], 0.10);
+                            if (dc[5]) theme.accentSecondary = theme.subtleTint("#d9d7e5", dc[5], 0.12);
                             if (dc[6]) {
-                                theme.actBg = theme.subtleTint("#374c56", dc[6], 0.14);
-                                theme.glowColor = theme.subtleTint("#cbeaf5", dc[6], 0.16);
+                                theme.actBg = theme.subtleTint("#ff4f18", dc[6], 0.10);
+                                theme.glowColor = theme.subtleTint("#ff5722", dc[6], 0.10);
                                 shellRoot.wallDynamicHex = theme.normHex(dc[6]);
                                 if (shellRoot.clockSyncWallpaper && shellRoot.wallDynamicHex !== "") {
                                     shellRoot.clockLedColor = Qt.color(shellRoot.wallDynamicHex);
@@ -332,8 +332,8 @@ ShellRoot {
                                 }
                             }
                             if (dc[7]) {
-                                theme.secondaryFg = theme.subtleTint("#a9c1ca", dc[7], 0.10);
-                                theme.glowSecondary = theme.subtleTint("#94c5d6", dc[7], 0.16);
+                                theme.secondaryFg = theme.subtleTint("#3c4054", dc[7], 0.10);
+                                theme.glowSecondary = theme.subtleTint("#6366f1", dc[7], 0.12);
                             }
                             shellRoot.paintGeneration += 1;
                         }
@@ -386,44 +386,8 @@ ShellRoot {
             ctx.arc(inset + ri, height / 2, ri, Math.PI / 2, -Math.PI / 2, false);
             ctx.closePath();
 
-            var bodyGrad = ctx.createLinearGradient(0, height * 0.2, width, height * 0.8);
-            bodyGrad.addColorStop(0.0, shellRoot.cssRgba(theme.barBg, 0.82));
-            bodyGrad.addColorStop(0.48, shellRoot.cssRgba(theme.surfaceBg, 0.76));
-            bodyGrad.addColorStop(1.0, shellRoot.cssRgba(theme.layer2Bg, 0.70));
-            ctx.fillStyle = bodyGrad;
+            ctx.fillStyle = shellRoot.cssRgba(baseColor, baseOpacity);
             ctx.fill();
-
-            // 2. Right-Side Frosted Sea-Glass Inner Diffusion + Top Frost Veil
-            ctx.save();
-            ctx.clip();
-            var rightGlow = ctx.createRadialGradient(width * 0.88, height * 0.48, 2, width * 0.85, height * 0.5, width * 0.52);
-            rightGlow.addColorStop(0.0, shellRoot.cssRgba(glowPrimary, 0.14));
-            rightGlow.addColorStop(0.55, shellRoot.cssRgba(glowAlt, 0.05));
-            rightGlow.addColorStop(1.0, "rgba(0,0,0,0)");
-            ctx.fillStyle = rightGlow;
-            ctx.fillRect(0, 0, width, height);
-
-            // 2b. Liquid Glass warm orange-coral subsurface refraction bleed
-            var warmBleed = ctx.createRadialGradient(width * 0.12, height * 0.85, 2, width * 0.12, height * 0.85, width * 0.30);
-            warmBleed.addColorStop(0.0, shellRoot.cssRgba(glowPrimary, 0.16));
-            warmBleed.addColorStop(1.0, "rgba(0,0,0,0)");
-            ctx.fillStyle = warmBleed;
-            ctx.fillRect(0, 0, width, height);
-
-            // 2c. Liquid Glass frosted indigo-violet subsurface refraction bleed
-            var indigoBleed = ctx.createRadialGradient(width * 0.55, height * 0.15, 2, width * 0.55, height * 0.15, width * 0.35);
-            indigoBleed.addColorStop(0.0, shellRoot.cssRgba(glowAlt, 0.12));
-            indigoBleed.addColorStop(1.0, "rgba(0,0,0,0)");
-            ctx.fillStyle = indigoBleed;
-            ctx.fillRect(0, 0, width, height);
-
-            var sheenGrad = ctx.createLinearGradient(0, 0, 0, height);
-            sheenGrad.addColorStop(0.0, "rgba(225, 245, 252, 0.10)");
-            sheenGrad.addColorStop(0.45, "rgba(185, 222, 236, 0.02)");
-            sheenGrad.addColorStop(1.0, "rgba(6, 14, 18, 0.16)");
-            ctx.fillStyle = sheenGrad;
-            ctx.fillRect(0, 0, width, height);
-            ctx.restore();
 
             // 3. Crisp 1.25px Diagonal Specular Glass Rim (brighter at top-left & bottom-right curves, matching image-8.png)
             ctx.beginPath();
@@ -434,19 +398,14 @@ ShellRoot {
             ctx.arc(inset + ri, height / 2, ri, Math.PI / 2, -Math.PI / 2, false);
             ctx.closePath();
 
-            var rimGrad = ctx.createLinearGradient(0, 0, width, height);
-            rimGrad.addColorStop(0.0, shellRoot.cssRgba(glowPrimary, 0.55));
-            rimGrad.addColorStop(0.32, shellRoot.cssRgba(glowAlt, 0.22));
-            rimGrad.addColorStop(0.68, shellRoot.cssRgba(glowAlt, 0.20));
-            rimGrad.addColorStop(1.0, shellRoot.cssRgba(glowPrimary, 0.48));
-            ctx.lineWidth = 1.25;
-            ctx.strokeStyle = rimGrad;
+            ctx.lineWidth = 1.1;
+            ctx.strokeStyle = "rgba(36, 39, 57, 0.16)";
             ctx.stroke();
 
             // 4. Liquid glass top meniscus highlight
             var men = ctx.createLinearGradient(0, 0, width, 0);
             men.addColorStop(0.0, "rgba(255,255,255,0)");
-            men.addColorStop(0.5, "rgba(255,255,255,0.22)");
+            men.addColorStop(0.5, "rgba(255,255,255,0.30)");
             men.addColorStop(1.0, "rgba(255,255,255,0)");
             ctx.beginPath();
             ctx.moveTo(inset + ri * 0.9, 1.6);
@@ -458,7 +417,7 @@ ShellRoot {
             // 5. Crisp 1px white specular corner catchlights
             ctx.lineCap = "round";
             ctx.lineWidth = 1.8;
-            ctx.strokeStyle = "rgba(255,255,255,0.75)";
+            ctx.strokeStyle = "rgba(255,255,255,0.85)";
             ctx.beginPath();
             ctx.arc(width - inset - ri, height / 2, ri, -Math.PI / 2, -Math.PI / 2 + 0.55, false);
             ctx.stroke();
@@ -473,11 +432,11 @@ ShellRoot {
         id: grpRoot
         property real padding: 4
         width: implicitWidth
-        height: 36
-        radius: 18
-        color: Qt.alpha(theme.surfaceBg, 0.78)
+        height: 30
+        radius: 15
+        color: Qt.alpha(theme.surfaceBg, 0.92)
         border.width: 1
-        border.color: Qt.alpha(theme.borderColor, 0.42)
+        border.color: Qt.alpha(theme.borderColor, 0.55)
 
         DreamyMistCanvas {
             anchors.fill: parent
@@ -493,7 +452,7 @@ ShellRoot {
         property string iconText: "󰍛"
         property color primaryColor: theme.secondaryFg
         property color trackColor: theme.accentSecondary
-        property int size: 18
+        property int size: 16
 
         implicitWidth: size
         implicitHeight: size
@@ -536,7 +495,7 @@ ShellRoot {
             text: ringRoot.iconText
             color: ringRoot.primaryColor
             font.family: "JetBrainsMono Nerd Font"
-            font.pixelSize: 9
+            font.pixelSize: 8
         }
     }
 
@@ -753,7 +712,7 @@ ShellRoot {
             required property var modelData
             screen: modelData
 
-            readonly property int barHeight: 44
+            readonly property int barHeight: 38
             readonly property int cornerSize: theme.cornerRadius
             readonly property int activeWsId: (Hyprland.focusedMonitor && Hyprland.focusedMonitor.activeWorkspace)
                 ? Hyprland.focusedMonitor.activeWorkspace.id
@@ -828,11 +787,11 @@ ShellRoot {
                         // end-4 launcher button with @lisa.p.ng layered glass icon
                         Rectangle {
                             id: leftSidebarBtn
-                            implicitWidth: 32
-                            implicitHeight: 32
-                            radius: 16
+                            implicitWidth: 28
+                            implicitHeight: 28
+                            radius: 14
                             color: leftBtnMouse.containsMouse
-                                ? Qt.rgba(0.28, 0.31, 0.62, 0.55)
+                                ? Qt.rgba(0.15, 0.16, 0.24, 0.10)
                                 : "transparent"
 
                             Behavior on color {
@@ -846,6 +805,8 @@ ShellRoot {
                                 glyph: "󰋜"
                                 glyphScale: 0.52
                                 accentColor: theme.actBg
+                                plateColor: theme.surfaceBg
+                                inkColor: theme.mainFg
                                 variant: 1
                                 arcStart: -215
                                 arcSweep: 100
@@ -975,8 +936,8 @@ ShellRoot {
                             // Delicate 1px liquid-glass separator
                             Rectangle {
                                 Layout.preferredWidth: 1
-                                Layout.preferredHeight: 14
-                                color: Qt.rgba(0.82, 0.92, 0.96, 0.14)
+                                Layout.preferredHeight: 12
+                                color: Qt.rgba(0.15, 0.16, 0.24, 0.16)
                             }
 
                             // Media / AniSub slot with @lisa.p.ng warm glow dot
@@ -987,10 +948,10 @@ ShellRoot {
                                     : null
                                 readonly property bool hasTrack: activePlayer !== null && activePlayer.trackTitle !== ""
                                 Layout.preferredWidth: mediaRow.implicitWidth + 14
-                                Layout.preferredHeight: 28
-                                radius: 14
+                                Layout.preferredHeight: 24
+                                radius: 12
                                 color: mediaMouse.containsMouse
-                                    ? Qt.rgba(0.84, 0.93, 0.96, 0.16)
+                                    ? Qt.rgba(0.15, 0.16, 0.24, 0.09)
                                     : "transparent"
 
                                 RowLayout {
@@ -1080,9 +1041,9 @@ ShellRoot {
                     Item {
                         id: wsContainer
                         anchors.centerIn: parent
-                        readonly property real pillWidth: 48
-                        readonly property real pillHeight: 28
-                        readonly property real pillPitch: 54
+                        readonly property real pillWidth: 42
+                        readonly property real pillHeight: 24
+                        readonly property real pillPitch: 48
                         readonly property int targetIndex: barWindow.localOrbIndex
 
                         property real idx1: targetIndex
@@ -1119,11 +1080,7 @@ ShellRoot {
                                 id: activeIndicatorGlass
                                 anchors.fill: parent
                                 radius: height / 2
-                                gradient: Gradient {
-                                    GradientStop { position: 0.0; color: "#d97772e8" }
-                                    GradientStop { position: 0.6; color: "#d95b57b8" }
-                                    GradientStop { position: 1.0; color: "#d94a45a0" }
-                                }
+                                color: Qt.alpha(theme.glowSecondary, 0.92)
                                 border.width: 1
                                 border.color: "#70ffffff"
                             }
@@ -1181,13 +1138,13 @@ ShellRoot {
                                     anchors.fill: parent
                                     radius: height / 2
                                     visible: wsHit.containsMouse && !wsSlot.isActive
-                                    color: Qt.rgba(0.84, 0.93, 0.96, 0.09)
+                                    color: Qt.rgba(0.15, 0.16, 0.24, 0.08)
                                 }
 
                                 Text {
                                     anchors.centerIn: parent
                                     text: shellRoot.iconForWorkspaceSlot(wsSlot.index)
-                                    color: wsSlot.isActive ? theme.mainFg : theme.secondaryFg
+                                    color: wsSlot.isActive ? theme.actFg : theme.secondaryFg
                                     font.family: "JetBrainsMono Nerd Font"
                                     font.pixelSize: wsSlot.isActive ? 15 : 14
 
@@ -1247,13 +1204,13 @@ ShellRoot {
                             Rectangle {
                                 id: rightClockPill
                                 implicitWidth: clockPillRow.implicitWidth + 20
-                                implicitHeight: 28
-                                radius: 14
+                                implicitHeight: 24
+                                radius: 12
                                 color: rightClockMouse.containsMouse
-                                    ? Qt.rgba(0.28, 0.31, 0.62, 0.55)
-                                    : Qt.rgba(0.24, 0.27, 0.53, 0.38)
+                                    ? Qt.rgba(0.15, 0.16, 0.24, 0.10)
+                                    : Qt.alpha(theme.layer2Bg, 0.38)
                                 border.width: 1
-                                border.color: Qt.rgba(0.92, 0.97, 1.0, 0.12)
+                                border.color: Qt.rgba(0.15, 0.16, 0.24, 0.12)
 
                                 Behavior on color {
                                     ColorAnimation { duration: 150 }
@@ -1316,13 +1273,15 @@ ShellRoot {
                             // Delicate 1px liquid-glass separator
                             Rectangle {
                                 Layout.preferredWidth: 1
-                                Layout.preferredHeight: 14
-                                color: Qt.rgba(0.82, 0.92, 0.96, 0.14)
+                                Layout.preferredHeight: 12
+                                color: Qt.rgba(0.15, 0.16, 0.24, 0.16)
                             }
 
                             // Coffee / Caffeine toggle (end-4 `caffeineBtn`) with @lisa.p.ng glass coffee icon
                             CircleUtilButton {
                                 id: caffeineBtn
+                                iconPlateColor: theme.surfaceBg
+                                iconInkColor: theme.mainFg
                                 iconText: shellRoot.caffeineActive ? "󰅶" : "󰛋"
                                 activeState: shellRoot.caffeineActive
                                 accentColor: shellRoot.caffeineActive ? theme.actBg : theme.glowSecondary
@@ -1345,6 +1304,8 @@ ShellRoot {
                             // Screenshot utility (left-click: region `s`, right-click: full screen `p`)
                             CircleUtilButton {
                                 id: screenshotBtn
+                                iconPlateColor: theme.surfaceBg
+                                iconInkColor: theme.mainFg
                                 iconText: "󰆞"
                                 accentColor: theme.actBg
                                 iconVariant: 0
@@ -1359,6 +1320,8 @@ ShellRoot {
                             // Color Picker utility
                             CircleUtilButton {
                                 id: colorPickBtn
+                                iconPlateColor: theme.surfaceBg
+                                iconInkColor: theme.mainFg
                                 iconText: "󰈊"
                                 accentColor: theme.actBg
                                 iconVariant: 2
@@ -1374,6 +1337,8 @@ ShellRoot {
                             // AniSub utility
                             CircleUtilButton {
                                 id: anisubBtn
+                                iconPlateColor: theme.surfaceBg
+                                iconInkColor: theme.mainFg
                                 iconText: "󰐊"
                                 accentColor: theme.glowSecondary
                                 iconVariant: 0
@@ -1388,8 +1353,8 @@ ShellRoot {
                             // Delicate 1px liquid-glass separator
                             Rectangle {
                                 Layout.preferredWidth: 1
-                                Layout.preferredHeight: 14
-                                color: Qt.rgba(0.82, 0.92, 0.96, 0.14)
+                                Layout.preferredHeight: 12
+                                color: Qt.rgba(0.15, 0.16, 0.24, 0.16)
                             }
 
                             // OneUI 7 ClippedProgressBar Battery pill
@@ -1462,7 +1427,7 @@ ShellRoot {
                                     implicitHeight: 24
                                     radius: 12
                                     color: trayMouse.containsMouse
-                                        ? Qt.rgba(0.41, 0.43, 0.90, 0.30)
+                                        ? Qt.rgba(0.15, 0.16, 0.24, 0.10)
                                         : "transparent"
 
                                     Image {
@@ -1505,6 +1470,8 @@ ShellRoot {
 
                                 CircleUtilButton {
                                     id: bluetoothBtn
+                                iconPlateColor: theme.surfaceBg
+                                iconInkColor: theme.mainFg
                                     iconText: shellRoot.bluetoothConnected
                                         ? "󰂱"
                                         : (shellRoot.bluetoothOn ? "󰂯" : "󰂲")
@@ -1520,6 +1487,8 @@ ShellRoot {
 
                                 CircleUtilButton {
                                     id: wifiBtn
+                                iconPlateColor: theme.surfaceBg
+                                iconInkColor: theme.mainFg
                                     iconText: shellRoot.networkName !== "" ? "󰤨" : "󰤭"
                                     accentColor: theme.glowSecondary
                                     iconVariant: 1
@@ -1534,6 +1503,8 @@ ShellRoot {
 
                                 CircleUtilButton {
                                     id: micBtn
+                                iconPlateColor: theme.surfaceBg
+                                iconInkColor: theme.mainFg
                                     iconText: shellRoot.micMuted ? "󰍭" : "󰍬"
                                     accentColor: theme.actBg
                                     iconVariant: 2
@@ -1553,6 +1524,8 @@ ShellRoot {
 
                                 CircleUtilButton {
                                     id: volBtn
+                                iconPlateColor: theme.surfaceBg
+                                iconInkColor: theme.mainFg
                                     iconText: shellRoot.volumeMuted
                                         ? "󰝟"
                                         : (shellRoot.volumeLevel < 35 ? "󰕿" : (shellRoot.volumeLevel < 70 ? "󰖀" : "󰕾"))
@@ -1572,6 +1545,8 @@ ShellRoot {
 
                                 CircleUtilButton {
                                     id: settingsBtn
+                                iconPlateColor: theme.surfaceBg
+                                iconInkColor: theme.mainFg
                                     iconText: "󰒓"
                                     accentColor: theme.glowSecondary
                                     iconVariant: 1

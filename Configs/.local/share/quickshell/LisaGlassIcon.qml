@@ -1,9 +1,9 @@
-// LisaGlassIcon: @lisa.p.ng 4-layer glassmorphic duo-tone icon (image-10.png error-state icon set)
-// Layer 1: vibrant orange-coral organic backing (blob / orbit ring / tilted card)
-// Layer 2: thin orange outline echo (signature of the set)
-// Layer 3: frosted glass with warm orange -> violet -> deep royal blue gradient + warm inner bleed
-// Layer 4: delicate white rim arcs + rounded corner spark
-// Layer 5: snow-white foreground glyph
+// LisaGlassIcon: @lisa.p.ng layered glass icon, pale-white variant (image-11.png request)
+// Layer 1: pale backing (blob / orbit ring / tilted card), slightly deeper than the plate
+// Layer 2: thin accent outline echo (signature of the set)
+// Layer 3: FLAT pale-white plate (no gradient), wallpaper-synced via plateColor
+// Layer 4: delicate ink rim arcs + rounded corner spark (accent)
+// Layer 5: bold ink foreground glyph
 // File-based component (not inline): immune to QML inline-component ordering quirks ("X is not a type").
 import QtQuick
 
@@ -12,6 +12,8 @@ Item {
     property string glyph: ""
     property real glyphScale: 0.50
     property color accentColor: "#ff4f18"
+    property color plateColor: "#f2f1f7"
+    property color inkColor: "#242739"
     property real arcStart: -205
     property real arcSweep: 95
     property real sparkX: 0.82
@@ -26,6 +28,8 @@ Item {
 
     onVariantChanged: art.requestPaint()
     onAccentColorChanged: art.requestPaint()
+    onPlateColorChanged: art.requestPaint()
+    onInkColorChanged: art.requestPaint()
     onArcStartChanged: art.requestPaint()
     onArcSweepChanged: art.requestPaint()
     onSparkXChanged: art.requestPaint()
@@ -70,10 +74,10 @@ Item {
             var cx = w * 0.485;
             var cy = h * 0.52;
 
-            // ── Layer 1: vibrant orange-coral backing ──
-            ctx.fillStyle = iconRoot.accentColor;
+            // ── Layer 1: pale backing (slightly deeper than the plate) ──
+            ctx.fillStyle = Qt.darker(iconRoot.plateColor, 1.09);
             if (iconRoot.variant === 1) {
-                // orbit ring crossing behind the glass + soft backing blob
+                // orbit ring crossing behind the plate + soft backing blob
                 blob(cx + w * 0.115, cy + h * 0.115, w * 0.365, h * 0.345, -12, 3.2);
                 ctx.fill();
                 ctx.save();
@@ -82,7 +86,7 @@ Item {
                 ctx.beginPath();
                 ctx.ellipse(0, 0, w * 0.485, h * 0.24, 0, 0, Math.PI * 2);
                 ctx.lineWidth = w * 0.085;
-                ctx.strokeStyle = iconRoot.accentColor;
+                ctx.strokeStyle = Qt.darker(iconRoot.plateColor, 1.09);
                 ctx.stroke();
                 ctx.restore();
             } else if (iconRoot.variant === 2) {
@@ -95,7 +99,7 @@ Item {
                 ctx.fill();
             }
 
-            // ── Layer 2: thin orange outline echo (signature of the set) ──
+            // ── Layer 2: thin accent outline echo (signature of the set) ──
             ctx.beginPath();
             blob(cx + w * 0.075, cy - h * 0.06, w * 0.455, h * 0.435, -6, 3.4);
             ctx.strokeStyle = iconRoot.accentColor;
@@ -103,37 +107,14 @@ Item {
             ctx.lineJoin = "round";
             ctx.stroke();
 
-            // ── Layer 3: frosted glass, warm orange -> violet -> deep royal blue ──
+            // ── Layer 3: FLAT pale plate (no gradient) ──
             blob(cx - w * 0.015, cy - h * 0.01, w * 0.405, h * 0.385, -6, 3.4);
-            var glass = ctx.createLinearGradient(cx - w * 0.10, cy - h * 0.42, cx + w * 0.10, cy + h * 0.42);
-            glass.addColorStop(0.00, "#e77a52");
-            glass.addColorStop(0.26, "#b25f92");
-            glass.addColorStop(0.58, "#7a55a8");
-            glass.addColorStop(1.00, "#2b2fa6");
-            ctx.fillStyle = glass;
+            ctx.fillStyle = iconRoot.plateColor;
             ctx.fill();
 
-            // warm orange inner refraction bleed (clipped inside the glass)
-            ctx.save();
-            blob(cx - w * 0.015, cy - h * 0.01, w * 0.405, h * 0.385, -6, 3.4);
-            ctx.clip();
-            var bleed = ctx.createRadialGradient(cx + w * 0.02, cy - h * 0.2, w * 0.02, cx + w * 0.02, cy - h * 0.2, w * 0.52);
-            bleed.addColorStop(0.0, "rgba(255,106,42,0.55)");
-            bleed.addColorStop(0.55, "rgba(255,106,42,0.16)");
-            bleed.addColorStop(1.0, "rgba(255,106,42,0)");
-            ctx.fillStyle = bleed;
-            ctx.fillRect(0, 0, w, h);
-            // deep cool base shading
-            var shade = ctx.createLinearGradient(0, cy, 0, h);
-            shade.addColorStop(0.0, "rgba(20,22,90,0)");
-            shade.addColorStop(1.0, "rgba(14,16,72,0.35)");
-            ctx.fillStyle = shade;
-            ctx.fillRect(0, 0, w, h);
-            ctx.restore();
-
-            // ── Layer 4: delicate white rim arcs + chunky corner spark ──
+            // ── Layer 4: delicate ink rim arcs + accent corner spark ──
             ctx.lineCap = "round";
-            ctx.strokeStyle = "#ffffff";
+            ctx.strokeStyle = iconRoot.inkColor;
             var r = w * 0.432;
             var main = iconRoot.arcStart * Math.PI / 180;
             var mainEnd = (iconRoot.arcStart + iconRoot.arcSweep) * Math.PI / 180;
@@ -155,6 +136,7 @@ Item {
                 ctx.save();
                 ctx.translate(sx, sy);
                 ctx.rotate(iconRoot.sparkRot * Math.PI / 180);
+                ctx.strokeStyle = iconRoot.accentColor;
                 ctx.lineWidth = L * 0.30;
                 ctx.beginPath();
                 ctx.moveTo(-L / 2, 0);
@@ -167,7 +149,7 @@ Item {
         }
     }
 
-    // Layer 5 — snow-white foreground glyph
+    // Layer 5 — bold ink foreground glyph
     Text {
         anchors.centerIn: parent
         anchors.verticalCenterOffset: iconRoot.height * 0.03
@@ -175,6 +157,6 @@ Item {
         font.family: "JetBrainsMono Nerd Font"
         font.pixelSize: iconRoot.width * iconRoot.glyphScale
         font.bold: true
-        color: "#ffffff"
+        color: iconRoot.inkColor
     }
 }

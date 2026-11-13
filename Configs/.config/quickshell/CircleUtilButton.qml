@@ -9,6 +9,8 @@ Item {
     property bool glas: true
     property bool activeState: false
     property int iconVariant: 0
+    property color iconPlateColor: "#f2f1f7"
+    property color iconInkColor: "#242739"
     property real iconArcStart: -210
     property real iconArcSweep: 90
     property real iconSparkX: 0.86
@@ -18,14 +20,14 @@ Item {
     signal triggered()
     signal rightTriggered()
 
-    implicitWidth: 28
-    implicitHeight: 28
+    implicitWidth: 24
+    implicitHeight: 24
 
     Rectangle {
         anchors.fill: parent
         radius: width / 2
         visible: utilBtn.activeState
-        color: Qt.rgba(1.0, 0.31, 0.09, 0.22)
+        color: Qt.rgba(1.0, 0.31, 0.09, 0.16)
         border.width: 1
         border.color: Qt.rgba(1.0, 0.31, 0.09, 0.50)
     }
@@ -33,16 +35,18 @@ Item {
         anchors.fill: parent
         radius: width / 2
         visible: !utilBtn.activeState && utilMouse.containsMouse
-        color: Qt.rgba(0.41, 0.43, 0.90, 0.30)
+        color: Qt.rgba(0.15, 0.16, 0.24, 0.10)
     }
 
     LisaGlassIcon {
         anchors.centerIn: parent
-        width: utilBtn.glas ? 26 : Math.round(parent.width * 0.8)
+        width: utilBtn.glas ? 22 : Math.round(parent.width * 0.8)
         height: width
         glyph: utilBtn.iconText
         glyphScale: 0.52
         accentColor: utilBtn.accentColor
+        plateColor: utilBtn.iconPlateColor
+        inkColor: utilBtn.iconInkColor
         variant: utilBtn.iconVariant
         arcStart: utilBtn.iconArcStart
         arcSweep: utilBtn.iconArcSweep

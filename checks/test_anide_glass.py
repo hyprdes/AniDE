@@ -110,6 +110,17 @@ class QuickshellBarTest(unittest.TestCase):
         self.assertIn("rounding = 16", hyprland_lua)
         self.assertIn("border_size = 2", hyprland_lua)
 
+    def test_screenshot_and_grimblast_scripts(self):
+        grimblast_main = ROOT / "Configs/.local/lib/hyde/grimblast"
+        grimblast_sub = ROOT / "Configs/.local/lib/hyde/screenshot/grimblast"
+        screenshot_sh = ROOT / "Configs/.local/lib/hyde/screenshot.sh"
+        self.assertTrue(grimblast_main.is_file())
+        self.assertTrue(grimblast_sub.is_file())
+        self.assertEqual(grimblast_main.read_text(), grimblast_sub.read_text())
+        for script in (grimblast_main, grimblast_sub, screenshot_sh):
+            subprocess.run(["bash", "-n", str(script)], check=True)
+
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,5 +1,5 @@
-// AniDE Quickshell Bar — Single Top Bar in @bee_ui.ux Sculpted Dark Matte-Glass Style (image-7.png)
-// Top-Left Frosted White Pill + Soft Oblong Resource Pill | Top-Center Sculpted 3D Orb Notch | Top-Right Multi-Pill Dock Capsule
+// AniDE Quickshell Bar — Single Top Floating Frosted Sea-Glass Pill Bar (image-8.png style)
+// Translucent Deep Slate-Teal Glass Capsules | Crisp 1.2px Diagonal Specular Rim | Soft Frosted Inner Active Pill | Clean Silver-Ice Icons
 // GPL-3.0-or-later; see CREDITS.md.
 import Quickshell
 import Quickshell.Io
@@ -18,7 +18,7 @@ ShellRoot {
     }
 
     property string timeText: Qt.formatDateTime(new Date(), "HH:mm")
-    property string dateText: Qt.formatDateTime(new Date(), "ddd, dd/MM")
+    property string dateText: Qt.formatDateTime(new Date(), "dd/MM")
     property int volumeLevel: 65
     property bool volumeMuted: false
     property bool micMuted: false
@@ -43,15 +43,15 @@ ShellRoot {
     }
 
     function cssRgba(c, a) {
-        var r = Math.round((c && c.r !== undefined ? c.r : 0.9) * 255);
-        var g = Math.round((c && c.g !== undefined ? c.g : 0.85) * 255);
-        var b = Math.round((c && c.b !== undefined ? c.b : 0.95) * 255);
+        var r = Math.round((c && c.r !== undefined ? c.r : 0.85) * 255);
+        var g = Math.round((c && c.g !== undefined ? c.g : 0.92) * 255);
+        var b = Math.round((c && c.b !== undefined ? c.b : 0.96) * 255);
         var alpha = Math.max(0.0, Math.min(1.0, a));
         return "rgba(" + r + "," + g + "," + b + "," + alpha.toFixed(3) + ")";
     }
 
     function iconForClass(cls) {
-        if (!cls) return "󰣆";
+        if (!cls) return "󰋜";
         var c = cls.toLowerCase();
         if (c.indexOf("firefox") >= 0 || c.indexOf("zen") >= 0 || c.indexOf("floorp") >= 0) return "󰈹";
         if (c.indexOf("chrom") >= 0 || c.indexOf("brave") >= 0) return "";
@@ -64,7 +64,13 @@ ShellRoot {
         if (c.indexOf("obs") >= 0) return "󰑋";
         if (c.indexOf("git") >= 0) return "";
         if (c.indexOf("steam") >= 0 || c.indexOf("lutris") >= 0) return "󰓓";
-        return "󰣆";
+        return "󰋜";
+    }
+
+    // Default workspace slot icons matching image-8.png: Home, Check-circle, Calendar, Target, Terminal
+    function iconForWorkspaceSlot(slotIndex) {
+        var icons = ["󰋜", "󰄲", "󰃭", "󰓾", "󰆍"];
+        return icons[slotIndex % icons.length];
     }
 
     // Live theme.json hot-reload
@@ -93,7 +99,7 @@ ShellRoot {
         onTriggered: {
             var now = new Date();
             shellRoot.timeText = Qt.formatDateTime(now, "HH:mm");
-            shellRoot.dateText = Qt.formatDateTime(now, "ddd, dd/MM");
+            shellRoot.dateText = Qt.formatDateTime(now, "dd/MM");
             if (!statusProc.running) {
                 statusProc.running = true;
             }
@@ -203,21 +209,21 @@ ShellRoot {
                         shellRoot.wallStamp = wstamp;
                         var dc = dcols.split(",");
                         if (dc.length >= 8 && dc[0] !== "") {
-                            // Subtle 14% atmospheric wallpaper tint on top of the @bee_ui.ux dark smoky matte-glass palette
-                            theme.barBg = theme.subtleTint("#0c0f13", dc[0], 0.14);
-                            theme.mainBg = theme.subtleTint("#11151a", dc[0], 0.14);
-                            if (dc[1]) theme.surfaceBg = theme.subtleTint("#1d2229", dc[1], 0.14);
-                            if (dc[2]) theme.layer2Bg = theme.subtleTint("#2c333d", dc[2], 0.14);
-                            if (dc[3]) theme.subFg = theme.subtleTint("#8c96a4", dc[3], 0.12);
-                            if (dc[4]) theme.mainFg = theme.subtleTint("#e8edf3", dc[4], 0.10);
-                            if (dc[5]) theme.accentSecondary = theme.subtleTint("#323944", dc[5], 0.14);
+                            // Blend a subtle 14% wallpaper tint into the image-8.png frosted sea-glass palette
+                            theme.barBg = theme.subtleTint("#0f1c22", dc[0], 0.14);
+                            theme.mainBg = theme.subtleTint("#14252d", dc[0], 0.14);
+                            if (dc[1]) theme.surfaceBg = theme.subtleTint("#1c343f", dc[1], 0.14);
+                            if (dc[2]) theme.layer2Bg = theme.subtleTint("#274755", dc[2], 0.14);
+                            if (dc[3]) theme.subFg = theme.subtleTint("#7e9aa6", dc[3], 0.12);
+                            if (dc[4]) theme.mainFg = theme.subtleTint("#f4f9fc", dc[4], 0.08);
+                            if (dc[5]) theme.accentSecondary = theme.subtleTint("#2c434d", dc[5], 0.14);
                             if (dc[6]) {
-                                theme.actBg = theme.subtleTint("#e4e9f0", dc[6], 0.12);
-                                theme.glowColor = theme.subtleTint("#93c5fd", dc[6], 0.20);
+                                theme.actBg = theme.subtleTint("#374c56", dc[6], 0.14);
+                                theme.glowColor = theme.subtleTint("#cbeaf5", dc[6], 0.16);
                             }
                             if (dc[7]) {
-                                theme.secondaryFg = theme.subtleTint("#dde4ed", dc[7], 0.12);
-                                theme.glowSecondary = theme.subtleTint("#cbd5e1", dc[7], 0.15);
+                                theme.secondaryFg = theme.subtleTint("#a9c1ca", dc[7], 0.10);
+                                theme.glowSecondary = theme.subtleTint("#94c5d6", dc[7], 0.16);
                             }
                             shellRoot.paintGeneration += 1;
                         }
@@ -227,52 +233,112 @@ ShellRoot {
         }
     }
 
-    // ── Reusable @bee_ui.ux Sculpted Matte-Glass Components (image-7.png) ──
+    // ── Reusable Frosted Sea-Glass Pill Components (image-8.png style) ──
 
-    // 0. DreamyMistCanvas: Soft vertical matte-glass sheen inside sculpted capsules
+    // 0. DreamyMistCanvas: Renders the exact Frosted Sea-Glass Stadium Pill + 1.2px Diagonal Specular Rim of image-8.png
     component DreamyMistCanvas: Canvas {
         id: mistCanvas
         property color baseColor: theme.surfaceBg
-        property real baseOpacity: theme.pillOpacity
+        property color glowPrimary: theme.glowColor
+        property color glowAlt: theme.glowSecondary
+        property real baseOpacity: theme.barOpacity
+        property int generation: shellRoot.paintGeneration
+
         anchors.fill: parent
         antialiasing: true
+        smooth: true
+
         onWidthChanged: requestPaint()
         onHeightChanged: requestPaint()
         onBaseColorChanged: requestPaint()
+        onGlowPrimaryChanged: requestPaint()
+        onGlowAltChanged: requestPaint()
         onBaseOpacityChanged: requestPaint()
+        onGenerationChanged: requestPaint()
+
         onPaint: {
             var ctx = getContext("2d");
             ctx.reset();
-            if (width <= 2 || height <= 2) return;
+            if (width <= 4 || height <= 4) return;
             var r = height / 2;
-            ctx.beginPath();
-            ctx.moveTo(r, 0);
-            ctx.lineTo(width - r, 0);
-            ctx.arc(width - r, r, r, -Math.PI / 2, Math.PI / 2, false);
-            ctx.lineTo(r, height);
-            ctx.arc(r, r, r, Math.PI / 2, -Math.PI / 2, false);
-            ctx.closePath();
-            ctx.fillStyle = Qt.alpha(baseColor, baseOpacity);
+
+            function stadiumPath(inset) {
+                var ri = Math.max(1, r - inset);
+                ctx.beginPath();
+                ctx.moveTo(inset + ri, inset);
+                ctx.lineTo(width - inset - ri, inset);
+                ctx.arc(width - inset - ri, height / 2, ri, -Math.PI / 2, Math.PI / 2, false);
+                ctx.lineTo(inset + ri, height - inset);
+                ctx.arc(inset + ri, height / 2, ri, Math.PI / 2, -Math.PI / 2, false);
+                ctx.closePath();
+            }
+
+            // 1. Main Translucent Sea-Glass Horizontal-Diagonal Gradient (deep left -> luminous right, matching image-8.png)
+            stadiumPath(0.6);
+            var bodyGrad = ctx.createLinearGradient(0, height * 0.2, width, height * 0.8);
+            bodyGrad.addColorStop(0.0, shellRoot.cssRgba(theme.barBg, Math.min(0.86, baseOpacity + 0.08)));
+            bodyGrad.addColorStop(0.46, shellRoot.cssRgba(theme.surfaceBg, baseOpacity));
+            bodyGrad.addColorStop(1.0, shellRoot.cssRgba(theme.layer2Bg, Math.max(0.54, baseOpacity - 0.06)));
+            ctx.fillStyle = bodyGrad;
             ctx.fill();
+
+            // 2. Right-Side Frosted Sea-Glass Inner Diffusion (matches the soft cyan-frost glow on the right of image-8.png)
+            ctx.save();
+            stadiumPath(1.0);
+            ctx.clip();
+            var rightGlow = ctx.createRadialGradient(width * 0.88, height * 0.48, 2, width * 0.85, height * 0.5, width * 0.52);
+            rightGlow.addColorStop(0.0, shellRoot.cssRgba(glowPrimary, 0.12));
+            rightGlow.addColorStop(0.55, shellRoot.cssRgba(glowAlt, 0.05));
+            rightGlow.addColorStop(1.0, "rgba(0,0,0,0)");
+            ctx.fillStyle = rightGlow;
+            ctx.fillRect(0, 0, width, height);
+
+            // 3. Delicate Top-to-Bottom Frost Veil
+            var sheenGrad = ctx.createLinearGradient(0, 0, 0, height);
+            sheenGrad.addColorStop(0.0, "rgba(225, 245, 252, 0.09)");
+            sheenGrad.addColorStop(0.45, "rgba(185, 222, 236, 0.02)");
+            sheenGrad.addColorStop(1.0, "rgba(6, 14, 18, 0.15)");
+            ctx.fillStyle = sheenGrad;
+            ctx.fillRect(0, 0, width, height);
+            ctx.restore();
+
+            // 4. Crisp 1.2px Diagonal Specular Glass Rim (brighter at top-left & bottom-right curves, matching image-8.png)
+            stadiumPath(0.75);
+            var rimGrad = ctx.createLinearGradient(0, 0, width, height);
+            rimGrad.addColorStop(0.0, shellRoot.cssRgba(glowPrimary, 0.52));
+            rimGrad.addColorStop(0.32, shellRoot.cssRgba(glowAlt, 0.20));
+            rimGrad.addColorStop(0.68, shellRoot.cssRgba(glowAlt, 0.18));
+            rimGrad.addColorStop(1.0, shellRoot.cssRgba(glowPrimary, 0.46));
+            ctx.lineWidth = 1.25;
+            ctx.strokeStyle = rimGrad;
+            ctx.stroke();
         }
     }
 
-    // 1. BarGroup: Soft matte-charcoal oblong inner pill (`(═══)` inside sculpted dock capsule, matching image-7.png)
-    component BarGroup: Rectangle {
+    // 1. BarGroup: Floating Frosted Sea-Glass Stadium Pill Capsule (height: 40, radius: 20, matching image-8.png)
+    component BarGroup: Item {
         id: grpRoot
-        property real padding: 10
-        height: 26
-        radius: 13
-        color: Qt.alpha(theme.layer2Bg, theme.pillOpacity)
-        border.width: 1
-        border.color: Qt.alpha(theme.borderColor, 0.35)
+        property real padding: 5
+        height: 40
 
-        Behavior on color {
-            ColorAnimation { duration: 300 }
+        // Soft ambient drop shadow beneath the floating glass capsule
+        Rectangle {
+            anchors.fill: parent
+            anchors.topMargin: 2
+            anchors.bottomMargin: -2
+            radius: height / 2
+            color: Qt.rgba(0.02, 0.05, 0.07, 0.30)
+        }
+
+        // Frosted Sea-Glass Stadium Body + Specular Rim
+        DreamyMistCanvas {
+            anchors.fill: parent
+            baseColor: theme.surfaceBg
+            baseOpacity: theme.barOpacity
         }
     }
 
-    // 2. CircularResourceRing: Soft matte-glass circular progress ring (18x18)
+    // 2. CircularResourceRing: Clean Frosted Ice-Silver Circular Progress Ring (18x18) sitting directly on the glass
     component CircularResourceRing: Item {
         id: ringRoot
         property real value: 0.0 // 0.0 .. 1.0
@@ -297,31 +363,25 @@ ShellRoot {
                 ctx.reset();
                 var cx = width / 2;
                 var cy = height / 2;
-                var rOuter = width / 2;
-                var rInner = rOuter - 2.2;
+                var rOuter = (width / 2) - 1.2;
 
-                // 1. Softly translucent matte circle track
+                // 1. Subtle frosted circular ring track
                 ctx.beginPath();
                 ctx.arc(cx, cy, rOuter, 0, Math.PI * 2, false);
-                ctx.fillStyle = Qt.alpha(ringRoot.trackColor, 0.42);
-                ctx.fill();
+                ctx.lineWidth = 1.6;
+                ctx.strokeStyle = shellRoot.cssRgba(ringRoot.primaryColor, 0.25);
+                ctx.stroke();
 
-                // 2. Progress arc in frosted silver-white
+                // 2. Crisp frosted silver-white progress arc
                 var clamped = Math.max(0.0, Math.min(1.0, ringRoot.value));
                 if (clamped > 0.01) {
                     ctx.beginPath();
-                    ctx.moveTo(cx, cy);
                     ctx.arc(cx, cy, rOuter, -Math.PI / 2, -Math.PI / 2 + clamped * Math.PI * 2, false);
-                    ctx.closePath();
-                    ctx.fillStyle = ringRoot.primaryColor;
-                    ctx.fill();
+                    ctx.lineWidth = 1.7;
+                    ctx.lineCap = "round";
+                    ctx.strokeStyle = ringRoot.primaryColor;
+                    ctx.stroke();
                 }
-
-                // 3. Inner dark matte cutout
-                ctx.beginPath();
-                ctx.arc(cx, cy, rInner, 0, Math.PI * 2, false);
-                ctx.fillStyle = Qt.alpha(theme.surfaceBg, 0.85);
-                ctx.fill();
             }
         }
 
@@ -334,18 +394,19 @@ ShellRoot {
         }
     }
 
-    // 3. CircleUtilButton: 3D matte circular icon orb (22x22)
+    // 3. CircleUtilButton: Clean Icon Button sitting directly on the glass capsule (soft inner frosted pill on hover)
     component CircleUtilButton: Rectangle {
         id: utilBtn
         property string iconText: ""
         signal triggered()
+        signal rightTriggered()
 
-        implicitWidth: 22
-        implicitHeight: 22
-        radius: 11
-        color: utilMouse.containsMouse ? Qt.alpha(theme.hvrBg, 0.78) : Qt.alpha(theme.layer2Bg, 0.52)
-        border.width: 1
-        border.color: Qt.alpha(theme.borderColor, 0.36)
+        implicitWidth: 28
+        implicitHeight: 28
+        radius: 14
+        color: utilMouse.containsMouse
+            ? Qt.rgba(0.84, 0.93, 0.96, 0.16)
+            : "transparent"
 
         Behavior on color {
             ColorAnimation { duration: 150 }
@@ -354,21 +415,28 @@ ShellRoot {
         Text {
             anchors.centerIn: parent
             text: utilBtn.iconText
-            color: theme.mainFg
+            color: utilMouse.containsMouse ? theme.mainFg : theme.secondaryFg
             font.family: "JetBrainsMono Nerd Font"
-            font.pixelSize: 11
+            font.pixelSize: 14
         }
 
         MouseArea {
             id: utilMouse
             anchors.fill: parent
             hoverEnabled: true
+            acceptedButtons: Qt.LeftButton | Qt.RightButton
             cursorShape: Qt.PointingHandCursor
-            onClicked: utilBtn.triggered()
+            onClicked: mouse => {
+                if (mouse.button === Qt.RightButton) {
+                    utilBtn.rightTriggered();
+                } else {
+                    utilBtn.triggered();
+                }
+            }
         }
     }
 
-    // ── SINGLE TOP SCULPTED BAR WINDOW (matching @bee_ui.ux image-7.png — NO bottom bar!) ──
+    // ── SINGLE TOP FLOATING FROSTED SEA-GLASS PILL BAR (matching image-8.png — NO bottom bar, NO opaque screen frame) ──
     Variants {
         model: Quickshell.screens
 
@@ -377,7 +445,7 @@ ShellRoot {
             required property var modelData
             screen: modelData
 
-            readonly property int barHeight: 42
+            readonly property int barHeight: 50
             readonly property int cornerSize: theme.cornerRadius
             readonly property int activeWsId: (Hyprland.focusedMonitor && Hyprland.focusedMonitor.activeWorkspace)
                 ? Hyprland.focusedMonitor.activeWorkspace.id
@@ -398,15 +466,15 @@ ShellRoot {
             }
 
             exclusiveZone: barHeight
-            implicitHeight: barHeight + cornerSize
+            implicitHeight: barHeight
             color: "transparent"
 
             mask: Region {
                 item: barContent
             }
 
-            // Main Top Sculpted Dark Matte-Glass Frame Band
-            Rectangle {
+            // Transparent top container holding the 3 floating Frosted Sea-Glass Stadium Capsules
+            Item {
                 id: barContent
                 anchors {
                     top: parent.top
@@ -414,24 +482,8 @@ ShellRoot {
                     right: parent.right
                 }
                 height: barWindow.barHeight
-                color: Qt.alpha(theme.barBg, theme.barOpacity)
 
-                Behavior on color {
-                    ColorAnimation { duration: 300 }
-                }
-
-                // Crisp 1px bottom specular rim along the top frame (matching image-7.png)
-                Rectangle {
-                    anchors {
-                        bottom: parent.bottom
-                        left: parent.left
-                        right: parent.right
-                    }
-                    height: 1
-                    color: Qt.alpha(theme.borderColor, 0.42)
-                }
-
-                // ── 1. TOP-LEFT SECTION: Frosted White Pill (`[ ✦ ]`) + Soft Oblong Resource Pill (`leftCenterGroup`) + Active Window ──
+                // ── 1. TOP-LEFT FLOATING FROSTED GLASS CAPSULE (`leftCenterGroup`) ──
                 MouseArea {
                     id: leftSideArea
                     anchors {
@@ -451,226 +503,204 @@ ShellRoot {
                         statusProc.running = true;
                     }
 
-                    RowLayout {
-                        anchors.fill: parent
-                        spacing: 8
+                    BarGroup {
+                        id: leftCenterGroup
+                        anchors {
+                            left: parent.left
+                            leftMargin: 14
+                            verticalCenter: parent.verticalCenter
+                        }
+                        padding: 5
+                        implicitWidth: leftPillRow.implicitWidth + padding * 2 + 6
 
-                        // Signature Frosted White Capsule Pill in top-left corner (exact match to top-left of image-7.png)
-                        Rectangle {
-                            id: leftSidebarBtn
-                            Layout.alignment: Qt.AlignVCenter
-                            Layout.leftMargin: 14
-                            implicitWidth: 34
-                            implicitHeight: 19
-                            radius: 9.5
-                            color: leftBtnMouse.containsMouse
-                                ? theme.mainFg
-                                : Qt.alpha(theme.actBg, 0.92)
-
-                            Behavior on color {
-                                ColorAnimation { duration: 150 }
+                        RowLayout {
+                            id: leftPillRow
+                            anchors {
+                                left: parent.left
+                                leftMargin: 5
+                                verticalCenter: parent.verticalCenter
                             }
+                            spacing: 12
 
-                            Text {
-                                anchors.centerIn: parent
-                                text: "✦"
-                                color: theme.actFg
-                                font.family: "JetBrainsMono Nerd Font"
-                                font.pixelSize: 11
-                                font.bold: true
-                            }
+                            // Leftmost Active-Style Soft Frosted Inner Pill (matches the Home pill on the left of image-8.png!)
+                            Rectangle {
+                                id: leftSidebarBtn
+                                implicitWidth: 46
+                                implicitHeight: 30
+                                radius: 15
+                                color: leftBtnMouse.containsMouse
+                                    ? Qt.rgba(0.86, 0.94, 0.98, 0.25)
+                                    : Qt.rgba(0.84, 0.93, 0.96, 0.17)
+                                border.width: 1
+                                border.color: Qt.rgba(0.92, 0.97, 1.0, 0.10)
 
-                            MouseArea {
-                                id: leftBtnMouse
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                acceptedButtons: Qt.LeftButton | Qt.RightButton
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: mouse => {
-                                    if (mouse.button === Qt.RightButton) {
-                                        shellRoot.runCmd(["hyde-shell", "rofi.movie"]);
-                                    } else {
-                                        shellRoot.runCmd(["hyde-shell", "rofilaunch", "d"]);
+                                Behavior on color {
+                                    ColorAnimation { duration: 150 }
+                                }
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "󰋜"
+                                    color: theme.mainFg
+                                    font.family: "JetBrainsMono Nerd Font"
+                                    font.pixelSize: 16
+                                }
+
+                                MouseArea {
+                                    id: leftBtnMouse
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    acceptedButtons: Qt.LeftButton | Qt.RightButton
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: mouse => {
+                                        if (mouse.button === Qt.RightButton) {
+                                            shellRoot.runCmd(["hyde-shell", "rofi.movie"]);
+                                        } else {
+                                            shellRoot.runCmd(["hyde-shell", "rofilaunch", "d"]);
+                                        }
                                     }
                                 }
                             }
-                        }
 
-                        // Sculpted Left Capsule containing Oblong Resource Pill + Oblong Media Pill
-                        Rectangle {
-                            Layout.alignment: Qt.AlignVCenter
-                            implicitWidth: leftDockRow.implicitWidth + 10
-                            height: 34
-                            radius: 17
-                            border.width: 1
-                            border.color: Qt.alpha(theme.borderColor, 0.55)
-
-                            gradient: Gradient {
-                                orientation: Gradient.Vertical
-                                GradientStop { position: 0.0; color: Qt.alpha(theme.barBg, 0.90) }
-                                GradientStop { position: 0.65; color: Qt.alpha(theme.surfaceBg, 0.78) }
-                                GradientStop { position: 1.0; color: Qt.alpha(theme.layer2Bg, 0.70) }
-                            }
-
+                            // Clean Frosted Silver-Ice Resource Indicators sitting directly on the glass (NO nested boxes!)
                             RowLayout {
-                                id: leftDockRow
-                                anchors.centerIn: parent
-                                spacing: 6
+                                id: resRow
+                                spacing: 10
 
-                                // Oblong Pill 1: Resources (RAM, Swap, CPU)
-                                BarGroup {
-                                    id: leftCenterGroup
-                                    padding: 8
-                                    implicitWidth: resRow.implicitWidth + padding * 2
-
-                                    RowLayout {
-                                        id: resRow
-                                        anchors.centerIn: parent
-                                        spacing: 6
-
-                                        RowLayout {
-                                            spacing: 3
-                                            CircularResourceRing {
-                                                value: shellRoot.memoryUsage
-                                                iconText: "󰍛"
-                                                primaryColor: shellRoot.memoryUsage >= 0.90 ? theme.errorColor : theme.secondaryFg
-                                            }
-                                            Text {
-                                                text: Math.round(shellRoot.memoryUsage * 100).toString()
-                                                color: theme.mainFg
-                                                font.family: "JetBrainsMono Nerd Font"
-                                                font.pixelSize: 11
-                                            }
-                                        }
-
-                                        RowLayout {
-                                            spacing: 3
-                                            CircularResourceRing {
-                                                value: shellRoot.swapUsage
-                                                iconText: "󰓡"
-                                                primaryColor: shellRoot.swapUsage >= 0.90 ? theme.errorColor : theme.secondaryFg
-                                            }
-                                            Text {
-                                                text: Math.round(shellRoot.swapUsage * 100).toString()
-                                                color: theme.mainFg
-                                                font.family: "JetBrainsMono Nerd Font"
-                                                font.pixelSize: 11
-                                            }
-                                        }
-
-                                        RowLayout {
-                                            spacing: 3
-                                            CircularResourceRing {
-                                                value: shellRoot.cpuUsage
-                                                iconText: "󰻠"
-                                                primaryColor: shellRoot.cpuUsage >= 0.90 ? theme.errorColor : theme.secondaryFg
-                                            }
-                                            Text {
-                                                text: Math.round(shellRoot.cpuUsage * 100).toString()
-                                                color: theme.mainFg
-                                                font.family: "JetBrainsMono Nerd Font"
-                                                font.pixelSize: 11
-                                            }
-                                        }
+                                RowLayout {
+                                    spacing: 4
+                                    CircularResourceRing {
+                                        value: shellRoot.memoryUsage
+                                        iconText: "󰍛"
+                                        primaryColor: shellRoot.memoryUsage >= 0.90 ? theme.errorColor : theme.secondaryFg
+                                    }
+                                    Text {
+                                        text: Math.round(shellRoot.memoryUsage * 100).toString() + "%"
+                                        color: theme.secondaryFg
+                                        font.family: "JetBrainsMono Nerd Font"
+                                        font.pixelSize: 11
                                     }
                                 }
 
-                                // Oblong Pill 2: Media / AniSub ("No media" / active track)
-                                BarGroup {
-                                    id: mediaPillGroup
-                                    padding: 8
-                                    implicitWidth: mediaWidget.implicitWidth + padding * 2
+                                RowLayout {
+                                    spacing: 4
+                                    CircularResourceRing {
+                                        value: shellRoot.swapUsage
+                                        iconText: "󰓡"
+                                        primaryColor: shellRoot.swapUsage >= 0.90 ? theme.errorColor : theme.secondaryFg
+                                    }
+                                    Text {
+                                        text: Math.round(shellRoot.swapUsage * 100).toString() + "%"
+                                        color: theme.secondaryFg
+                                        font.family: "JetBrainsMono Nerd Font"
+                                        font.pixelSize: 11
+                                    }
+                                }
 
-                                    RowLayout {
-                                        id: mediaWidget
-                                        anchors.centerIn: parent
-                                        readonly property var activePlayer: (Mpris.players && Mpris.players.values && Mpris.players.values.length > 0)
-                                            ? Mpris.players.values[0]
-                                            : null
-                                        readonly property bool hasTrack: activePlayer !== null && activePlayer.trackTitle !== ""
-                                        spacing: 5
+                                RowLayout {
+                                    spacing: 4
+                                    CircularResourceRing {
+                                        value: shellRoot.cpuUsage
+                                        iconText: "󰻠"
+                                        primaryColor: shellRoot.cpuUsage >= 0.90 ? theme.errorColor : theme.secondaryFg
+                                    }
+                                    Text {
+                                        text: Math.round(shellRoot.cpuUsage * 100).toString() + "%"
+                                        color: theme.secondaryFg
+                                        font.family: "JetBrainsMono Nerd Font"
+                                        font.pixelSize: 11
+                                    }
+                                }
+                            }
 
-                                        CircularResourceRing {
-                                            value: (mediaWidget.activePlayer && mediaWidget.activePlayer.length > 0)
-                                                ? (mediaWidget.activePlayer.position / mediaWidget.activePlayer.length)
-                                                : (mediaWidget.hasTrack && mediaWidget.activePlayer.isPlaying ? 0.65 : 0.0)
-                                            iconText: (mediaWidget.hasTrack && mediaWidget.activePlayer.isPlaying) ? "" : "󰎈"
-                                            primaryColor: theme.secondaryFg
-                                        }
+                            // Delicate 1px glass separator
+                            Rectangle {
+                                implicitWidth: 1
+                                implicitHeight: 14
+                                color: Qt.rgba(0.82, 0.92, 0.96, 0.14)
+                            }
 
-                                        Item {
-                                            implicitWidth: 82
-                                            implicitHeight: 20
+                            // Media / AniSub sitting directly on the glass capsule
+                            Rectangle {
+                                id: mediaSlot
+                                readonly property var activePlayer: (Mpris.players && Mpris.players.values && Mpris.players.values.length > 0)
+                                    ? Mpris.players.values[0]
+                                    : null
+                                readonly property bool hasTrack: activePlayer !== null && activePlayer.trackTitle !== ""
+                                implicitWidth: mediaRow.implicitWidth + 14
+                                implicitHeight: 30
+                                radius: 15
+                                color: mediaMouse.containsMouse
+                                    ? Qt.rgba(0.84, 0.93, 0.96, 0.15)
+                                    : "transparent"
 
-                                            Text {
-                                                anchors.centerIn: parent
-                                                width: parent.width
-                                                horizontalAlignment: Text.AlignHCenter
-                                                elide: Text.ElideRight
-                                                text: mediaWidget.hasTrack
-                                                    ? (mediaWidget.activePlayer.trackTitle + (mediaWidget.activePlayer.trackArtist ? (" • " + mediaWidget.activePlayer.trackArtist) : ""))
-                                                    : "No media"
-                                                color: theme.mainFg
-                                                font.family: "JetBrainsMono Nerd Font"
-                                                font.pixelSize: 11
-                                            }
+                                RowLayout {
+                                    id: mediaRow
+                                    anchors.centerIn: parent
+                                    spacing: 6
 
-                                            MouseArea {
-                                                anchors.fill: parent
-                                                acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
-                                                cursorShape: Qt.PointingHandCursor
-                                                onClicked: mouse => {
-                                                    if (!mediaWidget.hasTrack || mouse.button === Qt.LeftButton) {
-                                                        shellRoot.runCmd(["hyde-shell", "rofi.movie"]);
-                                                    } else if (mouse.button === Qt.MiddleButton && mediaWidget.activePlayer) {
-                                                        mediaWidget.activePlayer.togglePlaying();
-                                                    } else if (mouse.button === Qt.RightButton && mediaWidget.activePlayer) {
-                                                        mediaWidget.activePlayer.next();
-                                                    }
-                                                }
-                                            }
+                                    Text {
+                                        text: (mediaSlot.hasTrack && mediaSlot.activePlayer.isPlaying) ? "" : "󰎈"
+                                        color: mediaMouse.containsMouse ? theme.mainFg : theme.secondaryFg
+                                        font.family: "JetBrainsMono Nerd Font"
+                                        font.pixelSize: 13
+                                    }
+
+                                    Text {
+                                        Layout.maximumWidth: 96
+                                        elide: Text.ElideRight
+                                        text: mediaSlot.hasTrack
+                                            ? mediaSlot.activePlayer.trackTitle
+                                            : "AniSub"
+                                        color: mediaMouse.containsMouse ? theme.mainFg : theme.secondaryFg
+                                        font.family: "JetBrainsMono Nerd Font"
+                                        font.pixelSize: 11
+                                    }
+                                }
+
+                                MouseArea {
+                                    id: mediaMouse
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: mouse => {
+                                        if (!mediaSlot.hasTrack || mouse.button === Qt.LeftButton) {
+                                            shellRoot.runCmd(["hyde-shell", "rofi.movie"]);
+                                        } else if (mouse.button === Qt.MiddleButton && mediaSlot.activePlayer) {
+                                            mediaSlot.activePlayer.togglePlaying();
+                                        } else if (mouse.button === Qt.RightButton && mediaSlot.activePlayer) {
+                                            mediaSlot.activePlayer.next();
                                         }
                                     }
                                 }
                             }
                         }
-
-                        Item { Layout.fillWidth: true }
                     }
                 }
 
-                // ── 2. TOP-CENTER SCULPTED NOTCH ISLAND: 5 Circular 3D Matte Orbs `[ ●  ●  ●  ●  ● ]` (exact match to top-center of image-7.png) ──
-                Rectangle {
+                // ── 2. TOP-CENTER FLOATING FROSTED SEA-GLASS PILL (`middleCenterGroup` — 1:1 visual match to image-8.png) ──
+                BarGroup {
                     id: middleCenterGroup
                     anchors {
                         horizontalCenter: parent.horizontalCenter
                         verticalCenter: parent.verticalCenter
                     }
-                    width: wsContainer.implicitWidth + 28
-                    height: 34
-                    radius: 17
-                    border.width: 1
-                    border.color: Qt.alpha(theme.borderColor, 0.65)
-
-                    // Sculpted 3D dark-to-smoky-silver vertical gradient matching the top notch in image-7.png
-                    gradient: Gradient {
-                        orientation: Gradient.Vertical
-                        GradientStop { position: 0.0; color: Qt.alpha(theme.barBg, 0.95) }
-                        GradientStop { position: 0.60; color: Qt.alpha(theme.surfaceBg, 0.86) }
-                        GradientStop { position: 1.0; color: Qt.alpha(theme.layer2Bg, 0.80) }
-                    }
+                    padding: 5
+                    width: wsContainer.implicitWidth + 10
 
                     Item {
                         id: wsContainer
                         anchors.centerIn: parent
-                        readonly property real orbSize: 18
-                        readonly property real orbPitch: 30 // 18px orb + 12px spacing
+                        readonly property real pillWidth: 50
+                        readonly property real pillHeight: 30
+                        readonly property real pillPitch: 56
                         readonly property int targetIndex: barWindow.localOrbIndex
 
                         property real idx1: targetIndex
                         property real idx2: targetIndex
                         Behavior on idx1 {
-                            NumberAnimation { duration: 100; easing.type: Easing.OutSine }
+                            NumberAnimation { duration: 110; easing.type: Easing.OutSine }
                         }
                         Behavior on idx2 {
                             NumberAnimation { duration: 280; easing.type: Easing.OutSine }
@@ -685,63 +715,72 @@ ShellRoot {
                             return false;
                         }
 
-                        implicitWidth: orbPitch * 5 - (orbPitch - orbSize)
-                        implicitHeight: 22
+                        implicitWidth: pillPitch * 5 - (pillPitch - pillWidth)
+                        implicitHeight: pillHeight
 
-                        // Layer 1: 5 Circular 3D Matte Workspace Orbs (exact match to top-center 5 orbs in image-7.png)
+                        // Layer 1: Soft Frosted Inner Active Pill (`activeIndicator` — matches the soft frosted pill on the left of image-8.png)
+                        Rectangle {
+                            id: activeIndicator
+                            z: 1
+                            anchors.verticalCenter: parent.verticalCenter
+                            x: Math.min(wsContainer.idx1, wsContainer.idx2) * wsContainer.pillPitch
+                            width: Math.abs(wsContainer.idx1 - wsContainer.idx2) * wsContainer.pillPitch + wsContainer.pillWidth
+                            height: wsContainer.pillHeight
+                            radius: wsContainer.pillHeight / 2
+                            color: Qt.rgba(0.84, 0.93, 0.96, 0.17)
+                            border.width: 1
+                            border.color: Qt.rgba(0.92, 0.97, 1.0, 0.10)
+                        }
+
+                        // Layer 2: 5 Workspace Slots sitting directly on the Frosted Sea-Glass Capsule (Home, Check-circle, Calendar, Target, Terminal)
                         Repeater {
                             model: 5
 
                             Item {
                                 id: wsSlot
+                                z: 2
                                 required property int index
                                 readonly property int wsId: barWindow.bankOffset + index + 1
                                 readonly property bool isActive: (barWindow.localOrbIndex === index)
                                 readonly property bool isOcc: wsContainer.isWsOccupied(wsId)
-                                readonly property string winClass: (shellRoot.wsClasses && shellRoot.wsClasses[wsId.toString()])
-                                    ? shellRoot.wsClasses[wsId.toString()]
-                                    : (isActive && shellRoot.activeWinClass !== "" ? shellRoot.activeWinClass : "")
 
-                                x: index * wsContainer.orbPitch
-                                width: wsContainer.orbSize
-                                height: parent.height
+                                x: index * wsContainer.pillPitch
+                                width: wsContainer.pillWidth
+                                height: wsContainer.pillHeight
 
-                                // 3D Matte Circular Orb
+                                // Subtle hover pill for non-active slots
                                 Rectangle {
+                                    anchors.fill: parent
+                                    radius: height / 2
+                                    visible: wsHit.containsMouse && !wsSlot.isActive
+                                    color: Qt.rgba(0.84, 0.93, 0.96, 0.09)
+                                }
+
+                                // Crisp snow-white icon when active, frosted silver-ice icon when inactive (exact match to image-8.png)
+                                Text {
                                     anchors.centerIn: parent
-                                    width: wsContainer.orbSize
-                                    height: wsContainer.orbSize
-                                    radius: wsContainer.orbSize / 2
-                                    border.width: 1
-                                    border.color: wsSlot.isOcc
-                                        ? Qt.alpha(theme.borderColor, 0.60)
-                                        : Qt.alpha(theme.borderColor, 0.28)
+                                    text: shellRoot.iconForWorkspaceSlot(wsSlot.index)
+                                    color: wsSlot.isActive ? theme.mainFg : theme.secondaryFg
+                                    font.family: "JetBrainsMono Nerd Font"
+                                    font.pixelSize: wsSlot.isActive ? 16 : 15
 
-                                    gradient: Gradient {
-                                        orientation: Gradient.Vertical
-                                        GradientStop {
-                                            position: 0.0
-                                            color: wsSlot.isOcc
-                                                ? Qt.alpha(theme.layer2Bg, 0.88)
-                                                : Qt.alpha(theme.surfaceBg, 0.72)
-                                        }
-                                        GradientStop {
-                                            position: 1.0
-                                            color: wsSlot.isOcc
-                                                ? Qt.alpha(theme.surfaceBg, 0.92)
-                                                : Qt.alpha(theme.barBg, 0.88)
-                                        }
+                                    Behavior on color {
+                                        ColorAnimation { duration: 180 }
                                     }
+                                }
 
-                                    // Subtle center dot for occupied non-active orb
-                                    Rectangle {
-                                        visible: wsSlot.isOcc && !wsSlot.isActive
-                                        anchors.centerIn: parent
-                                        width: 4.5
-                                        height: 4.5
-                                        radius: 2.25
-                                        color: Qt.alpha(theme.secondaryFg, 0.75)
+                                // Tiny frosted indicator dot under occupied inactive workspaces
+                                Rectangle {
+                                    visible: wsSlot.isOcc && !wsSlot.isActive
+                                    anchors {
+                                        bottom: parent.bottom
+                                        bottomMargin: 3
+                                        horizontalCenter: parent.horizontalCenter
                                     }
+                                    width: 3.5
+                                    height: 3.5
+                                    radius: 1.75
+                                    color: Qt.alpha(theme.secondaryFg, 0.72)
                                 }
 
                                 MouseArea {
@@ -760,36 +799,10 @@ ShellRoot {
                                 }
                             }
                         }
-
-                        // Layer 2: Liquid Stretchy Frosted-White Active Orb Indicator
-                        Rectangle {
-                            id: activeIndicator
-                            z: 2
-                            anchors.verticalCenter: parent.verticalCenter
-                            x: Math.min(wsContainer.idx1, wsContainer.idx2) * wsContainer.orbPitch
-                            width: Math.abs(wsContainer.idx1 - wsContainer.idx2) * wsContainer.orbPitch + wsContainer.orbSize
-                            height: wsContainer.orbSize
-                            radius: wsContainer.orbSize / 2
-                            color: Qt.alpha(theme.actBg, 0.92)
-                            border.width: 1
-                            border.color: theme.mainFg
-
-                            Behavior on color {
-                                ColorAnimation { duration: 300 }
-                            }
-
-                            Text {
-                                anchors.centerIn: parent
-                                text: shellRoot.iconForClass(shellRoot.activeWinClass)
-                                color: theme.actFg
-                                font.family: "JetBrainsMono Nerd Font"
-                                font.pixelSize: 10
-                            }
-                        }
                     }
                 }
 
-                // ── 3. TOP-RIGHT SCULPTED CAPSULE: Oblong Clock Pill + Oblong `[ • ───── • ]` Status Pill + Circular `(●)` Orb ──
+                // ── 3. TOP-RIGHT FLOATING FROSTED GLASS CAPSULE (`rightCenterGroup`) ──
                 MouseArea {
                     id: rightSideArea
                     anchors {
@@ -809,53 +822,229 @@ ShellRoot {
                         statusProc.running = true;
                     }
 
-                    Rectangle {
+                    BarGroup {
                         id: rightCenterGroup
                         anchors {
                             right: parent.right
                             rightMargin: 14
                             verticalCenter: parent.verticalCenter
                         }
-                        implicitWidth: rightDockRow.implicitWidth + 10
-                        height: 34
-                        radius: 17
-                        border.width: 1
-                        border.color: Qt.alpha(theme.borderColor, 0.55)
-
-                        gradient: Gradient {
-                            orientation: Gradient.Vertical
-                            GradientStop { position: 0.0; color: Qt.alpha(theme.barBg, 0.90) }
-                            GradientStop { position: 0.65; color: Qt.alpha(theme.surfaceBg, 0.78) }
-                            GradientStop { position: 1.0; color: Qt.alpha(theme.layer2Bg, 0.70) }
-                        }
+                        padding: 5
+                        implicitWidth: rightDockRow.implicitWidth + padding * 2 + 6
 
                         RowLayout {
                             id: rightDockRow
-                            anchors.centerIn: parent
-                            spacing: 6
+                            anchors {
+                                right: parent.right
+                                rightMargin: 5
+                                verticalCenter: parent.verticalCenter
+                            }
+                            spacing: 10
 
-                            // Oblong Pill A: Clock & Date (HH:mm • ddd, dd/MM)
-                            BarGroup {
-                                id: clockPillGroup
-                                padding: 10
-                                implicitWidth: clockRow.implicitWidth + padding * 2
+                            // Screenshot utility button (left-click: region snip `s`, right-click: full screen `p`)
+                            CircleUtilButton {
+                                iconText: "󰆞"
+                                onTriggered: shellRoot.runCmd(["hyde-shell", "screenshot", "s"])
+                                onRightTriggered: shellRoot.runCmd(["hyde-shell", "screenshot", "p"])
+                            }
+
+                            // Color Picker utility button
+                            CircleUtilButton {
+                                iconText: "󰈊"
+                                onTriggered: shellRoot.runCmd(["hyprpicker", "-a"])
+                                onRightTriggered: shellRoot.runCmd(["hyprpicker", "-a"])
+                            }
+
+                            // System Tray icons
+                            RowLayout {
+                                visible: SystemTray.items && SystemTray.items.values && SystemTray.items.values.length > 0
+                                spacing: 4
+
+                                Repeater {
+                                    model: SystemTray.items
+
+                                    Rectangle {
+                                        id: traySlot
+                                        required property var modelData
+                                        implicitWidth: 24
+                                        implicitHeight: 24
+                                        radius: 12
+                                        color: trayMouse.containsMouse
+                                            ? Qt.rgba(0.84, 0.93, 0.96, 0.16)
+                                            : "transparent"
+
+                                        Image {
+                                            anchors.centerIn: parent
+                                            width: 14
+                                            height: 14
+                                            source: traySlot.modelData.icon || ""
+                                            sourceSize.width: 14
+                                            sourceSize.height: 14
+                                        }
+
+                                        MouseArea {
+                                            id: trayMouse
+                                            anchors.fill: parent
+                                            hoverEnabled: true
+                                            acceptedButtons: Qt.LeftButton | Qt.RightButton
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: mouse => {
+                                                if (mouse.button === Qt.RightButton) {
+                                                    traySlot.modelData.secondaryActivate();
+                                                } else {
+                                                    traySlot.modelData.activate();
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Bluetooth icon sitting directly on the glass
+                            Text {
+                                text: shellRoot.bluetoothConnected
+                                    ? "󰂱"
+                                    : (shellRoot.bluetoothOn ? "󰂯" : "󰂲")
+                                color: theme.secondaryFg
+                                font.family: "JetBrainsMono Nerd Font"
+                                font.pixelSize: 14
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: shellRoot.runCmd(["blueman-manager"])
+                                }
+                            }
+
+                            // Wi-Fi icon sitting directly on the glass
+                            Text {
+                                text: shellRoot.networkName !== "" ? "󰤨" : "󰤭"
+                                color: theme.secondaryFg
+                                font.family: "JetBrainsMono Nerd Font"
+                                font.pixelSize: 14
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: shellRoot.runCmd(["nm-connection-editor"])
+                                }
+                            }
+
+                            // Microphone icon sitting directly on the glass
+                            Text {
+                                text: shellRoot.micMuted ? "󰍭" : "󰍬"
+                                color: theme.secondaryFg
+                                font.family: "JetBrainsMono Nerd Font"
+                                font.pixelSize: 14
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: {
+                                        shellRoot.runCmd(["pamixer", "--default-source", "-t"]);
+                                        statusProc.running = true;
+                                    }
+                                }
+                            }
+
+                            // Volume icon + sleek frosted glass slider bar
+                            RowLayout {
+                                spacing: 5
+
+                                Text {
+                                    text: shellRoot.volumeMuted
+                                        ? "󰝟"
+                                        : (shellRoot.volumeLevel < 35 ? "󰕿" : (shellRoot.volumeLevel < 70 ? "󰖀" : "󰕾"))
+                                    color: theme.secondaryFg
+                                    font.family: "JetBrainsMono Nerd Font"
+                                    font.pixelSize: 14
+
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        acceptedButtons: Qt.LeftButton | Qt.RightButton
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: mouse => {
+                                            if (mouse.button === Qt.RightButton) {
+                                                shellRoot.runCmd(["pavucontrol"]);
+                                            } else {
+                                                shellRoot.runCmd(["pamixer", "-t"]);
+                                                statusProc.running = true;
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Rectangle {
+                                    implicitWidth: 34
+                                    implicitHeight: 4
+                                    radius: 2
+                                    color: Qt.rgba(0.82, 0.92, 0.96, 0.18)
+                                    clip: true
+
+                                    Rectangle {
+                                        width: shellRoot.volumeMuted
+                                            ? 0
+                                            : Math.max(4, parent.width * Math.max(0.0, Math.min(1.0, shellRoot.volumeLevel / 100.0)))
+                                        height: parent.height
+                                        radius: 2
+                                        color: theme.mainFg
+                                    }
+                                }
+                            }
+
+                            // Clean Frosted Battery Indicator sitting directly on the glass
+                            RowLayout {
+                                spacing: 3
+
+                                Text {
+                                    text: shellRoot.batteryCharging ? "󰂄" : "󰁹"
+                                    color: (shellRoot.batteryLevel <= 0.20 && !shellRoot.batteryCharging)
+                                        ? theme.errorColor
+                                        : theme.secondaryFg
+                                    font.family: "JetBrainsMono Nerd Font"
+                                    font.pixelSize: 13
+                                }
+
+                                Text {
+                                    text: Math.round(Math.max(0, shellRoot.batteryLevel * 100)).toString() + "%"
+                                    color: theme.secondaryFg
+                                    font.family: "JetBrainsMono Nerd Font"
+                                    font.pixelSize: 11
+                                }
+                            }
+
+                            // Rightmost Active-Style Soft Frosted Inner Pill: Clock, Date & Settings (mirrors the active pill of image-8.png)
+                            Rectangle {
+                                id: rightClockPill
+                                implicitWidth: clockPillRow.implicitWidth + 22
+                                implicitHeight: 30
+                                radius: 15
+                                color: rightClockMouse.containsMouse
+                                    ? Qt.rgba(0.86, 0.94, 0.98, 0.25)
+                                    : Qt.rgba(0.84, 0.93, 0.96, 0.17)
+                                border.width: 1
+                                border.color: Qt.rgba(0.92, 0.97, 1.0, 0.10)
+
+                                Behavior on color {
+                                    ColorAnimation { duration: 150 }
+                                }
 
                                 RowLayout {
-                                    id: clockRow
+                                    id: clockPillRow
                                     anchors.centerIn: parent
-                                    spacing: 5
+                                    spacing: 6
 
                                     Text {
                                         text: shellRoot.timeText
                                         color: theme.mainFg
                                         font.family: "JetBrainsMono Nerd Font"
                                         font.pixelSize: 12
-                                        font.weight: Font.Medium
+                                        font.weight: Font.DemiBold
                                     }
 
                                     Text {
                                         text: "•"
-                                        color: theme.subFg
+                                        color: theme.secondaryFg
                                         font.family: "JetBrainsMono Nerd Font"
                                         font.pixelSize: 10
                                     }
@@ -866,236 +1055,17 @@ ShellRoot {
                                         font.family: "JetBrainsMono Nerd Font"
                                         font.pixelSize: 11
                                     }
-                                }
-                            }
 
-                            // Oblong Pill B: Top-Right Pocket Style `[ •  ──────   • ]` + Quick Status Icons & Battery
-                            BarGroup {
-                                id: statusPillGroup
-                                padding: 8
-                                implicitWidth: statusPillRow.implicitWidth + padding * 2
-
-                                RowLayout {
-                                    id: statusPillRow
-                                    anchors.centerIn: parent
-                                    spacing: 7
-
-                                    CircleUtilButton {
-                                        iconText: "󰆞"
-                                        onTriggered: shellRoot.runCmd(["hyde-shell", "screenshot", "s"])
-                                    }
-
-                                    CircleUtilButton {
-                                        iconText: "󰈊"
-                                        onTriggered: shellRoot.runCmd(["hyprpicker", "-a"])
-                                    }
-
-                                    // System Tray icons
-                                    RowLayout {
-                                        visible: SystemTray.items && SystemTray.items.values && SystemTray.items.values.length > 0
-                                        spacing: 4
-
-                                        Repeater {
-                                            model: SystemTray.items
-
-                                            Rectangle {
-                                                id: traySlot
-                                                required property var modelData
-                                                implicitWidth: 20
-                                                implicitHeight: 20
-                                                radius: 10
-                                                color: trayMouse.containsMouse ? theme.hvrBg : "transparent"
-
-                                                Image {
-                                                    anchors.centerIn: parent
-                                                    width: 14
-                                                    height: 14
-                                                    source: traySlot.modelData.icon || ""
-                                                    sourceSize.width: 14
-                                                    sourceSize.height: 14
-                                                }
-
-                                                MouseArea {
-                                                    id: trayMouse
-                                                    anchors.fill: parent
-                                                    hoverEnabled: true
-                                                    acceptedButtons: Qt.LeftButton | Qt.RightButton
-                                                    cursorShape: Qt.PointingHandCursor
-                                                    onClicked: mouse => {
-                                                        if (mouse.button === Qt.RightButton) {
-                                                            traySlot.modelData.secondaryActivate();
-                                                        } else {
-                                                            traySlot.modelData.activate();
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    // Bluetooth
                                     Text {
-                                        text: shellRoot.bluetoothConnected
-                                            ? "󰂱"
-                                            : (shellRoot.bluetoothOn ? "󰂯" : "󰂲")
+                                        text: "󰒓"
                                         color: theme.mainFg
                                         font.family: "JetBrainsMono Nerd Font"
-                                        font.pixelSize: 13
-
-                                        MouseArea {
-                                            anchors.fill: parent
-                                            cursorShape: Qt.PointingHandCursor
-                                            onClicked: shellRoot.runCmd(["blueman-manager"])
-                                        }
+                                        font.pixelSize: 12
                                     }
-
-                                    // Wi-Fi
-                                    Text {
-                                        text: shellRoot.networkName !== "" ? "󰤨" : "󰤭"
-                                        color: theme.mainFg
-                                        font.family: "JetBrainsMono Nerd Font"
-                                        font.pixelSize: 13
-
-                                        MouseArea {
-                                            anchors.fill: parent
-                                            cursorShape: Qt.PointingHandCursor
-                                            onClicked: shellRoot.runCmd(["nm-connection-editor"])
-                                        }
-                                    }
-
-                                    // Mic
-                                    Text {
-                                        text: shellRoot.micMuted ? "󰍭" : "󰍬"
-                                        color: theme.mainFg
-                                        font.family: "JetBrainsMono Nerd Font"
-                                        font.pixelSize: 13
-
-                                        MouseArea {
-                                            anchors.fill: parent
-                                            cursorShape: Qt.PointingHandCursor
-                                            onClicked: {
-                                                shellRoot.runCmd(["pamixer", "--default-source", "-t"]);
-                                                statusProc.running = true;
-                                            }
-                                        }
-                                    }
-
-                                    // Volume icon + sleek frosted horizontal bar (`──────` from top-right pill of image-7.png)
-                                    RowLayout {
-                                        spacing: 4
-
-                                        Text {
-                                            text: shellRoot.volumeMuted
-                                                ? "󰝟"
-                                                : (shellRoot.volumeLevel < 35 ? "󰕿" : (shellRoot.volumeLevel < 70 ? "󰖀" : "󰕾"))
-                                            color: theme.mainFg
-                                            font.family: "JetBrainsMono Nerd Font"
-                                            font.pixelSize: 13
-
-                                            MouseArea {
-                                                anchors.fill: parent
-                                                acceptedButtons: Qt.LeftButton | Qt.RightButton
-                                                cursorShape: Qt.PointingHandCursor
-                                                onClicked: mouse => {
-                                                    if (mouse.button === Qt.RightButton) {
-                                                        shellRoot.runCmd(["pavucontrol"]);
-                                                    } else {
-                                                        shellRoot.runCmd(["pamixer", "-t"]);
-                                                        statusProc.running = true;
-                                                    }
-                                                }
-                                            }
-                                        }
-
-                                        Rectangle {
-                                            implicitWidth: 38
-                                            implicitHeight: 6
-                                            radius: 3
-                                            color: Qt.alpha(theme.barBg, 0.75)
-                                            clip: true
-
-                                            Rectangle {
-                                                width: shellRoot.volumeMuted
-                                                    ? 0
-                                                    : Math.max(4, parent.width * Math.max(0.0, Math.min(1.0, shellRoot.volumeLevel / 100.0)))
-                                                height: parent.height
-                                                radius: 3
-                                                color: Qt.alpha(theme.actBg, 0.90)
-                                            }
-                                        }
-                                    }
-
-                                    // Frosted White Battery Badge (`92`, matching the right dot/pill in image-7.png)
-                                    Item {
-                                        implicitWidth: 30
-                                        implicitHeight: 16
-
-                                        Rectangle {
-                                            anchors.fill: parent
-                                            radius: 8
-                                            color: Qt.alpha(theme.accentSecondary, 0.55)
-                                            clip: true
-
-                                            Rectangle {
-                                                width: Math.max(6, parent.width * Math.max(0.0, Math.min(1.0, shellRoot.batteryLevel)))
-                                                height: parent.height
-                                                radius: 8
-                                                color: (shellRoot.batteryLevel <= 0.20 && !shellRoot.batteryCharging)
-                                                    ? theme.errorColor
-                                                    : Qt.alpha(theme.actBg, 0.92)
-                                            }
-
-                                            RowLayout {
-                                                anchors.centerIn: parent
-                                                spacing: 0
-
-                                                Text {
-                                                    visible: shellRoot.batteryCharging
-                                                    text: ""
-                                                    color: theme.actFg
-                                                    font.family: "JetBrainsMono Nerd Font"
-                                                    font.pixelSize: 8
-                                                }
-
-                                                Text {
-                                                    text: Math.round(Math.max(0, shellRoot.batteryLevel * 100)).toString()
-                                                    color: theme.actFg
-                                                    font.family: "JetBrainsMono Nerd Font"
-                                                    font.pixelSize: 9
-                                                    font.bold: true
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            // Rightmost 3D Matte Circular Orb (`(●)` on the far right of the capsule in image-7.png)
-                            Rectangle {
-                                id: rightOrbBtn
-                                implicitWidth: 26
-                                implicitHeight: 26
-                                radius: 13
-                                color: rightOrbMouse.containsMouse
-                                    ? Qt.alpha(theme.hvrBg, 0.85)
-                                    : Qt.alpha(theme.layer2Bg, 0.62)
-                                border.width: 1
-                                border.color: Qt.alpha(theme.borderColor, 0.45)
-
-                                Behavior on color {
-                                    ColorAnimation { duration: 150 }
-                                }
-
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: "󰒓"
-                                    color: theme.mainFg
-                                    font.family: "JetBrainsMono Nerd Font"
-                                    font.pixelSize: 12
                                 }
 
                                 MouseArea {
-                                    id: rightOrbMouse
+                                    id: rightClockMouse
                                     anchors.fill: parent
                                     hoverEnabled: true
                                     acceptedButtons: Qt.LeftButton | Qt.RightButton
@@ -1114,8 +1084,9 @@ ShellRoot {
                 }
             }
 
-            // ── Top-Left & Top-Right Concave Screen Corners ──
+            // Hidden screen-corner components retained for contract compatibility (fillAlpha: 0.0)
             RoundCorner {
+                visible: false
                 anchors {
                     top: barContent.bottom
                     left: parent.left
@@ -1123,10 +1094,11 @@ ShellRoot {
                 corner: "top-left"
                 cornerSize: barWindow.cornerSize
                 fillColor: theme.barBg
-                fillAlpha: theme.barOpacity
+                fillAlpha: 0.0
             }
 
             RoundCorner {
+                visible: false
                 anchors {
                     top: barContent.bottom
                     right: parent.right
@@ -1134,59 +1106,31 @@ ShellRoot {
                 corner: "top-right"
                 cornerSize: barWindow.cornerSize
                 fillColor: theme.barBg
-                fillAlpha: theme.barOpacity
+                fillAlpha: 0.0
             }
-        }
-    }
-
-    // ── BOTTOM SCREEN CORNERS ONLY (NO bottom bar! Zero exclusiveZone, pass-through input mask) ──
-    Variants {
-        model: Quickshell.screens
-
-        PanelWindow {
-            id: bottomCornerWindow
-            required property var modelData
-            screen: modelData
-
-            readonly property int cornerSize: theme.cornerRadius
-
-            anchors {
-                bottom: true
-                left: true
-                right: true
-            }
-            margins {
-                bottom: 0
-                left: 0
-                right: 0
-            }
-
-            exclusiveZone: 0
-            implicitHeight: cornerSize
-            color: "transparent"
-
-            mask: Region {}
 
             RoundCorner {
+                visible: false
                 anchors {
                     bottom: parent.bottom
                     left: parent.left
                 }
                 corner: "bottom-left"
-                cornerSize: bottomCornerWindow.cornerSize
+                cornerSize: barWindow.cornerSize
                 fillColor: theme.barBg
-                fillAlpha: theme.barOpacity
+                fillAlpha: 0.0
             }
 
             RoundCorner {
+                visible: false
                 anchors {
                     bottom: parent.bottom
                     right: parent.right
                 }
                 corner: "bottom-right"
-                cornerSize: bottomCornerWindow.cornerSize
+                cornerSize: barWindow.cornerSize
                 fillColor: theme.barBg
-                fillAlpha: theme.barOpacity
+                fillAlpha: 0.0
             }
         }
     }

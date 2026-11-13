@@ -8,6 +8,17 @@ fi
 # shellcheck disable=SC1091
 [[ -f "${LIB_DIR}/hyde/shutils/l10n.sh" ]] && source "${LIB_DIR}/hyde/shutils/l10n.sh"
 
+# Resolve grimblast binary path reliably across both repo layouts
+if [[ -x "${LIB_DIR}/hyde/grimblast" ]]; then
+    GRIMBLAST_BIN="${LIB_DIR}/hyde/grimblast"
+elif [[ -x "${LIB_DIR}/hyde/screenshot/grimblast" ]]; then
+    GRIMBLAST_BIN="${LIB_DIR}/hyde/screenshot/grimblast"
+elif command -v grimblast >/dev/null 2>&1; then
+    GRIMBLAST_BIN="$(command -v grimblast)"
+else
+    GRIMBLAST_BIN="${LIB_DIR}/hyde/grimblast"
+fi
+
 USAGE() {
     cat <<"USAGE"
 
@@ -70,14 +81,25 @@ save_dir="${2:-$XDG_PICTURES_DIR/Screenshots}"
 save_file=$(date +'%y%m%d_%Hh%Mm%Ss_screenshot.png')
 annotation_tool="${SCREENSHOT_ANNOTATION_TOOL}"
 annotation_args=("-o" "$save_dir/$save_file" "-f" "$temp_screenshot")
-GRIMBLAST_EDITOR=${GRIMBLAST_EDITOR:-$annotation_tool}
 tesseract_default_language=("eng")
 tesseract_languages=("${SCREENSHOT_OCR_TESSERACT_LANGUAGES[@]:-${tesseract_default_language[@]}}")
 tesseract_languages+=("osd")
-if [[ -z $annotation_tool ]]; then
-    pkg_installed "swappy" && annotation_tool="swappy"
-    pkg_installed "satty" && annotation_tool="satty"
+
+# Verify configured annotation tool is actually installed; fallback gracefully if missing
+if [[ -n $annotation_tool ]] && ! command -v "$annotation_tool" >/dev/null 2>&1; then
+    annotation_tool=""
 fi
+if [[ -z $annotation_tool ]]; then
+    if command -v satty >/dev/null 2>&1; then
+        annotation_tool="satty"
+    elif command -v swappy >/dev/null 2>&1; then
+        annotation_tool="swappy"
+    else
+        SCREENSHOT_ANNOTATION_ENABLED=false
+    fi
+fi
+GRIMBLAST_EDITOR=${GRIMBLAST_EDITOR:-$annotation_tool}
+
 mkdir -p "$save_dir"
 if [[ $annotation_tool == "swappy" ]]; then
     swpy_dir="$confDir/swappy"
@@ -92,7 +114,8 @@ fi
 
 run_annotation_tool() {
     if [[ $annotation_tool == "satty" ]]; then
-        GSK_RENDERER="${GSK_RENDERER:-gl}" "$annotation_tool" "${annotation_args[@]}"
+        "$annotation_tool" "${annotation_args[@]}" \
+            || GSK_RENDERER="${GSK_RENDERER:-gl}" "$annotation_tool" "${annotation_args[@]}"
     else
         "$annotation_tool" "${annotation_args[@]}"
     fi
@@ -106,13 +129,22 @@ take_screenshot() {
 
     [[ ${SCREENSHOT_ANNOTATION_ENABLED} == false ]] && target_file="$save_dir/$save_file"
 
-    command=("$LIB_DIR/hyde/screenshot/grimblast" "${extra_args[@]}" "copysave" "${mode}" "${target_file}")
+    command=("$GRIMBLAST_BIN" "${extra_args[@]}" "copysave" "${mode}" "${target_file}")
     print_log -g "Executing screenshot command: ${command[*]}"
-    if eval "${command[*]}"; then
+    if "${command[@]}"; then
         [[ ${SCREENSHOT_ANNOTATION_ENABLED} == false ]] && return 0
         if ! run_annotation_tool; then
+            # Fallback: preserve the captured screenshot even if the annotation tool failed
+            if [[ -s "$temp_screenshot" ]] && [[ ! -f "$save_dir/$save_file" ]]; then
+                cp -f "$temp_screenshot" "$save_dir/$save_file"
+                return 0
+            fi
             send_notifs -r 9 -a "HyDE Alert" "Screenshot Error" "Failed to open annotation tool"
             return 1
+        fi
+        # Ensure screenshot is saved if annotation tool exited after copying to clipboard
+        if [[ -s "$temp_screenshot" ]] && [[ ! -f "$save_dir/$save_file" ]]; then
+            cp -f "$temp_screenshot" "$save_dir/$save_file"
         fi
     else
         send_notifs -a "HyDE Alert" "Screenshot Error" "Failed to take screenshot"
@@ -123,7 +155,7 @@ ocr_screenshot() {
     local mode=$1
     shift
     local extra_args=("$@")
-    if "$LIB_DIR/hyde/screenshot/grimblast" "${extra_args[@]}" copysave "$mode" "$temp_screenshot"; then
+    if "$GRIMBLAST_BIN" "${extra_args[@]}" copysave "$mode" "$temp_screenshot"; then
         source "${LIB_DIR}/hyde/shutils/ocr.sh"
         source ${XDG_STATE_HOME}/hyde/config
         print_log -g "Performing OCR on $temp_screenshot"
@@ -142,7 +174,7 @@ qr_screenshot() {
     local mode=$1
     shift
     local extra_args=("$@")
-    if "$LIB_DIR/hyde/screenshot/grimblast" "${extra_args[@]}" copysave "$mode" "$temp_screenshot"; then
+    if "$GRIMBLAST_BIN" "${extra_args[@]}" copysave "$mode" "$temp_screenshot"; then
         source "${LIB_DIR}/hyde/shutils/qr.sh"
         print_log -g "Performing QR scan on $temp_screenshot"
         send_notifs "QR Scan" "Performing QR scan on screenshot..." -i "document-scan" -r 9

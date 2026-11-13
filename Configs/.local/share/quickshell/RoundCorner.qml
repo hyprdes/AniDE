@@ -3,8 +3,8 @@ import QtQuick
 Canvas {
     id: root
     property int cornerSize: 23
-    property color fillColor: "#0c0f13"
-    property real fillAlpha: 0.78
+    property color fillColor: "#0f1c22"
+    property real fillAlpha: 0.0
     // "top-left" | "top-right" | "bottom-left" | "bottom-right"
     property string corner: "top-left"
 
@@ -21,6 +21,7 @@ Canvas {
     onPaint: {
         var ctx = getContext("2d");
         ctx.reset();
+        if (root.fillAlpha <= 0.001) return;
         ctx.fillStyle = Qt.alpha(root.fillColor, root.fillAlpha);
         ctx.beginPath();
 

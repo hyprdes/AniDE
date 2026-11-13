@@ -16,7 +16,7 @@ class QuickshellBarTest(unittest.TestCase):
         self.assertFalse((ROOT / "Configs/.local/share/wallbash/theme/waybar.dcol").exists())
 
     def test_quickshell_files_and_wallbash_theme(self):
-        for filename in ("shell.qml", "Colors.qml", "RoundCorner.qml", "theme.json"):
+        for filename in ("shell.qml", "Colors.qml", "RoundCorner.qml", "theme.json", "clock_widget.json"):
             file_path = QS_DIR / filename
             share_path = ROOT / "Configs/.local/share/quickshell" / filename
             self.assertTrue(file_path.is_file(), f"missing {filename}")
@@ -71,10 +71,14 @@ class QuickshellBarTest(unittest.TestCase):
             "component BarGroup",
             "component CircularResourceRing",
             "component CircleUtilButton",
+            "component DesktopClockCanvas",
             "leftCenterGroup",
             "middleCenterGroup",
             "rightCenterGroup",
             "activeIndicator",
+            "caffeineBtn",
+            "desktopClockWindow",
+            "clockCustomizerPopup",
             "RoundCorner",
         ):
             self.assertIn(end4_component, shell_qml)

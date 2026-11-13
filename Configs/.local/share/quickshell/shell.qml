@@ -1,5 +1,5 @@
-// AniDE Quickshell Bar — Frosted Sea-Glass Stadium Pill Bar (image-8.png style) + Concave Rounded Screen Corners + Caffeine Toggle
-// Translucent Deep Slate-Teal Glass Capsules | Crisp 1.2px Specular Rim | Soft Frosted Inner Active Pill | Clean Silver-Ice Icons
+// AniDE Quickshell Bar & Draggable Desktop LED Dot-Matrix Clock Widget (image-8.png bar + image-9.png clock widget)
+// Top Frosted Sea-Glass Bar + Concave Screen Corners + Caffeine Toggle | Wallpaper LED Dot-Matrix Clock (Draggable + Color Customizer)
 // GPL-3.0-or-later; see CREDITS.md.
 import Quickshell
 import Quickshell.Io
@@ -19,6 +19,9 @@ ShellRoot {
 
     property string timeText: Qt.formatDateTime(new Date(), "HH:mm")
     property string dateText: Qt.formatDateTime(new Date(), "dd/MM")
+    property string clock12HourDigits: "0151"
+    property string clock24HourDigits: "1351"
+    property string clockAmPm: "PM"
     property int volumeLevel: 65
     property bool volumeMuted: false
     property bool micMuted: false
@@ -37,7 +40,26 @@ ShellRoot {
     property var wsClasses: ({})     // map of wsId -> window class string
     property string wallStamp: ""
     property string wallBlurUrl: ""
+    property string wallDynamicHex: "#67e8f9"
     property int paintGeneration: 0
+
+    // ── Draggable Desktop LED Dot-Matrix Clock Widget State (image-9.png) ──
+    property bool clockWidgetVisible: true
+    property int clockWidgetX: 72
+    property int clockWidgetY: 96
+    property color clockLedColor: "#ffffff"
+    property color clockBgColor: "#050507"
+    property real clockBgOpacity: 0.94
+    property real clockGlowIntensity: 0.88
+    property bool clockUse12Hour: true
+    property real clockScale: 1.0
+    property bool clockSyncWallpaper: false
+    property bool clockCustomizerOpen: false
+    property int clockPaintTick: 0
+
+    readonly property string clockConfigPath: Quickshell.env("XDG_CONFIG_HOME")
+        ? (Quickshell.env("XDG_CONFIG_HOME") + "/quickshell/clock_widget.json")
+        : ((Quickshell.env("HOME") || "") + "/.config/quickshell/clock_widget.json")
 
     function runCmd(args) {
         Quickshell.execDetached(args);
@@ -49,6 +71,76 @@ ShellRoot {
         var b = Math.round((c && c.b !== undefined ? c.b : 0.96) * 255);
         var alpha = Math.max(0.0, Math.min(1.0, a));
         return "rgba(" + r + "," + g + "," + b + "," + alpha.toFixed(3) + ")";
+    }
+
+    function colorToHex(c) {
+        if (!c) return "#ffffff";
+        var r = Math.max(0, Math.min(255, Math.round((c.r !== undefined ? c.r : 1) * 255)));
+        var g = Math.max(0, Math.min(255, Math.round((c.g !== undefined ? c.g : 1) * 255)));
+        var b = Math.max(0, Math.min(255, Math.round((c.b !== undefined ? c.b : 1) * 255)));
+        var hr = (r < 16 ? "0" : "") + r.toString(16);
+        var hg = (g < 16 ? "0" : "") + g.toString(16);
+        var hb = (b < 16 ? "0" : "") + b.toString(16);
+        return "#" + hr + hg + hb;
+    }
+
+    function updateClockTimeStrings() {
+        var now = new Date();
+        shellRoot.timeText = Qt.formatDateTime(now, "HH:mm");
+        shellRoot.dateText = Qt.formatDateTime(now, "dd/MM");
+        var h24 = now.getHours();
+        var m = now.getMinutes();
+        shellRoot.clockAmPm = (h24 >= 12) ? "PM" : "AM";
+        var h12 = h24 % 12;
+        if (h12 === 0) h12 = 12;
+        var sH12 = (h12 < 10 ? "0" : "") + h12.toString();
+        var sH24 = (h24 < 10 ? "0" : "") + h24.toString();
+        var sM = (m < 10 ? "0" : "") + m.toString();
+        shellRoot.clock12HourDigits = sH12 + sM;
+        shellRoot.clock24HourDigits = sH24 + sM;
+        shellRoot.clockPaintTick += 1;
+    }
+
+    function applyClockConfigJson(raw) {
+        if (!raw) return;
+        try {
+            var d = JSON.parse(raw);
+            if (d.visible !== undefined) shellRoot.clockWidgetVisible = Boolean(d.visible);
+            if (d.x !== undefined) shellRoot.clockWidgetX = Math.max(8, Number(d.x) || 72);
+            if (d.y !== undefined) shellRoot.clockWidgetY = Math.max(48, Number(d.y) || 96);
+            if (d.ledColor) shellRoot.clockLedColor = Qt.color(d.ledColor);
+            if (d.bgColor) shellRoot.clockBgColor = Qt.color(d.bgColor);
+            if (d.bgOpacity !== undefined) shellRoot.clockBgOpacity = Math.max(0.0, Math.min(1.0, Number(d.bgOpacity)));
+            if (d.glowIntensity !== undefined) shellRoot.clockGlowIntensity = Math.max(0.0, Math.min(1.5, Number(d.glowIntensity)));
+            if (d.use12Hour !== undefined) shellRoot.clockUse12Hour = Boolean(d.use12Hour);
+            if (d.scale !== undefined) shellRoot.clockScale = Math.max(0.7, Math.min(1.5, Number(d.scale) || 1.0));
+            if (d.syncWallpaper !== undefined) shellRoot.clockSyncWallpaper = Boolean(d.syncWallpaper);
+            shellRoot.clockPaintTick += 1;
+        } catch (e) {
+            // Ignore malformed JSON during write
+        }
+    }
+
+    function saveClockConfig() {
+        var payload = JSON.stringify({
+            visible: shellRoot.clockWidgetVisible,
+            x: Math.round(shellRoot.clockWidgetX),
+            y: Math.round(shellRoot.clockWidgetY),
+            ledColor: shellRoot.colorToHex(shellRoot.clockLedColor),
+            bgColor: shellRoot.colorToHex(shellRoot.clockBgColor),
+            bgOpacity: Number(shellRoot.clockBgOpacity.toFixed(2)),
+            glowIntensity: Number(shellRoot.clockGlowIntensity.toFixed(2)),
+            use12Hour: shellRoot.clockUse12Hour,
+            scale: Number(shellRoot.clockScale.toFixed(2)),
+            syncWallpaper: shellRoot.clockSyncWallpaper
+        }, null, 2);
+        shellRoot.runCmd([
+            "sh", "-c",
+            "mkdir -p \"$(dirname \"$1\")\" && printf '%s\\n' \"$2\" > \"$1\"",
+            "sh",
+            shellRoot.clockConfigPath,
+            payload
+        ]);
     }
 
     function iconForClass(cls) {
@@ -91,6 +183,16 @@ ShellRoot {
         }
     }
 
+    // Live clock_widget.json load
+    FileView {
+        id: clockConfigFile
+        path: shellRoot.clockConfigPath
+        watchChanges: false
+        onLoaded: {
+            shellRoot.applyClockConfigJson(text());
+        }
+    }
+
     // Clock, system telemetry, caffeine state & live wallpaper (.dcol) polling
     Timer {
         interval: 2000
@@ -98,9 +200,7 @@ ShellRoot {
         repeat: true
         triggeredOnStart: true
         onTriggered: {
-            var now = new Date();
-            shellRoot.timeText = Qt.formatDateTime(now, "HH:mm");
-            shellRoot.dateText = Qt.formatDateTime(now, "dd/MM");
+            shellRoot.updateClockTimeStrings();
             if (!statusProc.running) {
                 statusProc.running = true;
             }
@@ -215,7 +315,6 @@ ShellRoot {
                         shellRoot.wallStamp = wstamp;
                         var dc = dcols.split(",");
                         if (dc.length >= 8 && dc[0] !== "") {
-                            // Blend a subtle 14% wallpaper tint into the image-8.png frosted sea-glass palette
                             theme.barBg = theme.subtleTint("#0f1c22", dc[0], 0.14);
                             theme.mainBg = theme.subtleTint("#14252d", dc[0], 0.14);
                             if (dc[1]) theme.surfaceBg = theme.subtleTint("#1c343f", dc[1], 0.14);
@@ -226,6 +325,11 @@ ShellRoot {
                             if (dc[6]) {
                                 theme.actBg = theme.subtleTint("#374c56", dc[6], 0.14);
                                 theme.glowColor = theme.subtleTint("#cbeaf5", dc[6], 0.16);
+                                shellRoot.wallDynamicHex = theme.normHex(dc[6]);
+                                if (shellRoot.clockSyncWallpaper && shellRoot.wallDynamicHex !== "") {
+                                    shellRoot.clockLedColor = Qt.color(shellRoot.wallDynamicHex);
+                                    shellRoot.clockPaintTick += 1;
+                                }
                             }
                             if (dc[7]) {
                                 theme.secondaryFg = theme.subtleTint("#a9c1ca", dc[7], 0.10);
@@ -338,7 +442,6 @@ ShellRoot {
         border.width: 1
         border.color: Qt.alpha(theme.borderColor, 0.42)
 
-        // Frosted Sea-Glass Stadium Gradient + Diagonal Specular Rim
         DreamyMistCanvas {
             anchors.fill: parent
             baseColor: theme.surfaceBg
@@ -373,14 +476,12 @@ ShellRoot {
                 var cy = height / 2;
                 var rOuter = (width / 2) - 1.2;
 
-                // 1. Subtle frosted circular ring track
                 ctx.beginPath();
                 ctx.arc(cx, cy, rOuter, 0, Math.PI * 2, false);
                 ctx.lineWidth = 1.6;
                 ctx.strokeStyle = shellRoot.cssRgba(ringRoot.primaryColor, 0.25);
                 ctx.stroke();
 
-                // 2. Crisp frosted silver-white progress arc
                 var clamped = Math.max(0.0, Math.min(1.0, ringRoot.value));
                 if (clamped > 0.01) {
                     ctx.beginPath();
@@ -444,6 +545,210 @@ ShellRoot {
                     utilBtn.triggered();
                 }
             }
+        }
+    }
+
+    // 4. DesktopClockCanvas: 5x7 Rounded-Square LED Dot-Matrix Clock Renderer (exact match to image-9.png)
+    component DesktopClockCanvas: Canvas {
+        id: ledCanvas
+        property string digits: shellRoot.clockUse12Hour ? shellRoot.clock12HourDigits : shellRoot.clock24HourDigits
+        property string amPm: shellRoot.clockAmPm
+        property bool showAmPm: shellRoot.clockUse12Hour
+        property color ledColor: shellRoot.clockLedColor
+        property real glowAmount: shellRoot.clockGlowIntensity
+        property real scaleFactor: shellRoot.clockScale
+        property int tick: shellRoot.clockPaintTick
+
+        anchors.fill: parent
+        antialiasing: true
+        smooth: true
+
+        onDigitsChanged: requestPaint()
+        onAmPmChanged: requestPaint()
+        onShowAmPmChanged: requestPaint()
+        onLedColorChanged: requestPaint()
+        onGlowAmountChanged: requestPaint()
+        onScaleFactorChanged: requestPaint()
+        onTickChanged: requestPaint()
+        onWidthChanged: requestPaint()
+        onHeightChanged: requestPaint()
+
+        // 5x7 dot-matrix patterns matching image-9.png (including '0' with internal diagonal slash, '1', '5', 'P', 'M', 'A')
+        function getMatrixPattern(ch) {
+            if (ch === "0") return ["01110", "10001", "10011", "10101", "11001", "10001", "01110"];
+            if (ch === "1") return ["00100", "01100", "00100", "00100", "00100", "00100", "01110"];
+            if (ch === "2") return ["01110", "10001", "00001", "00010", "00100", "01000", "11111"];
+            if (ch === "3") return ["11111", "00010", "00100", "00010", "00001", "10001", "01110"];
+            if (ch === "4") return ["00010", "00110", "01010", "10010", "11111", "00010", "00010"];
+            if (ch === "5") return ["11111", "10000", "11110", "00001", "00001", "10001", "01110"];
+            if (ch === "6") return ["00110", "01000", "10000", "11110", "10001", "10001", "01110"];
+            if (ch === "7") return ["11111", "00001", "00010", "00100", "01000", "01000", "01000"];
+            if (ch === "8") return ["01110", "10001", "10001", "01110", "10001", "10001", "01110"];
+            if (ch === "9") return ["01110", "10001", "10001", "01111", "00001", "00010", "01100"];
+            if (ch === "P") return ["11110", "10001", "10001", "11110", "10000", "10000", "10000"];
+            if (ch === "A") return ["01110", "10001", "10001", "11111", "10001", "10001", "10001"];
+            if (ch === "M") return ["10001", "11011", "10101", "10101", "10001", "10001", "10001"];
+            if (ch === "H") return ["10001", "10001", "10001", "11111", "10001", "10001", "10001"];
+            return ["00000", "00000", "00000", "00000", "00000", "00000", "00000"];
+        }
+
+        function fillRoundedRect(ctx, rx, ry, rw, rh, rad) {
+            var r = Math.min(rad, rw / 2, rh / 2);
+            ctx.beginPath();
+            ctx.moveTo(rx + r, ry);
+            ctx.lineTo(rx + rw - r, ry);
+            ctx.arc(rx + rw - r, ry + r, r, -Math.PI / 2, 0, false);
+            ctx.lineTo(rx + rw, ry + rh - r);
+            ctx.arc(rx + rw - r, ry + rh - r, r, 0, Math.PI / 2, false);
+            ctx.lineTo(rx + r, ry + rh);
+            ctx.arc(rx + r, ry + rh - r, r, Math.PI / 2, Math.PI, false);
+            ctx.lineTo(rx, ry + r);
+            ctx.arc(rx + r, ry + r, r, Math.PI, -Math.PI / 2, false);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        function drawMatrixGlyph(ctx, ch, originX, originY, cellSz, gapSz, cellRad, unlitRgba, litCss, coreCss, glowAlpha) {
+            var rows = getMatrixPattern(ch);
+            var pitch = cellSz + gapSz;
+            var r = 0;
+            var c = 0;
+
+            // Pass 1: Unlit 5x7 background grid cells
+            ctx.fillStyle = unlitRgba;
+            for (r = 0; r < 7; r++) {
+                var rowStr = rows[r];
+                for (c = 0; c < 5; c++) {
+                    if (rowStr.charAt(c) !== "1") {
+                        fillRoundedRect(ctx, originX + c * pitch, originY + r * pitch, cellSz, cellSz, cellRad);
+                    }
+                }
+            }
+
+            // Pass 2: Soft Radial LED Bloom around every lit cell
+            if (glowAlpha > 0.01) {
+                var bloomR = cellSz * 1.85;
+                for (r = 0; r < 7; r++) {
+                    var bRow = rows[r];
+                    for (c = 0; c < 5; c++) {
+                        if (bRow.charAt(c) === "1") {
+                            var cx = originX + c * pitch + cellSz * 0.5;
+                            var cy = originY + r * pitch + cellSz * 0.5;
+                            var bg = ctx.createRadialGradient(cx, cy, cellSz * 0.1, cx, cy, bloomR);
+                            bg.addColorStop(0.0, shellRoot.cssRgba(ledCanvas.ledColor, 0.42 * glowAlpha));
+                            bg.addColorStop(0.45, shellRoot.cssRgba(ledCanvas.ledColor, 0.14 * glowAlpha));
+                            bg.addColorStop(1.0, "rgba(0,0,0,0)");
+                            ctx.fillStyle = bg;
+                            ctx.fillRect(cx - bloomR, cy - bloomR, bloomR * 2, bloomR * 2);
+                        }
+                    }
+                }
+            }
+
+            // Pass 3: Crisp Lit Rounded-Square LED Cells + White-Hot Diode Core
+            for (r = 0; r < 7; r++) {
+                var lRow = rows[r];
+                for (c = 0; c < 5; c++) {
+                    if (lRow.charAt(c) === "1") {
+                        var lx = originX + c * pitch;
+                        var ly = originY + r * pitch;
+                        ctx.fillStyle = litCss;
+                        fillRoundedRect(ctx, lx, ly, cellSz, cellSz, cellRad);
+                        ctx.fillStyle = coreCss;
+                        fillRoundedRect(ctx, lx + cellSz * 0.14, ly + cellSz * 0.14, cellSz * 0.72, cellSz * 0.72, cellRad * 0.72);
+                    }
+                }
+            }
+        }
+
+        onPaint: {
+            var ctx = getContext("2d");
+            ctx.reset();
+            if (width <= 10 || height <= 10) return;
+
+            var s = ledCanvas.scaleFactor;
+            var padX = 32 * s;
+            var topAmPmY = 22 * s;
+            var digitsY = 64 * s;
+
+            var unlitColor = "rgba(255, 255, 255, 0.075)";
+            var litColorCss = shellRoot.cssRgba(ledCanvas.ledColor, 0.96);
+            var coreColorCss = "rgba(255, 255, 255, 0.58)";
+
+            // 1. Top-Left AM / PM (or 24H) 5x7 Mini Dot-Matrix Indicator (exact match to PM in image-9.png)
+            var miniCell = 3.2 * s;
+            var miniGap = 1.2 * s;
+            var miniRad = 0.85 * s;
+            var miniLetterWidth = 5 * (miniCell + miniGap) - miniGap;
+            var badgeText = ledCanvas.showAmPm ? ledCanvas.amPm : "24H";
+            for (var bi = 0; bi < badgeText.length; bi++) {
+                var bx = padX + bi * (miniLetterWidth + 5.5 * s);
+                drawMatrixGlyph(
+                    ctx,
+                    badgeText.charAt(bi),
+                    bx,
+                    topAmPmY,
+                    miniCell,
+                    miniGap,
+                    miniRad,
+                    unlitColor,
+                    litColorCss,
+                    coreColorCss,
+                    ledCanvas.glowAmount
+                );
+            }
+
+            // 2. Main 4 Digits (H1, H2, M1, M2) in 5x7 Rounded-Square Dot Matrix
+            var cellSz = 11.0 * s;
+            var gapSz = 3.2 * s;
+            var cellRad = 2.8 * s;
+            var pitch = cellSz + gapSz;
+            var digitW = 5 * pitch - gapSz; // 67.8 * s
+            var pairGap = 16.0 * s;
+
+            var dStr = (ledCanvas.digits && ledCanvas.digits.length >= 4) ? ledCanvas.digits : "0151";
+            var x0 = padX;
+            var x1 = x0 + digitW + pairGap;
+            var x3 = width - padX - digitW;
+            var x2 = x3 - pairGap - digitW;
+
+            drawMatrixGlyph(ctx, dStr.charAt(0), x0, digitsY, cellSz, gapSz, cellRad, unlitColor, litColorCss, coreColorCss, ledCanvas.glowAmount);
+            drawMatrixGlyph(ctx, dStr.charAt(1), x1, digitsY, cellSz, gapSz, cellRad, unlitColor, litColorCss, coreColorCss, ledCanvas.glowAmount);
+            drawMatrixGlyph(ctx, dStr.charAt(2), x2, digitsY, cellSz, gapSz, cellRad, unlitColor, litColorCss, coreColorCss, ledCanvas.glowAmount);
+            drawMatrixGlyph(ctx, dStr.charAt(3), x3, digitsY, cellSz, gapSz, cellRad, unlitColor, litColorCss, coreColorCss, ledCanvas.glowAmount);
+
+            // 3. Center Colon (Two glowing rounded-square dots at Row 1.25 and Row 4.75, no unlit grid around them — matching image-9.png)
+            var colonX = (x1 + digitW + x2 - cellSz) * 0.5;
+            var colonY1 = digitsY + 1.25 * pitch;
+            var colonY2 = digitsY + 4.75 * pitch;
+            var colonBloomR = cellSz * 2.0;
+
+            if (ledCanvas.glowAmount > 0.01) {
+                var c1x = colonX + cellSz * 0.5;
+                var c1y = colonY1 + cellSz * 0.5;
+                var g1 = ctx.createRadialGradient(c1x, c1y, cellSz * 0.1, c1x, c1y, colonBloomR);
+                g1.addColorStop(0.0, shellRoot.cssRgba(ledCanvas.ledColor, 0.48 * ledCanvas.glowAmount));
+                g1.addColorStop(0.45, shellRoot.cssRgba(ledCanvas.ledColor, 0.16 * ledCanvas.glowAmount));
+                g1.addColorStop(1.0, "rgba(0,0,0,0)");
+                ctx.fillStyle = g1;
+                ctx.fillRect(c1x - colonBloomR, c1y - colonBloomR, colonBloomR * 2, colonBloomR * 2);
+
+                var c2x = colonX + cellSz * 0.5;
+                var c2y = colonY2 + cellSz * 0.5;
+                var g2 = ctx.createRadialGradient(c2x, c2y, cellSz * 0.1, c2x, c2y, colonBloomR);
+                g2.addColorStop(0.0, shellRoot.cssRgba(ledCanvas.ledColor, 0.48 * ledCanvas.glowAmount));
+                g2.addColorStop(0.45, shellRoot.cssRgba(ledCanvas.ledColor, 0.16 * ledCanvas.glowAmount));
+                g2.addColorStop(1.0, "rgba(0,0,0,0)");
+                ctx.fillStyle = g2;
+                ctx.fillRect(c2x - colonBloomR, c2y - colonBloomR, colonBloomR * 2, colonBloomR * 2);
+            }
+
+            ctx.fillStyle = litColorCss;
+            fillRoundedRect(ctx, colonX, colonY1, cellSz, cellSz, cellRad);
+            fillRoundedRect(ctx, colonX, colonY2, cellSz, cellSz, cellRad);
+            ctx.fillStyle = coreColorCss;
+            fillRoundedRect(ctx, colonX + cellSz * 0.14, colonY1 + cellSz * 0.14, cellSz * 0.72, cellSz * 0.72, cellRad * 0.72);
+            fillRoundedRect(ctx, colonX + cellSz * 0.14, colonY2 + cellSz * 0.14, cellSz * 0.72, cellSz * 0.72, cellRad * 0.72);
         }
     }
 
@@ -764,7 +1069,6 @@ ShellRoot {
                                 width: wsContainer.pillWidth
                                 height: wsContainer.pillHeight
 
-                                // Subtle hover pill for non-active slots
                                 Rectangle {
                                     anchors.fill: parent
                                     radius: height / 2
@@ -772,7 +1076,6 @@ ShellRoot {
                                     color: Qt.rgba(0.84, 0.93, 0.96, 0.09)
                                 }
 
-                                // Crisp snow-white icon when active, frosted silver-ice icon when inactive (exact match to image-8.png)
                                 Text {
                                     anchors.centerIn: parent
                                     text: shellRoot.iconForWorkspaceSlot(wsSlot.index)
@@ -785,7 +1088,6 @@ ShellRoot {
                                     }
                                 }
 
-                                // Tiny frosted indicator dot under occupied inactive workspaces
                                 Rectangle {
                                     visible: wsSlot.isOcc && !wsSlot.isActive
                                     anchors {
@@ -931,7 +1233,7 @@ ShellRoot {
                                 }
                             }
 
-                            // Bluetooth icon sitting directly on the glass
+                            // Bluetooth icon
                             Text {
                                 text: shellRoot.bluetoothConnected
                                     ? "󰂱"
@@ -947,7 +1249,7 @@ ShellRoot {
                                 }
                             }
 
-                            // Wi-Fi icon sitting directly on the glass
+                            // Wi-Fi icon
                             Text {
                                 text: shellRoot.networkName !== "" ? "󰤨" : "󰤭"
                                 color: theme.secondaryFg
@@ -961,7 +1263,7 @@ ShellRoot {
                                 }
                             }
 
-                            // Microphone icon sitting directly on the glass
+                            // Microphone icon
                             Text {
                                 text: shellRoot.micMuted ? "󰍭" : "󰍬"
                                 color: theme.secondaryFg
@@ -1023,7 +1325,7 @@ ShellRoot {
                                 }
                             }
 
-                            // Clean Frosted Battery Indicator sitting directly on the glass
+                            // Clean Frosted Battery Indicator
                             RowLayout {
                                 spacing: 3
 
@@ -1044,7 +1346,7 @@ ShellRoot {
                                 }
                             }
 
-                            // Rightmost Active-Style Soft Frosted Inner Pill: Clock, Date & Settings (mirrors the active pill of image-8.png)
+                            // Rightmost Active-Style Soft Frosted Inner Pill: Clock, Date & Settings (middle-click toggles Desktop Clock Widget!)
                             Rectangle {
                                 id: rightClockPill
                                 implicitWidth: clockPillRow.implicitWidth + 20
@@ -1099,10 +1401,13 @@ ShellRoot {
                                     id: rightClockMouse
                                     anchors.fill: parent
                                     hoverEnabled: true
-                                    acceptedButtons: Qt.LeftButton | Qt.RightButton
+                                    acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
                                     cursorShape: Qt.PointingHandCursor
                                     onClicked: mouse => {
-                                        if (mouse.button === Qt.RightButton) {
+                                        if (mouse.button === Qt.MiddleButton) {
+                                            shellRoot.clockWidgetVisible = !shellRoot.clockWidgetVisible;
+                                            shellRoot.saveClockConfig();
+                                        } else if (mouse.button === Qt.RightButton) {
                                             shellRoot.runCmd(["hyde-shell", "logoutlaunch", "1"]);
                                         } else {
                                             shellRoot.runCmd(["hyde-shell", "anide-settings"]);
@@ -1188,6 +1493,502 @@ ShellRoot {
                 cornerSize: bottomCornerWindow.cornerSize
                 fillColor: theme.barBg
                 fillAlpha: theme.barOpacity
+            }
+        }
+    }
+
+    // ── DRAGGABLE DESKTOP WALLPAPER LED DOT-MATRIX CLOCK WIDGET (image-9.png style) ──
+    Variants {
+        model: Quickshell.screens
+
+        PanelWindow {
+            id: desktopClockWindow
+            required property var modelData
+            screen: modelData
+            visible: shellRoot.clockWidgetVisible
+
+            anchors {
+                top: true
+                bottom: true
+                left: true
+                right: true
+            }
+
+            exclusiveZone: 0
+            aboveWindows: false
+            color: "transparent"
+
+            // Input region: only the clock card is clickable when idle; expands while dragging or when the color customizer is open
+            mask: Region {
+                item: clockWidgetHitBox
+            }
+
+            Item {
+                id: desktopSurface
+                anchors.fill: parent
+
+                // Dynamic input mask target
+                Item {
+                    id: clockWidgetHitBox
+                    x: (clockDragArea.pressed || shellRoot.clockCustomizerOpen) ? 0 : clockCard.x
+                    y: (clockDragArea.pressed || shellRoot.clockCustomizerOpen) ? 0 : clockCard.y
+                    width: (clockDragArea.pressed || shellRoot.clockCustomizerOpen) ? parent.width : clockCard.width
+                    height: (clockDragArea.pressed || shellRoot.clockCustomizerOpen) ? parent.height : clockCard.height
+                }
+
+                // Backdrop click-catcher to close the color customizer when clicking outside the widget
+                MouseArea {
+                    anchors.fill: parent
+                    enabled: shellRoot.clockCustomizerOpen
+                    visible: shellRoot.clockCustomizerOpen
+                    onClicked: {
+                        shellRoot.clockCustomizerOpen = false;
+                    }
+                }
+
+                // ── Main Draggable LED Dot-Matrix Clock Card (exact match to image-9.png) ──
+                Rectangle {
+                    id: clockCard
+                    x: shellRoot.clockWidgetX
+                    y: shellRoot.clockWidgetY
+                    width: Math.round(396 * shellRoot.clockScale)
+                    height: Math.round(196 * shellRoot.clockScale)
+                    radius: Math.round(16 * shellRoot.clockScale)
+                    color: Qt.alpha(shellRoot.clockBgColor, shellRoot.clockBgOpacity)
+                    border.width: clockDragArea.pressed ? 1.5 : (shellRoot.clockBgOpacity > 0.05 ? 1 : 0)
+                    border.color: clockDragArea.pressed
+                        ? Qt.alpha(shellRoot.clockLedColor, 0.65)
+                        : Qt.rgba(1, 1, 1, 0.11)
+
+                    // Sync external coordinate updates when not actively dragging
+                    Connections {
+                        target: shellRoot
+                        function onClockWidgetXChanged() {
+                            if (!clockDragArea.pressed) clockCard.x = shellRoot.clockWidgetX;
+                        }
+                        function onClockWidgetYChanged() {
+                            if (!clockDragArea.pressed) clockCard.y = shellRoot.clockWidgetY;
+                        }
+                    }
+
+                    // 5x7 Rounded-Square LED Dot-Matrix Renderer (`PM` + `01 : 51`)
+                    DesktopClockCanvas {
+                        id: matrixCanvas
+                        anchors.fill: parent
+                    }
+
+                    // Drag & Right-Click Customizer MouseArea
+                    MouseArea {
+                        id: clockDragArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        acceptedButtons: Qt.LeftButton | Qt.RightButton
+                        cursorShape: pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+                        drag.target: clockCard
+                        drag.axis: Drag.XAndYAxis
+                        drag.minimumX: 12
+                        drag.maximumX: Math.max(12, desktopSurface.width - clockCard.width - 12)
+                        drag.minimumY: 52
+                        drag.maximumY: Math.max(52, desktopSurface.height - clockCard.height - 12)
+
+                        onReleased: {
+                            shellRoot.clockWidgetX = Math.round(clockCard.x);
+                            shellRoot.clockWidgetY = Math.round(clockCard.y);
+                            shellRoot.saveClockConfig();
+                        }
+
+                        onClicked: mouse => {
+                            if (mouse.button === Qt.RightButton) {
+                                shellRoot.clockCustomizerOpen = !shellRoot.clockCustomizerOpen;
+                            }
+                        }
+                    }
+
+                    // Floating Color Palette Button (`󰏘`) in top-right corner of the widget (appears on hover or when customizer is open)
+                    Rectangle {
+                        id: paletteTriggerBtn
+                        anchors {
+                            top: parent.top
+                            right: parent.right
+                            topMargin: Math.round(10 * shellRoot.clockScale)
+                            rightMargin: Math.round(12 * shellRoot.clockScale)
+                        }
+                        width: 26
+                        height: 26
+                        radius: 13
+                        opacity: (clockDragArea.containsMouse || paletteTriggerMouse.containsMouse || shellRoot.clockCustomizerOpen) ? 1.0 : 0.0
+                        color: (paletteTriggerMouse.containsMouse || shellRoot.clockCustomizerOpen)
+                            ? Qt.rgba(1, 1, 1, 0.22)
+                            : Qt.rgba(1, 1, 1, 0.10)
+                        border.width: 1
+                        border.color: Qt.rgba(1, 1, 1, 0.22)
+
+                        Behavior on opacity {
+                            NumberAnimation { duration: 160 }
+                        }
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "󰏘"
+                            color: "#ffffff"
+                            font.family: "JetBrainsMono Nerd Font"
+                            font.pixelSize: 13
+                        }
+
+                        MouseArea {
+                            id: paletteTriggerMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                shellRoot.clockCustomizerOpen = !shellRoot.clockCustomizerOpen;
+                            }
+                        }
+                    }
+                }
+
+                // ── Interactive Widget Color & Style Customizer Popover ──
+                Rectangle {
+                    id: clockCustomizerPopup
+                    visible: shellRoot.clockCustomizerOpen
+                    z: 10
+                    width: 340
+                    height: customizerCol.implicitHeight + 24
+                    x: Math.max(12, Math.min(desktopSurface.width - width - 12, clockCard.x + (clockCard.width - width) * 0.5))
+                    y: (clockCard.y + clockCard.height + height + 16 <= desktopSurface.height)
+                        ? (clockCard.y + clockCard.height + 10)
+                        : Math.max(52, clockCard.y - height - 10)
+                    radius: 16
+                    color: Qt.rgba(0.05, 0.07, 0.09, 0.95)
+                    border.width: 1
+                    border.color: Qt.rgba(0.75, 0.90, 0.96, 0.28)
+
+                    // Prevent clicks inside the popover from closing it
+                    MouseArea {
+                        anchors.fill: parent
+                        acceptedButtons: Qt.AllButtons
+                    }
+
+                    ColumnLayout {
+                        id: customizerCol
+                        anchors {
+                            left: parent.left
+                            right: parent.right
+                            top: parent.top
+                            margins: 12
+                        }
+                        spacing: 10
+
+                        // Header Row
+                        RowLayout {
+                            Layout.fillWidth: true
+
+                            Text {
+                                text: "󰏘  Clock Widget Color & Style"
+                                color: "#f4f9fc"
+                                font.family: "JetBrainsMono Nerd Font"
+                                font.pixelSize: 12
+                                font.weight: Font.DemiBold
+                            }
+
+                            Item { Layout.fillWidth: true }
+
+                            Rectangle {
+                                implicitWidth: 22
+                                implicitHeight: 22
+                                radius: 11
+                                color: closePopupMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.18) : "transparent"
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "✕"
+                                    color: "#a9c1ca"
+                                    font.family: "JetBrainsMono Nerd Font"
+                                    font.pixelSize: 11
+                                }
+
+                                MouseArea {
+                                    id: closePopupMouse
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: shellRoot.clockCustomizerOpen = false
+                                }
+                            }
+                        }
+
+                        // Section 1: 12 LED Color Swatches
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 6
+
+                            Repeater {
+                                model: [
+                                    "#ffffff", // Pure White (image-9.png default)
+                                    "#67e8f9", // Ice Cyan
+                                    "#2dd4bf", // Neon Teal
+                                    "#4ade80", // Matrix Green
+                                    "#a3e635", // Volt Lime
+                                    "#fbbf24", // Amber Nixie
+                                    "#fb923c", // Sunset Orange
+                                    "#f87171", // Crimson Red
+                                    "#fb7185", // Rose Coral
+                                    "#f472b6", // Sakura Pink
+                                    "#c084fc", // Cyber Violet
+                                    "#60a5fa"  // Electric Blue
+                                ]
+
+                                Rectangle {
+                                    id: swatchDot
+                                    required property string modelData
+                                    readonly property bool isSelected: !shellRoot.clockSyncWallpaper
+                                        && (shellRoot.colorToHex(shellRoot.clockLedColor).toLowerCase() === modelData.toLowerCase())
+                                    width: 21
+                                    height: 21
+                                    radius: 10.5
+                                    color: modelData
+                                    border.width: isSelected ? 2.2 : 1
+                                    border.color: isSelected ? "#ffffff" : Qt.rgba(0, 0, 0, 0.45)
+                                    scale: (swatchMouse.containsMouse || isSelected) ? 1.14 : 1.0
+
+                                    Behavior on scale {
+                                        NumberAnimation { duration: 120 }
+                                    }
+
+                                    MouseArea {
+                                        id: swatchMouse
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: {
+                                            shellRoot.clockSyncWallpaper = false;
+                                            shellRoot.clockLedColor = Qt.color(swatchDot.modelData);
+                                            shellRoot.clockPaintTick += 1;
+                                            shellRoot.saveClockConfig();
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Section 2: Continuous 360° Rainbow Hue Slider + Wallpaper Auto Sync Button
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
+
+                            Rectangle {
+                                id: hueBar
+                                Layout.fillWidth: true
+                                height: 16
+                                radius: 8
+                                border.width: 1
+                                border.color: Qt.rgba(1, 1, 1, 0.25)
+
+                                gradient: Gradient {
+                                    orientation: Gradient.Horizontal
+                                    GradientStop { position: 0.00; color: "#ff3b30" }
+                                    GradientStop { position: 0.17; color: "#ffcc00" }
+                                    GradientStop { position: 0.33; color: "#34c759" }
+                                    GradientStop { position: 0.50; color: "#00e5ff" }
+                                    GradientStop { position: 0.67; color: "#007aff" }
+                                    GradientStop { position: 0.83; color: "#af52de" }
+                                    GradientStop { position: 1.00; color: "#ff2d55" }
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    function pickHue(mx) {
+                                        var h = Math.max(0.0, Math.min(1.0, mx / Math.max(1, hueBar.width)));
+                                        shellRoot.clockSyncWallpaper = false;
+                                        shellRoot.clockLedColor = Qt.hsla(h, 0.92, 0.66, 1.0);
+                                        shellRoot.clockPaintTick += 1;
+                                    }
+                                    onPressed: mouse => pickHue(mouse.x)
+                                    onPositionChanged: mouse => {
+                                        if (pressed) pickHue(mouse.x);
+                                    }
+                                    onReleased: shellRoot.saveClockConfig()
+                                }
+                            }
+
+                            // Wallpaper Dynamic Color Sync Button
+                            Rectangle {
+                                implicitWidth: 68
+                                implicitHeight: 22
+                                radius: 11
+                                color: shellRoot.clockSyncWallpaper
+                                    ? Qt.rgba(0.40, 0.90, 0.98, 0.26)
+                                    : Qt.rgba(1, 1, 1, 0.10)
+                                border.width: 1
+                                border.color: shellRoot.clockSyncWallpaper
+                                    ? "#67e8f9"
+                                    : Qt.rgba(1, 1, 1, 0.16)
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "󰸉 Auto"
+                                    color: "#f4f9fc"
+                                    font.family: "JetBrainsMono Nerd Font"
+                                    font.pixelSize: 10
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: {
+                                        shellRoot.clockSyncWallpaper = !shellRoot.clockSyncWallpaper;
+                                        if (shellRoot.clockSyncWallpaper && shellRoot.wallDynamicHex !== "") {
+                                            shellRoot.clockLedColor = Qt.color(shellRoot.wallDynamicHex);
+                                        }
+                                        shellRoot.clockPaintTick += 1;
+                                        shellRoot.saveClockConfig();
+                                    }
+                                }
+                            }
+                        }
+
+                        // Section 3: Card Background Presets (Obsidian Black, Sea-Glass, Slate, Clear)
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 6
+
+                            Text {
+                                text: "Card:"
+                                color: "#a9c1ca"
+                                font.family: "JetBrainsMono Nerd Font"
+                                font.pixelSize: 11
+                            }
+
+                            Repeater {
+                                model: [
+                                    { label: "Black", bg: "#050507", op: 0.94 },
+                                    { label: "Glass", bg: "#0f1c22", op: 0.76 },
+                                    { label: "Slate", bg: "#14161e", op: 0.88 },
+                                    { label: "Clear", bg: "#050507", op: 0.00 }
+                                ]
+
+                                Rectangle {
+                                    id: bgPresetBtn
+                                    required property var modelData
+                                    Layout.fillWidth: true
+                                    implicitHeight: 24
+                                    radius: 12
+                                    color: bgPresetMouse.containsMouse
+                                        ? Qt.rgba(1, 1, 1, 0.18)
+                                        : Qt.rgba(1, 1, 1, 0.09)
+                                    border.width: 1
+                                    border.color: Qt.rgba(1, 1, 1, 0.16)
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: bgPresetBtn.modelData.label
+                                        color: "#f4f9fc"
+                                        font.family: "JetBrainsMono Nerd Font"
+                                        font.pixelSize: 10
+                                    }
+
+                                    MouseArea {
+                                        id: bgPresetMouse
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: {
+                                            shellRoot.clockBgColor = Qt.color(bgPresetBtn.modelData.bg);
+                                            shellRoot.clockBgOpacity = bgPresetBtn.modelData.op;
+                                            shellRoot.clockPaintTick += 1;
+                                            shellRoot.saveClockConfig();
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Section 4: Format (12H AM/PM vs 24H) + Size (S / M / L)
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 6
+
+                            // 12H / 24H Toggle
+                            Rectangle {
+                                implicitWidth: 88
+                                implicitHeight: 24
+                                radius: 12
+                                color: Qt.rgba(0.84, 0.93, 0.96, 0.15)
+                                border.width: 1
+                                border.color: Qt.rgba(1, 1, 1, 0.18)
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: shellRoot.clockUse12Hour ? "Mode: 12H" : "Mode: 24H"
+                                    color: "#f4f9fc"
+                                    font.family: "JetBrainsMono Nerd Font"
+                                    font.pixelSize: 10
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: {
+                                        shellRoot.clockUse12Hour = !shellRoot.clockUse12Hour;
+                                        shellRoot.clockPaintTick += 1;
+                                        shellRoot.saveClockConfig();
+                                    }
+                                }
+                            }
+
+                            Item { Layout.fillWidth: true }
+
+                            Text {
+                                text: "Size:"
+                                color: "#a9c1ca"
+                                font.family: "JetBrainsMono Nerd Font"
+                                font.pixelSize: 11
+                            }
+
+                            Repeater {
+                                model: [
+                                    { label: "S", val: 0.80 },
+                                    { label: "M", val: 1.00 },
+                                    { label: "L", val: 1.20 }
+                                ]
+
+                                Rectangle {
+                                    id: scaleBtn
+                                    required property var modelData
+                                    readonly property bool isSelected: Math.abs(shellRoot.clockScale - modelData.val) < 0.05
+                                    implicitWidth: 32
+                                    implicitHeight: 24
+                                    radius: 12
+                                    color: isSelected
+                                        ? Qt.rgba(0.84, 0.93, 0.96, 0.24)
+                                        : Qt.rgba(1, 1, 1, 0.09)
+                                    border.width: 1
+                                    border.color: isSelected ? "#ffffff" : Qt.rgba(1, 1, 1, 0.14)
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: scaleBtn.modelData.label
+                                        color: "#f4f9fc"
+                                        font.family: "JetBrainsMono Nerd Font"
+                                        font.pixelSize: 10
+                                        font.bold: isSelected
+                                    }
+
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: {
+                                            shellRoot.clockScale = scaleBtn.modelData.val;
+                                            shellRoot.clockPaintTick += 1;
+                                            shellRoot.saveClockConfig();
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }

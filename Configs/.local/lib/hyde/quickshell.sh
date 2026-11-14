@@ -115,8 +115,8 @@ sync_wallpaper_theme() {
   "hvrBg": "${x24}",
   "hvrFg": "${x19}",
   "borderColor": "${x14}",
-  "barOpacity": 0.72,
-  "pillOpacity": 0.22,
+  "barOpacity": 1.0,
+  "pillOpacity": 1.0,
   "cornerRadius": 23,
   "wallBlurPath": "${blur_path}"
 }
@@ -145,8 +145,8 @@ EOF
   "hvrBg": "#415a66",
   "hvrFg": "#ffffff",
   "borderColor": "#b8dce8",
-  "barOpacity": 0.72,
-  "pillOpacity": 0.22,
+  "barOpacity": 1.0,
+  "pillOpacity": 1.0,
   "cornerRadius": 23,
   "wallBlurPath": "${blur_path}"
 }

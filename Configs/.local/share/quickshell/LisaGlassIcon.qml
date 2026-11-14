@@ -11,9 +11,9 @@ Item {
     id: iconRoot
     property string glyph: ""
     property real glyphScale: 0.50
-    property color accentColor: "#ff4f18"
-    property color plateColor: "#f2f1f7"
-    property color inkColor: "#242739"
+    property color accentColor: "#e8449b"
+    property color plateColor: "#ffffff"
+    property color inkColor: "#2434e0"
     property real arcStart: -205
     property real arcSweep: 95
     property real sparkX: 0.82

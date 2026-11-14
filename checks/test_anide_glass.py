@@ -1,4 +1,5 @@
 """Static contract checks for AniDE Quickshell bar and Hyprland screen-framing."""
+import os
 import json
 import pathlib
 import subprocess
@@ -23,11 +24,9 @@ class QuickshellBarTest(unittest.TestCase):
             "LisaGlassIcon.qml",
             "CircleUtilButton.qml",
             "ClippedProgressBar.qml",
-            "AniSubWidgetFace.qml",
-            "AniSubMovieFace.qml",
+            "AniSubPanelFace.qml",
             "theme.json",
             "clock_widget.json",
-            "anisub_widgets.json",
         ):
             file_path = QS_DIR / filename
             share_path = ROOT / "Configs/.local/share/quickshell" / filename
@@ -83,20 +82,10 @@ class QuickshellBarTest(unittest.TestCase):
             "component BarGroup",
             "component CircularResourceRing",
             "component DesktopClockCanvas",
-            "anisubMovieWindow",
-            "anisubComicWindow",
-            "anisubMovieW",
-            "anisubMovieH",
-            "anisubComicW",
-            "anisubComicH",
-            "AniSubWidgetFace {",
-            "movieGripArea",
-            "comicGripArea",
-            "clampAnisubW",
-            "clampAnisubH",
-            "anisub_widgets.json",
-            "applyAnisubWidgetsJson",
-            "saveAnisubWidgetsConfig",
+            "anisubPanelWindow",
+            "AniSubPanelFace {",
+            "anisubPanelOpen",
+            "refreshAnisubFeed",
             "LisaGlassIcon {",
             "CircleUtilButton {",
             "ClippedProgressBar {",
@@ -126,7 +115,7 @@ class QuickshellBarTest(unittest.TestCase):
             "LisaGlassIcon",
             "CircleUtilButton",
             "ClippedProgressBar",
-            "AniSubWidgetFace",
+            "AniSubPanelFace",
         ):
             self.assertNotIn(f"component {file_type}", shell_qml)
         decl = shell_qml.index("component DreamyMistCanvas")
@@ -139,49 +128,101 @@ class QuickshellBarTest(unittest.TestCase):
 
         restore_psv = (ROOT / "Scripts/restore_cfg.psv").read_text()
         self.assertIn(
-            "S|${HOME}/.config/quickshell|shell.qml Colors.qml RoundCorner.qml LisaGlassIcon.qml CircleUtilButton.qml ClippedProgressBar.qml AniSubWidgetFace.qml AniSubMovieFace.qml|hyprland",
+            "S|${HOME}/.config/quickshell|shell.qml Colors.qml RoundCorner.qml LisaGlassIcon.qml CircleUtilButton.qml ClippedProgressBar.qml AniSubPanelFace.qml|hyprland",
             restore_psv,
         )
-        self.assertIn("theme.json clock_widget.json anisub_widgets.json", restore_psv)
+        self.assertIn("theme.json clock_widget.json|hyprland", restore_psv)
         self.assertIn("O|${HOME}/.local/share|quickshell|hyprland", restore_psv)
 
-    def test_widget_search_is_on_the_widget_not_rofi(self):
+    def test_panel_search_is_on_the_panel_not_rofi(self):
         shell_qml = (QS_DIR / "shell.qml").read_text()
-        face_qml = (QS_DIR / "AniSubWidgetFace.qml").read_text()
-        # the widget window takes on-demand keyboard focus only (never Exclusive)
+        face_qml = (QS_DIR / "AniSubPanelFace.qml").read_text()
+        # the panel takes on-demand keyboard focus only (never Exclusive)
         self.assertIn("WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand", shell_qml)
         self.assertNotIn("WlrKeyboardFocus.Exclusive", shell_qml)
-        # search runs the machine-readable subcommands, never a rofi menu
+        # search runs the machine-readable movie subcommand, never a rofi menu
         self.assertIn('"rofi.movie", "feed-search", q', shell_qml)
-        self.assertIn('"rofi.comic", "feed-search", q', shell_qml)
-        self.assertIn("function anisubWidgetSearch(kind, query)", shell_qml)
-        self.assertIn("function anisubWidgetSearchClear(kind)", shell_qml)
+        self.assertIn("function anisubPanelSearch(query)", shell_qml)
+        self.assertIn("function anisubPanelSearchClear()", shell_qml)
         self.assertIn("signal searchSubmitted(string query)", face_qml)
         self.assertIn("signal searchCleared()", face_qml)
-        self.assertIn("Keys.onEscapePressed: face.endSearch()", face_qml)
+        self.assertIn("Keys.onEscapePressed", face_qml)
+        self.assertIn("if (q.length < 2) return;", face_qml)
+        # the face runs no process itself; it only emits signals
+        self.assertNotIn("Process", face_qml)
+        self.assertNotIn('"rofi', face_qml)
         self.assertNotIn("ctx.roundRect(", face_qml)
+        # the panel never reaches the comic tool or the old desktop widgets
+        self.assertNotIn("rofi.comic", shell_qml)
+        self.assertNotIn("anisubComic", shell_qml)
 
-    def test_widget_is_poster_first_and_freely_resizable(self):
+    def test_panel_drops_from_the_top_bar_and_takes_the_bar_palette(self):
         shell_qml = (QS_DIR / "shell.qml").read_text()
-        face_qml = (QS_DIR / "AniSubWidgetFace.qml").read_text()
-        # width and height are independent (no fixed aspect ratio, no uniform scale)
-        self.assertIn("width: shellRoot.anisubMovieW", shell_qml)
-        self.assertIn("height: shellRoot.anisubMovieH", shell_qml)
-        self.assertIn("width: shellRoot.anisubComicW", shell_qml)
-        self.assertIn("height: shellRoot.anisubComicH", shell_qml)
-        self.assertIn("{movieCard.width = Math.max(200", shell_qml.replace("\n", "")) if False else None
-        self.assertIn("movieCard.width = Math.max(200", shell_qml)
-        self.assertIn("movieCard.height = Math.max(240", shell_qml)
-        self.assertIn("movieW: Math.round(shellRoot.anisubMovieW)", shell_qml)
-        # poster-first face: posters are painted cover-fit, results are a scrollable list
+        face_qml = (QS_DIR / "AniSubPanelFace.qml").read_text()
+        # the card sits under the 38 px bar and slides down when it opens
+        self.assertIn("property int anisubPanelTop: 46", shell_qml)
+        self.assertIn("shellRoot.anisubPanelTop", shell_qml)
+        self.assertIn("Behavior on y", shell_qml)
+        self.assertIn("mask: Region {\n                item: anisubPanelFace", shell_qml)
+        self.assertIn("modelData === Quickshell.screens[0]", shell_qml)
+        # toggled over IPC (`qs ... ipc call anisub toggle`), bound to Win+Shift+M
+        self.assertIn('target: "anisub"', shell_qml)
+        self.assertIn("function toggle(): void", shell_qml)
+        self.assertIn("function open(): void", shell_qml)
+        self.assertIn("function close(): void", shell_qml)
+        # the face follows the bar palette (no fixed colors besides fallbacks)
+        self.assertIn("themePalette: theme", shell_qml)
+        self.assertIn("themePalette.barBg", face_qml)
+        self.assertIn("themePalette.mainFg", face_qml)
         self.assertIn("function paintCover(ctx, cv, img, src, w, h, r)", face_qml)
-        self.assertIn("ctx.drawImage(src,", face_qml)
-        self.assertIn("loadImage(hero.picSrc)", face_qml)
+        self.assertIn("function nextResult()", face_qml)
+        self.assertIn("text: \"Xem\"", face_qml)
         self.assertIn("ListView {", face_qml)
-        self.assertIn("model: face.searchItems", face_qml)
+        self.assertIn("model: face.episodes", face_qml)
         self.assertNotIn("Repeater", face_qml.split("ListView {")[1].split("// ── Footer")[0])
-        # the old radio dial is gone
-        self.assertNotIn("needle", face_qml)
+
+    def test_wallpaper_widgets_are_gone(self):
+        shell_qml = (QS_DIR / "shell.qml").read_text()
+        for gone in ("anisubMovieW", "anisubComicW", "AniSubMovieFace", "AniSubWidgetFace",
+                     "anisub_widgets.json", "saveAnisubWidgetsConfig", "clampAnisubW",
+                     "applyAnisubWidgetsJson", "anisubMovieVisible"):
+            self.assertNotIn(gone, shell_qml, gone)
+        for gone_file in ("AniSubMovieFace.qml", "AniSubWidgetFace.qml", "anisub_widgets.json"):
+            self.assertFalse((QS_DIR / gone_file).exists(), gone_file)
+            self.assertFalse((ROOT / "Configs/.local/share/quickshell" / gone_file).exists(), gone_file)
+
+    def test_win_shift_m_opens_the_panel_not_rofi(self):
+        hypr = (ROOT / "Configs/.config/hypr/hyprland.lua").read_text()
+        self.assertIn('hyde.config.modifiers.main .. " + SHIFT + M"', hypr)
+        self.assertIn('exec_cmd("hyde-shell anisub_panel toggle")', hypr)
+        self.assertNotIn("rofi.movie", hypr)
+        script = ROOT / "Configs/.local/lib/hyde/anisub_panel.sh"
+        self.assertTrue(script.is_file())
+        self.assertTrue(os.access(script, os.X_OK))
+        text = script.read_text()
+        self.assertIn('ipc call anisub "$action"', text)
+        self.assertNotIn("hyde-shell rofi", text)
+        self.assertNotIn("exec rofi", text)
+        proc = subprocess.run(["bash", str(script), "--help"], capture_output=True, text=True)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn("anisub_panel", proc.stdout)
+
+    def test_bar_palette_is_the_wallpaper_green_and_visibly_synced(self):
+        theme_data = json.loads((QS_DIR / "theme.json").read_text())
+        # the bar is the image-18 green glass (not the old paper/cobalt palette)
+        self.assertEqual(theme_data["barBg"], "#6f8f55")
+        self.assertEqual(theme_data["mainFg"], "#fdfff7")
+        # translucent bar so the wallpaper backdrop shows through the veil
+        self.assertLess(theme_data["barOpacity"], 1.0)
+        colors_qml = (QS_DIR / "Colors.qml").read_text()
+        # sync takes the wallpaper tone itself: no faint 8-14% tint over cobalt
+        self.assertNotIn("subtleTint", colors_qml)
+        self.assertIn("function syncWallTone(r, g, b)", colors_qml)
+        self.assertIn("barBg = t;", colors_qml)
+        self.assertIn("function applyJson(raw)", colors_qml)
+        shell_qml = (QS_DIR / "shell.qml").read_text()
+        self.assertNotIn("subtleTint", shell_qml)
+        self.assertIn("theme.syncWallTone(wc.r, wc.g, wc.b);", shell_qml)
 
     def test_quickshell_manifest_and_autostart(self):
         manifest = (ROOT / "Scripts/dots/quickshell.toml").read_text()
@@ -194,8 +235,7 @@ class QuickshellBarTest(unittest.TestCase):
             "LisaGlassIcon.qml",
             "CircleUtilButton.qml",
             "ClippedProgressBar.qml",
-            "AniSubWidgetFace.qml",
-            "AniSubMovieFace.qml",
+            "AniSubPanelFace.qml",
         ):
             self.assertGreaterEqual(manifest.count(f'"{qml_file}"'), 2, qml_file)
 

@@ -9,7 +9,6 @@ stack. Colors sync with the wallpaper through the HyDE wallbash palette
 Original implementation inspired by the settings UX of SekaiPop and
 end-4/dots-hyprland. GPL-3.0-or-later; see CREDITS.md.
 """
-import json
 import os
 from pathlib import Path
 import re
@@ -19,9 +18,8 @@ import sys
 from PyQt6 import QtCore, QtGui, QtWidgets
 
 SECTIONS = (
-    ("Widget", "\u25a6", "AniSub media widgets", (
-        ("AniSub (Movie)", "Movie widget: search, browse and play KKPhim movies from Rofi.", ("hyde-shell", "rofi.movie"), ("hyde-shell", "rofi", "mpv", "curl", "jq")),
-        ("AniSub Comic", "Comic widget: search and read NetTruyen stories and chapters.", ("hyde-shell", "rofi.comic"), ("hyde-shell", "rofi", "curl", "python3")),
+    ("Widget", "\u25a6", "AniSub panel", (
+        ("AniSub panel", "Win+Shift+M drops the AniSub panel under the top bar: search and play KKPhim movies without Rofi.", ("hyde-shell", "anisub_panel", "toggle"), ("hyde-shell", "curl", "jq", "mpv")),
     )),
     ("Appearance", "◈", "Make the desktop yours", (
         ("Curated themes", "Choose a theme and apply its Wallbash colors across your desktop.", ("hyde-shell", "app", "-t", "scope", "--", "theme.select.sh"), ("hyde-shell", "rofi")),
@@ -53,43 +51,6 @@ SECTIONS = (
         ("Bluetooth", "Open Bluetooth Manager.", ("blueman-manager",), ("blueman-manager",)),
     )),
 )
-
-
-def xdg_config_home():
-    """Return the XDG config directory; ignore invalid relative XDG paths."""
-    path = os.environ.get("XDG_CONFIG_HOME", "")
-    return Path(path) if path and os.path.isabs(path) else Path.home() / ".config"
-
-
-def anisub_widgets_path():
-    """Runtime state file shared with the quickshell AniSub wallpaper widgets."""
-    return xdg_config_home() / "quickshell" / "anisub_widgets.json"
-
-
-def read_widget_flags():
-    """Return (movieVisible, comicVisible, raw dict) from anisub_widgets.json."""
-    try:
-        data = json.loads(anisub_widgets_path().read_text(encoding="utf-8"))
-        if not isinstance(data, dict):
-            data = {}
-    except (OSError, UnicodeError, ValueError):
-        data = {}
-    return (bool(data.get("movieVisible", True)), bool(data.get("comicVisible", True)), data)
-
-
-def write_widget_flags(movie_visible, comic_visible):
-    """Persist widget visibility; positions stay whatever the widgets last saved."""
-    path = anisub_widgets_path()
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-        if not isinstance(data, dict):
-            data = {}
-    except (OSError, UnicodeError, ValueError):
-        data = {}
-    data["movieVisible"] = bool(movie_visible)
-    data["comicVisible"] = bool(comic_visible)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 
 
 def theme_colors(path):
@@ -541,49 +502,8 @@ class SettingsWindow(QtWidgets.QMainWindow):
                 self.cards.append((holder, (name + " " + description).casefold()))
             layout.addWidget(rows_card)
 
-        if title == "Widget":
-            layout.addWidget(self.make_widget_toggles())
-
         layout.addStretch()
         return page
-
-    def make_widget_toggles(self):
-        """Widget-section card: ON/OFF switches for the on-desktop AniSub widgets."""
-        card = QtWidgets.QFrame(objectName="rowsCard")
-        card_layout = QtWidgets.QVBoxLayout(card)
-        card_layout.setContentsMargins(18, 12, 18, 12)
-        card_layout.setSpacing(8)
-        card_layout.addWidget(QtWidgets.QLabel("Desktop wallpaper widgets", objectName="rowTitle"))
-        movie_on, comic_on, _ = read_widget_flags()
-        self.movieToggle = QtWidgets.QPushButton("ON" if movie_on else "OFF", objectName="toggle")
-        self.movieToggle.setCheckable(True)
-        self.movieToggle.setChecked(movie_on)
-        self.comicToggle = QtWidgets.QPushButton("ON" if comic_on else "OFF", objectName="toggle")
-        self.comicToggle.setCheckable(True)
-        self.comicToggle.setChecked(comic_on)
-        rows = (
-            ("AniSub (Movie) widget", "Draggable KKPhim poster card on the wallpaper.", self.movieToggle),
-            ("AniSub Comic widget", "Draggable NetTruyen chapter card on the wallpaper.", self.comicToggle),
-        )
-        for name, description, toggle in rows:
-            row = QtWidgets.QHBoxLayout()
-            row.setSpacing(12)
-            text = QtWidgets.QVBoxLayout()
-            text.addWidget(QtWidgets.QLabel(name, objectName="rowTitle"))
-            text.addWidget(QtWidgets.QLabel(description, objectName="rowDesc"))
-            row.addLayout(text, 1)
-            toggle.clicked.connect(self.save_widget_toggles)
-            row.addWidget(toggle)
-            holder = QtWidgets.QWidget()
-            holder.setLayout(row)
-            card_layout.addWidget(holder)
-        return card
-
-    def save_widget_toggles(self):
-        write_widget_flags(self.movieToggle.isChecked(), self.comicToggle.isChecked())
-        self.movieToggle.setText("ON" if self.movieToggle.isChecked() else "OFF")
-        self.comicToggle.setText("ON" if self.comicToggle.isChecked() else "OFF")
-        self.status.setText("Desktop widget visibility saved. The wallpaper widgets update live.")
 
     def make_open_button(self, name, command, dependencies):
         button = QtWidgets.QPushButton("Open  \u2197", objectName="open")

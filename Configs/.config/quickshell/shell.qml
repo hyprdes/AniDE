@@ -61,31 +61,16 @@ ShellRoot {
         ? (Quickshell.env("XDG_CONFIG_HOME") + "/quickshell/clock_widget.json")
         : ((Quickshell.env("HOME") || "") + "/.config/quickshell/clock_widget.json")
 
-    // ── AniSub wallpaper widgets (Movie + Comic) state — same drag pattern as the clock ──
-    property bool anisubMovieVisible: true
-    property int anisubMovieX: 72
-    property int anisubMovieY: 348
-    property bool anisubComicVisible: true
-    property int anisubComicX: 72
-    property int anisubComicY: 596
-    property real anisubMovieW: 300
-    property real anisubMovieH: 440
-    property real anisubComicW: 300
-    property real anisubComicH: 440
+    // ── AniSub panel (Win+Shift+M): KKPhim feed + search, drops from the top bar ──
+    property bool anisubPanelOpen: false
+    property int anisubPanelTop: 46
     property var anisubMovieItems: []
-    property var anisubComicItems: []
+    property bool anisubMovieFeedLoading: false
+    property double anisubMovieFeedAt: 0
     property var anisubMovieSearchItems: []
-    property var anisubComicSearchItems: []
     property bool anisubMovieSearchLoading: false
-    property bool anisubComicSearchLoading: false
     property var anisubMovieEpisodes: []
     property bool anisubMovieEpisodesLoading: false
-    property var anisubComicChapters: []
-    property bool anisubComicChaptersLoading: false
-
-    readonly property string anisubWidgetsConfigPath: Quickshell.env("XDG_CONFIG_HOME")
-        ? (Quickshell.env("XDG_CONFIG_HOME") + "/quickshell/anisub_widgets.json")
-        : ((Quickshell.env("HOME") || "") + "/.config/quickshell/anisub_widgets.json")
 
     function runCmd(args) {
         Quickshell.execDetached(args);
@@ -169,60 +154,6 @@ ShellRoot {
         ]);
     }
 
-    function applyAnisubWidgetsJson(raw) {
-        if (!raw) return;
-        try {
-            var d = JSON.parse(raw);
-            if (d.movieVisible !== undefined) shellRoot.anisubMovieVisible = Boolean(d.movieVisible);
-            if (d.movieX !== undefined) shellRoot.anisubMovieX = Math.max(8, Number(d.movieX) || 72);
-            if (d.movieY !== undefined) shellRoot.anisubMovieY = Math.max(48, Number(d.movieY) || 348);
-            if (d.comicVisible !== undefined) shellRoot.anisubComicVisible = Boolean(d.comicVisible);
-            if (d.comicX !== undefined) shellRoot.anisubComicX = Math.max(8, Number(d.comicX) || 72);
-            if (d.comicY !== undefined) shellRoot.anisubComicY = Math.max(48, Number(d.comicY) || 596);
-            if (d.movieW !== undefined) shellRoot.anisubMovieW = shellRoot.clampAnisubW(d.movieW);
-            if (d.movieH !== undefined) shellRoot.anisubMovieH = shellRoot.clampAnisubH(d.movieH);
-            if (d.comicW !== undefined) shellRoot.anisubComicW = shellRoot.clampAnisubW(d.comicW);
-            if (d.comicH !== undefined) shellRoot.anisubComicH = shellRoot.clampAnisubH(d.comicH);
-        } catch (e) {
-            // Ignore malformed JSON during write
-        }
-    }
-
-    // Free resize range for the wallpaper widgets, in pixels (width and height separately)
-    function clampAnisubW(v) {
-        var n = Number(v);
-        if (!(n > 0)) n = 300;
-        return Math.max(200, Math.min(720, Math.round(n)));
-    }
-
-    function clampAnisubH(v) {
-        var n = Number(v);
-        if (!(n > 0)) n = 440;
-        return Math.max(240, Math.min(900, Math.round(n)));
-    }
-
-    function saveAnisubWidgetsConfig() {
-        var payload = JSON.stringify({
-            movieVisible: shellRoot.anisubMovieVisible,
-            movieX: Math.round(shellRoot.anisubMovieX),
-            movieY: Math.round(shellRoot.anisubMovieY),
-            comicVisible: shellRoot.anisubComicVisible,
-            comicX: Math.round(shellRoot.anisubComicX),
-            comicY: Math.round(shellRoot.anisubComicY),
-            movieW: Math.round(shellRoot.anisubMovieW),
-            movieH: Math.round(shellRoot.anisubMovieH),
-            comicW: Math.round(shellRoot.anisubComicW),
-            comicH: Math.round(shellRoot.anisubComicH)
-        }, null, 2);
-        shellRoot.runCmd([
-            "sh", "-c",
-            "mkdir -p \"$(dirname \"$1\")\" && printf '%s\\n' \"$2\" > \"$1\"",
-            "sh",
-            shellRoot.anisubWidgetsConfigPath,
-            payload
-        ]);
-    }
-
     // name|info|slug|poster|type row -> item (null when the row is unusable)
     function anisubMovieItemFromLine(line) {
         if (!line) return null;
@@ -252,29 +183,6 @@ ShellRoot {
     }
 
     // name|url|slug|cover row -> item (null when the row is unusable)
-    function anisubComicItemFromLine(line) {
-        if (!line) return null;
-        var p = line.trim().split("|");
-        if (p.length < 2 || !p[1]) return null;
-        return {
-            name: p[0] || "Truyện",
-            url: p[1],
-            slug: p[2] || "",
-            cover: p[3] || "",
-            thumb: p[3] || ""
-        };
-    }
-
-    function parseAnisubComicLine(line) {
-        var it = shellRoot.anisubComicItemFromLine(line);
-        if (it) shellRoot.anisubComicItems = shellRoot.anisubComicItems.concat([it]).slice(0, 6);
-    }
-
-    function parseAnisubComicSearchLine(line) {
-        var it = shellRoot.anisubComicItemFromLine(line);
-        if (it) shellRoot.anisubComicSearchItems = shellRoot.anisubComicSearchItems.concat([it]).slice(0, 6);
-    }
-
     // name|server|number row -> episode (the widget never opens rofi for episodes)
     function parseAnisubEpisodeLine(line) {
         if (!line) return;
@@ -284,19 +192,6 @@ ShellRoot {
         shellRoot.anisubMovieEpisodes = shellRoot.anisubMovieEpisodes.concat([{
             name: p[0] || "Tập",
             server: p[1] || "0",
-            num: p[2]
-        }]);
-    }
-
-    // name|url|chuong-N row -> chapter
-    function parseAnisubChapterLine(line) {
-        if (!line) return;
-        var p = line.trim().split("|");
-        if (p.length < 3 || !p[1]) return;
-        if (shellRoot.anisubComicChapters.length >= 300) return;
-        shellRoot.anisubComicChapters = shellRoot.anisubComicChapters.concat([{
-            name: p[0] || "Chương",
-            url: p[1],
             num: p[2]
         }]);
     }
@@ -315,59 +210,28 @@ ShellRoot {
         shellRoot.runCmd(["hyde-shell", "rofi.movie", "play-episode", film.slug, ep.server, ep.num]);
     }
 
-    function anisubComicLoadChapters(story) {
-        if (!story || !story.url) return;
-        anisubComicChaptersProc.running = false;
-        shellRoot.anisubComicChapters = [];
-        shellRoot.anisubComicChaptersLoading = true;
-        anisubComicChaptersProc.command = ["hyde-shell", "rofi.comic", "chapters", story.url];
-        anisubComicChaptersProc.running = true;
+    // Feed refresh: runs `rofi.movie feed` (no rofi UI)
+    function refreshAnisubFeed() {
+        anisubMovieItems = [];
+        anisubMovieFeedLoading = true;
+        anisubMovieFeedAt = Date.now();
+        anisubMovieProc.running = true;
     }
 
-    // Opens the chapter in the reader; the story name and url come from the picked story
-    function anisubComicReadChapter(story, chapter) {
-        if (!story || !story.url || !chapter || !chapter.url) return;
-        shellRoot.runCmd(["hyde-shell", "rofi.comic", "read-chapter", story.url, chapter.url,
-                          chapter.num, story.name + " · " + chapter.name]);
-    }
-
-    // Widget search: runs `rofi.<kind> feed-search <keyword>` (no rofi UI).
-    // Stopping the old process first makes the loading flag reset before the new run.
-    function anisubWidgetSearch(kind, query) {
+    // Search on the panel: runs `rofi.movie feed-search <keyword>` (no rofi UI)
+    function anisubPanelSearch(query) {
         var q = String(query || "").trim();
-        if (kind === "movie") {
-            anisubMovieSearchProc.running = false;
-            shellRoot.anisubMovieSearchItems = [];
-            shellRoot.anisubMovieSearchLoading = true;
-            anisubMovieSearchProc.command = ["hyde-shell", "rofi.movie", "feed-search", q];
-            anisubMovieSearchProc.running = true;
-        } else if (kind === "comic") {
-            anisubComicSearchProc.running = false;
-            shellRoot.anisubComicSearchItems = [];
-            shellRoot.anisubComicSearchLoading = true;
-            anisubComicSearchProc.command = ["hyde-shell", "rofi.comic", "feed-search", q];
-            anisubComicSearchProc.running = true;
-        }
+        anisubMovieSearchProc.running = false;
+        anisubMovieSearchItems = [];
+        anisubMovieSearchLoading = true;
+        anisubMovieSearchProc.command = ["hyde-shell", "rofi.movie", "feed-search", q];
+        anisubMovieSearchProc.running = true;
     }
 
-    function anisubWidgetSearchClear(kind) {
-        if (kind === "movie") {
-            anisubMovieSearchProc.running = false;
-            shellRoot.anisubMovieSearchItems = [];
-            shellRoot.anisubMovieSearchLoading = false;
-        } else if (kind === "comic") {
-            anisubComicSearchProc.running = false;
-            shellRoot.anisubComicSearchItems = [];
-            shellRoot.anisubComicSearchLoading = false;
-        }
-    }
-
-    function anisubWidgetLaunch(tool, arg) {
-        if (arg) {
-            shellRoot.runCmd(["hyde-shell", tool, arg]);
-        } else {
-            shellRoot.runCmd(["hyde-shell", tool]);
-        }
+    function anisubPanelSearchClear() {
+        anisubMovieSearchProc.running = false;
+        anisubMovieSearchItems = [];
+        anisubMovieSearchLoading = false;
     }
 
     function iconForClass(cls) {
@@ -462,32 +326,14 @@ ShellRoot {
         }
     }
 
-    // Live anisub_widgets.json load (settings toggles apply without restart)
-    FileView {
-        id: anisubWidgetsFile
-        path: shellRoot.anisubWidgetsConfigPath
-        watchChanges: true
-        onFileChanged: reload()
-        onLoaded: {
-            shellRoot.applyAnisubWidgetsJson(text());
-        }
-    }
-
-    // AniSub wallpaper-widget data feeds (KKPhim rows + NetTruyen rows)
+    // AniSub panel feed (KKPhim rows via rofi.movie feed)
     Process {
         id: anisubMovieProc
         command: ["hyde-shell", "rofi.movie", "feed"]
         stdout: SplitParser {
             onRead: data => shellRoot.parseAnisubMovieLine(data)
         }
-    }
-
-    Process {
-        id: anisubComicProc
-        command: ["hyde-shell", "rofi.comic", "feed"]
-        stdout: SplitParser {
-            onRead: data => shellRoot.parseAnisubComicLine(data)
-        }
+        onRunningChanged: if (!running) shellRoot.anisubMovieFeedLoading = false
     }
 
     Process {
@@ -499,14 +345,6 @@ ShellRoot {
     }
 
     Process {
-        id: anisubComicSearchProc
-        stdout: SplitParser {
-            onRead: data => shellRoot.parseAnisubComicSearchLine(data)
-        }
-        onRunningChanged: if (!running) shellRoot.anisubComicSearchLoading = false
-    }
-
-    Process {
         id: anisubMovieEpisodesProc
         stdout: SplitParser {
             onRead: data => shellRoot.parseAnisubEpisodeLine(data)
@@ -514,29 +352,12 @@ ShellRoot {
         onRunningChanged: if (!running) shellRoot.anisubMovieEpisodesLoading = false
     }
 
-    Process {
-        id: anisubComicChaptersProc
-        stdout: SplitParser {
-            onRead: data => shellRoot.parseAnisubChapterLine(data)
-        }
-        onRunningChanged: if (!running) shellRoot.anisubComicChaptersLoading = false
-    }
-
+    // AniSub panel feed: refreshed every 10 minutes while the panel is open
     Timer {
         interval: 600000
-        running: true
+        running: shellRoot.anisubPanelOpen
         repeat: true
-        triggeredOnStart: true
-        onTriggered: {
-            if (shellRoot.anisubMovieVisible) {
-                shellRoot.anisubMovieItems = [];
-                anisubMovieProc.running = true;
-            }
-            if (shellRoot.anisubComicVisible) {
-                shellRoot.anisubComicItems = [];
-                anisubComicProc.running = true;
-            }
-        }
+        onTriggered: shellRoot.refreshAnisubFeed()
     }
 
     // Clock, system telemetry, caffeine state & live wallpaper (.dcol) polling
@@ -661,25 +482,16 @@ ShellRoot {
                         shellRoot.wallStamp = wstamp;
                         var dc = dcols.split(",");
                         if (dc.length >= 8 && dc[0] !== "") {
-                            theme.barBg = theme.subtleTint("#f2f1e8", dc[0], 0.12);
-                            theme.mainBg = theme.subtleTint("#f0efe6", dc[0], 0.12);
-                            if (dc[1]) theme.surfaceBg = theme.subtleTint("#ffffff", dc[1], 0.12);
-                            if (dc[2]) theme.layer2Bg = theme.subtleTint("#e9e7da", dc[2], 0.14);
-                            if (dc[3]) theme.subFg = theme.subtleTint("#5b62c4", dc[3], 0.08);
-                            if (dc[4]) theme.mainFg = theme.subtleTint("#2434e0", dc[4], 0.08);
-                            if (dc[5]) theme.accentSecondary = theme.subtleTint("#c9d2f7", dc[5], 0.14);
+                            // The bar takes the wallpaper tone itself (same rule as the sampler)
+                            var wc = Qt.color(theme.normHex(dc[0]));
+                            theme.syncWallTone(wc.r, wc.g, wc.b);
                             if (dc[6]) {
-                                theme.actBg = theme.subtleTint("#2434e0", dc[6], 0.08);
-                                theme.glowColor = theme.subtleTint("#e8449b", dc[6], 0.08);
+                                theme.glowColor = Qt.color(theme.normHex(dc[6]));
                                 shellRoot.wallDynamicHex = theme.normHex(dc[6]);
                                 if (shellRoot.clockSyncWallpaper && shellRoot.wallDynamicHex !== "") {
                                     shellRoot.clockLedColor = Qt.color(shellRoot.wallDynamicHex);
                                     shellRoot.clockPaintTick += 1;
                                 }
-                            }
-                            if (dc[7]) {
-                                theme.secondaryFg = theme.subtleTint("#2c36b8", dc[7], 0.10);
-                                theme.glowSecondary = theme.subtleTint("#1b26c8", dc[7], 0.08);
                             }
                             theme.wallSyncSource = "dcol";
                             shellRoot.paintGeneration += 1;
@@ -738,7 +550,7 @@ ShellRoot {
             // 2. Subtle halftone print dots (image-13 linen texture)
             ctx.save();
             ctx.clip();
-            ctx.fillStyle = "rgba(36, 52, 224, 0.055)";
+            ctx.fillStyle = "rgba(20, 40, 16, 0.07)";
             var step = 6;
             for (var rowY = step / 2; rowY < height; rowY += step) {
                 var xoff = (Math.round(rowY / step) % 2 === 0) ? step / 2 : 0;
@@ -1107,7 +919,7 @@ ShellRoot {
                         var ctx = getContext("2d");
                         ctx.reset();
                         var step = 7;
-                        ctx.fillStyle = "rgba(36, 52, 224, 0.05)";
+                        ctx.fillStyle = "rgba(20, 40, 16, 0.06)";
                         for (var rowY = step / 2; rowY < height; rowY += step) {
                             var xoff = (Math.round(rowY / step) % 2 === 0) ? step / 2 : 0;
                             for (var dotX = xoff + step / 2; dotX < width; dotX += step) {
@@ -2499,15 +2311,16 @@ ShellRoot {
         }
     }
 
-    // ── ANISUB WALLPAPER WIDGET: AniSub Movie — glass card (after the reference); drag, free resize, search on the widget ──
+    // ── AniSub panel (Win+Shift+M): glass card dropping from the top bar, image-18 look ──
     Variants {
         model: Quickshell.screens
 
         PanelWindow {
-            id: anisubMovieWindow
+            id: anisubPanelWindow
             required property var modelData
             screen: modelData
-            visible: shellRoot.anisubMovieVisible
+            // Opens on the primary screen only
+            visible: shellRoot.anisubPanelOpen && modelData === Quickshell.screens[0]
 
             anchors {
                 top: true
@@ -2517,269 +2330,64 @@ ShellRoot {
             }
 
             exclusiveZone: 0
-            aboveWindows: false
             color: "transparent"
-            // On-demand keyboard so the search box can take typing (never Exclusive)
+            // On-demand keyboard: the search box takes typing, nothing grabs the desktop
             WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
 
-            // Idle: only the search pill takes input; searching: the whole glass card
+            // Clicks land only on the card; the rest of the screen stays usable
             mask: Region {
-                item: movieFace.maskItem
+                item: anisubPanelFace
             }
 
-            Item {
-                id: movieSurface
-                anchors.fill: parent
+            onVisibleChanged: if (visible) Qt.callLater(anisubPanelFace.focusInput)
 
-                Rectangle {
-                    id: movieCard
-                    x: shellRoot.anisubMovieX
-                    y: shellRoot.anisubMovieY
-                    width: shellRoot.anisubMovieW
-                    height: shellRoot.anisubMovieH
-                    color: "transparent"
+            AniSubPanelFace {
+                id: anisubPanelFace
+                x: Math.round((anisubPanelWindow.width - width) / 2)
+                y: shellRoot.anisubPanelOpen ? shellRoot.anisubPanelTop : shellRoot.anisubPanelTop - 24
 
-                    Connections {
-                        target: shellRoot
-                        function onAnisubMovieXChanged() {
-                            if (!movieDragArea.pressed) movieCard.x = shellRoot.anisubMovieX;
-                        }
-                        function onAnisubMovieYChanged() {
-                            if (!movieDragArea.pressed) movieCard.y = shellRoot.anisubMovieY;
-                        }
-                        function onAnisubMovieWChanged() {
-                            if (!movieGripArea.pressed) movieCard.width = shellRoot.anisubMovieW;
-                        }
-                        function onAnisubMovieHChanged() {
-                            if (!movieGripArea.pressed) movieCard.height = shellRoot.anisubMovieH;
-                        }
-                    }
-
-                    // Background drag layer (below the face): dragging the glass card moves it.
-                    MouseArea {
-                        id: movieDragArea
-                        anchors.fill: parent
-                        cursorShape: pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
-                        drag.target: movieCard
-                        drag.axis: Drag.XAndYAxis
-                        drag.minimumX: 12
-                        drag.maximumX: Math.max(12, movieSurface.width - movieCard.width - 12)
-                        drag.minimumY: 52
-                        drag.maximumY: Math.max(52, movieSurface.height - movieCard.height - 12)
-
-                        onReleased: {
-                            shellRoot.anisubMovieX = Math.round(movieCard.x);
-                            shellRoot.anisubMovieY = Math.round(movieCard.y);
-                            shellRoot.saveAnisubWidgetsConfig();
-                        }
-                    }
-
-                    AniSubMovieFace {
-                        id: movieFace
-                        anchors.fill: parent
-                        themePalette: theme
-                        dragTarget: movieCard
-                        searchItems: shellRoot.anisubMovieSearchItems
-                        searchLoading: shellRoot.anisubMovieSearchLoading
-                        episodes: shellRoot.anisubMovieEpisodes
-                        episodesLoading: shellRoot.anisubMovieEpisodesLoading
-                        onSearchSubmitted: query => shellRoot.anisubWidgetSearch("movie", query)
-                        onSearchCleared: shellRoot.anisubWidgetSearchClear("movie")
-                        onEpisodesRequested: film => shellRoot.anisubMovieLoadEpisodes(film)
-                        onPlayEpisode: (film, ep) => shellRoot.anisubMoviePlayEpisode(film, ep)
-                        onDragReleased: {
-                            shellRoot.anisubMovieX = Math.round(movieCard.x);
-                            shellRoot.anisubMovieY = Math.round(movieCard.y);
-                            shellRoot.saveAnisubWidgetsConfig();
-                        }
-                    }
-
-                    // Resize grip (bottom-right), only while the glass card is shown
-                    Rectangle {
-                        id: movieGrip
-                        visible: !movieFace.idle
-                        x: movieCard.width - width - 4
-                        y: movieCard.height - height - 4
-                        width: 22
-                        height: 22
-                        radius: 8
-                        color: Qt.rgba(1, 1, 1, 0.55)
-
-                        MouseArea {
-                            id: movieGripArea
-                            property real startX: 0
-                            property real startY: 0
-                            property real startW: 0
-                            property real startH: 0
-                            anchors.fill: parent
-                            cursorShape: Qt.SizeFDiagCursor
-                            preventStealing: true
-
-                            onPressed: mouse => {
-                                var p = mapToItem(movieSurface, mouse.x, mouse.y);
-                                startX = p.x;
-                                startY = p.y;
-                                startW = movieCard.width;
-                                startH = movieCard.height;
-                            }
-
-                            onPositionChanged: mouse => {
-                                if (!movieGripArea.pressed) return;
-                                var p = mapToItem(movieSurface, mouse.x, mouse.y);
-                                var maxW = Math.max(200, movieSurface.width - movieCard.x - 8);
-                                var maxH = Math.max(240, movieSurface.height - movieCard.y - 8);
-                                movieCard.width = Math.max(200, Math.min(720, maxW, startW + (p.x - startX)));
-                                movieCard.height = Math.max(240, Math.min(900, maxH, startH + (p.y - startY)));
-                            }
-
-                            onReleased: {
-                                shellRoot.anisubMovieW = Math.round(movieCard.width);
-                                shellRoot.anisubMovieH = Math.round(movieCard.height);
-                                shellRoot.saveAnisubWidgetsConfig();
-                            }
-                        }
+                Behavior on y {
+                    NumberAnimation {
+                        duration: 220
+                        easing.type: Easing.OutCubic
                     }
                 }
+
+                themePalette: theme
+                feedItems: shellRoot.anisubMovieItems
+                feedLoading: shellRoot.anisubMovieFeedLoading
+                searchItems: shellRoot.anisubMovieSearchItems
+                searchLoading: shellRoot.anisubMovieSearchLoading
+                episodes: shellRoot.anisubMovieEpisodes
+                episodesLoading: shellRoot.anisubMovieEpisodesLoading
+                onSearchSubmitted: query => shellRoot.anisubPanelSearch(query)
+                onSearchCleared: shellRoot.anisubPanelSearchClear()
+                onCloseRequested: shellRoot.anisubPanelOpen = false
+                onEpisodesRequested: film => shellRoot.anisubMovieLoadEpisodes(film)
+                onPlayEpisode: (film, ep) => shellRoot.anisubMoviePlayEpisode(film, ep)
             }
         }
     }
 
-    // ── ANISUB WALLPAPER WIDGET: AniSub Comic — poster-first card; drag, free resize (width and height), search on the widget ──
-    Variants {
-        model: Quickshell.screens
+    // `qs -p ~/.config/quickshell ipc call anisub toggle` (bound to Win+Shift+M)
+    IpcHandler {
+        target: "anisub"
 
-        PanelWindow {
-            id: anisubComicWindow
-            required property var modelData
-            screen: modelData
-            visible: shellRoot.anisubComicVisible
-
-            anchors {
-                top: true
-                bottom: true
-                left: true
-                right: true
-            }
-
-            exclusiveZone: 0
-            aboveWindows: false
-            color: "transparent"
-            // On-demand keyboard so the widget's search box can take typing (never Exclusive)
-            WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
-
-            mask: Region {
-                item: comicCard
-            }
-
-            Item {
-                id: comicSurface
-                anchors.fill: parent
-
-                Rectangle {
-                    id: comicCard
-                    x: shellRoot.anisubComicX
-                    y: shellRoot.anisubComicY
-                    width: shellRoot.anisubComicW
-                    height: shellRoot.anisubComicH
-                    color: "transparent"
-
-                    Connections {
-                        target: shellRoot
-                        function onAnisubComicXChanged() {
-                            if (!comicDragArea.pressed) comicCard.x = shellRoot.anisubComicX;
-                        }
-                        function onAnisubComicYChanged() {
-                            if (!comicDragArea.pressed) comicCard.y = shellRoot.anisubComicY;
-                        }
-                        function onAnisubComicWChanged() {
-                            if (!comicGripArea.pressed) comicCard.width = shellRoot.anisubComicW;
-                        }
-                        function onAnisubComicHChanged() {
-                            if (!comicGripArea.pressed) comicCard.height = shellRoot.anisubComicH;
-                        }
-                    }
-
-                    // Background drag layer (below the face): drag moves the card. Clicks on
-                    // the card are handled by the face (search, open, previous/next).
-                    MouseArea {
-                        id: comicDragArea
-                        anchors.fill: parent
-                        cursorShape: pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
-                        drag.target: comicCard
-                        drag.axis: Drag.XAndYAxis
-                        drag.minimumX: 12
-                        drag.maximumX: Math.max(12, comicSurface.width - comicCard.width - 12)
-                        drag.minimumY: 52
-                        drag.maximumY: Math.max(52, comicSurface.height - comicCard.height - 12)
-
-                        onReleased: {
-                            shellRoot.anisubComicX = Math.round(comicCard.x);
-                            shellRoot.anisubComicY = Math.round(comicCard.y);
-                            shellRoot.saveAnisubWidgetsConfig();
-                        }
-                    }
-
-                    AniSubWidgetFace {
-                        id: comicFace
-                        anchors.fill: parent
-                        themePalette: theme
-                        headerText: "NetTruyen · Truyện mới cập nhật"
-                        searchHint: "Tìm truyện trên NetTruyen…"
-                        items: shellRoot.anisubComicItems
-                        searchItems: shellRoot.anisubComicSearchItems
-                        searchLoading: shellRoot.anisubComicSearchLoading
-                        onStoryPicked: story => shellRoot.anisubComicLoadChapters(story)
-                        onChapterPicked: chapter => shellRoot.anisubComicReadChapter(comicFace.chapterStory, chapter)
-                        onSearchSubmitted: query => shellRoot.anisubWidgetSearch("comic", query)
-                        onSearchCleared: shellRoot.anisubWidgetSearchClear("comic")
-                    }
-
-                    // Resize grip (bottom-right): drag changes width and height independently
-                    Rectangle {
-                        id: comicGrip
-                        x: comicCard.width - width - 4
-                        y: comicCard.height - height - 4
-                        width: 22
-                        height: 22
-                        radius: 8
-                        color: Qt.rgba(1, 1, 1, 0.55)
-
-                        MouseArea {
-                            id: comicGripArea
-                            property real startX: 0
-                            property real startY: 0
-                            property real startW: 0
-                            property real startH: 0
-                            anchors.fill: parent
-                            cursorShape: Qt.SizeFDiagCursor
-                            preventStealing: true
-
-                            onPressed: mouse => {
-                                var p = mapToItem(comicSurface, mouse.x, mouse.y);
-                                startX = p.x;
-                                startY = p.y;
-                                startW = comicCard.width;
-                                startH = comicCard.height;
-                            }
-
-                            onPositionChanged: mouse => {
-                                if (!comicGripArea.pressed) return;
-                                var p = mapToItem(comicSurface, mouse.x, mouse.y);
-                                var maxW = Math.max(200, comicSurface.width - comicCard.x - 8);
-                                var maxH = Math.max(240, comicSurface.height - comicCard.y - 8);
-                                comicCard.width = Math.max(200, Math.min(720, maxW, startW + (p.x - startX)));
-                                comicCard.height = Math.max(240, Math.min(900, maxH, startH + (p.y - startY)));
-                            }
-
-                            onReleased: {
-                                shellRoot.anisubComicW = Math.round(comicCard.width);
-                                shellRoot.anisubComicH = Math.round(comicCard.height);
-                                shellRoot.saveAnisubWidgetsConfig();
-                            }
-                        }
-                    }
-                }
-            }
+        function toggle(): void {
+            shellRoot.anisubPanelOpen = !shellRoot.anisubPanelOpen;
         }
+
+        function open(): void {
+            shellRoot.anisubPanelOpen = true;
+        }
+
+        function close(): void {
+            shellRoot.anisubPanelOpen = false;
+        }
+    }
+
+    onAnisubPanelOpenChanged: {
+        if (!anisubPanelOpen) return;
+        if (anisubMovieItems.length === 0 || Date.now() - anisubMovieFeedAt > 600000) refreshAnisubFeed();
     }
 }

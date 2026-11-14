@@ -98,49 +98,31 @@ class SettingsTest(unittest.TestCase):
         self.assertTrue(tiles)
         window.close()
 
-    def test_widget_section_and_comic_launcher(self):
+    def test_widget_section_opens_the_panel_not_rofi(self):
         titles = [s[0] for s in self.module.SECTIONS]
         self.assertEqual(titles[0], "Widget")
         widget = self.module.SECTIONS[0][3]
         names = [a[0] for a in widget]
-        self.assertEqual(names, ["AniSub (Movie)", "AniSub Comic"])
-        movie, comic = widget
-        self.assertEqual(movie[2], ("hyde-shell", "rofi.movie"))
-        self.assertEqual(comic[2], ("hyde-shell", "rofi.comic"))
-        launcher = ROOT / "Configs/.local/lib/hyde/rofi.comic.sh"
+        self.assertEqual(names, ["AniSub panel"])
+        panel = widget[0]
+        self.assertEqual(panel[2], ("hyde-shell", "anisub_panel", "toggle"))
+        self.assertNotIn("rofi.movie", panel[2])
+        launcher = ROOT / "Configs/.local/lib/hyde/anisub_panel.sh"
         self.assertTrue(launcher.is_file())
         subprocess.run(["bash", "-n", str(launcher)], check=True)
-        text = launcher.read_text()
-        self.assertIn("# @name: rofi.comic", text)
-        self.assertIn("hyde-shell rofi.comic", text)
-        self.assertIn("/tim-kiem?keyword=", text)
-        self.assertIn("net.imgchapter.store", text)
-        self.assertIn("chuong-", text)
-        self.assertIn("truyen-", text)
 
-    def test_wallpaper_widget_toggles_feed_and_page_scroll(self):
-        import json
-
+    def test_settings_scrolls_and_has_no_desktop_widget_toggles(self):
         window = self.module.SettingsWindow()
-        self.assertTrue(window.movieToggle.isCheckable())
-        self.assertTrue(window.comicToggle.isCheckable())
+        # the desktop widgets are gone: no ON/OFF switches and no widget state file
+        self.assertFalse(hasattr(window, "movieToggle"))
+        self.assertFalse(hasattr(window, "comicToggle"))
+        self.assertFalse(hasattr(self.module, "write_widget_flags"))
+        self.assertFalse(hasattr(self.module, "read_widget_flags"))
         page_scrolls = [
             s for s in window.findChildren(QtWidgets.QScrollArea)
             if s.objectName() == "pageScroll"
         ]
         self.assertEqual(len(page_scrolls), 1, "tall settings pages must scroll, not clip")
-
-        with tempfile.TemporaryDirectory() as tmp:
-            with mock.patch.dict(os.environ, {"XDG_CONFIG_HOME": tmp}):
-                self.module.write_widget_flags(True, False)
-                data = json.loads((Path(tmp) / "quickshell" / "anisub_widgets.json").read_text())
-                self.assertIs(data["movieVisible"], True)
-                self.assertIs(data["comicVisible"], False)
-                self.module.write_widget_flags(False, True)
-                movie, comic, raw = self.module.read_widget_flags()
-                self.assertFalse(movie)
-                self.assertTrue(comic)
-                self.assertIs(raw["movieVisible"], False)
 
         for script in ("rofi.comic.sh", "rofi.movie.sh"):
             path = ROOT / "Configs/.local/lib/hyde" / script

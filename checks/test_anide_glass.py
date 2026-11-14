@@ -23,7 +23,7 @@ class QuickshellBarTest(unittest.TestCase):
             "LisaGlassIcon.qml",
             "CircleUtilButton.qml",
             "ClippedProgressBar.qml",
-            "AniSubRadioFace.qml",
+            "AniSubWidgetFace.qml",
             "theme.json",
             "clock_widget.json",
             "anisub_widgets.json",
@@ -84,12 +84,15 @@ class QuickshellBarTest(unittest.TestCase):
             "component DesktopClockCanvas",
             "anisubMovieWindow",
             "anisubComicWindow",
-            "anisubMovieScale",
-            "anisubComicScale",
-            "AniSubRadioFace {",
+            "anisubMovieW",
+            "anisubMovieH",
+            "anisubComicW",
+            "anisubComicH",
+            "AniSubWidgetFace {",
             "movieGripArea",
             "comicGripArea",
-            "clampAnisubScale",
+            "clampAnisubW",
+            "clampAnisubH",
             "anisub_widgets.json",
             "applyAnisubWidgetsJson",
             "saveAnisubWidgetsConfig",
@@ -122,7 +125,7 @@ class QuickshellBarTest(unittest.TestCase):
             "LisaGlassIcon",
             "CircleUtilButton",
             "ClippedProgressBar",
-            "AniSubRadioFace",
+            "AniSubWidgetFace",
         ):
             self.assertNotIn(f"component {file_type}", shell_qml)
         decl = shell_qml.index("component DreamyMistCanvas")
@@ -135,7 +138,7 @@ class QuickshellBarTest(unittest.TestCase):
 
         restore_psv = (ROOT / "Scripts/restore_cfg.psv").read_text()
         self.assertIn(
-            "S|${HOME}/.config/quickshell|shell.qml Colors.qml RoundCorner.qml LisaGlassIcon.qml CircleUtilButton.qml ClippedProgressBar.qml AniSubRadioFace.qml|hyprland",
+            "S|${HOME}/.config/quickshell|shell.qml Colors.qml RoundCorner.qml LisaGlassIcon.qml CircleUtilButton.qml ClippedProgressBar.qml AniSubWidgetFace.qml|hyprland",
             restore_psv,
         )
         self.assertIn("theme.json clock_widget.json anisub_widgets.json", restore_psv)
@@ -143,7 +146,7 @@ class QuickshellBarTest(unittest.TestCase):
 
     def test_widget_search_is_on_the_widget_not_rofi(self):
         shell_qml = (QS_DIR / "shell.qml").read_text()
-        face_qml = (QS_DIR / "AniSubRadioFace.qml").read_text()
+        face_qml = (QS_DIR / "AniSubWidgetFace.qml").read_text()
         # the widget window takes on-demand keyboard focus only (never Exclusive)
         self.assertIn("WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand", shell_qml)
         self.assertNotIn("WlrKeyboardFocus.Exclusive", shell_qml)
@@ -157,6 +160,28 @@ class QuickshellBarTest(unittest.TestCase):
         self.assertIn("Keys.onEscapePressed: face.endSearch()", face_qml)
         self.assertNotIn("ctx.roundRect(", face_qml)
 
+    def test_widget_is_poster_first_and_freely_resizable(self):
+        shell_qml = (QS_DIR / "shell.qml").read_text()
+        face_qml = (QS_DIR / "AniSubWidgetFace.qml").read_text()
+        # width and height are independent (no fixed aspect ratio, no uniform scale)
+        self.assertIn("width: shellRoot.anisubMovieW", shell_qml)
+        self.assertIn("height: shellRoot.anisubMovieH", shell_qml)
+        self.assertIn("width: shellRoot.anisubComicW", shell_qml)
+        self.assertIn("height: shellRoot.anisubComicH", shell_qml)
+        self.assertIn("{movieCard.width = Math.max(200", shell_qml.replace("\n", "")) if False else None
+        self.assertIn("movieCard.width = Math.max(200", shell_qml)
+        self.assertIn("movieCard.height = Math.max(240", shell_qml)
+        self.assertIn("movieW: Math.round(shellRoot.anisubMovieW)", shell_qml)
+        # poster-first face: posters are painted cover-fit, results are a scrollable list
+        self.assertIn("function paintCover(ctx, cv, img, src, w, h, r)", face_qml)
+        self.assertIn("ctx.drawImage(src,", face_qml)
+        self.assertIn("loadImage(hero.picSrc)", face_qml)
+        self.assertIn("ListView {", face_qml)
+        self.assertIn("model: face.searchItems", face_qml)
+        self.assertNotIn("Repeater", face_qml.split("ListView {")[1].split("// ── Footer")[0])
+        # the old radio dial is gone
+        self.assertNotIn("needle", face_qml)
+
     def test_quickshell_manifest_and_autostart(self):
         manifest = (ROOT / "Scripts/dots/quickshell.toml").read_text()
         self.assertIn('source_root = "Configs/.config/quickshell"', manifest)
@@ -168,7 +193,7 @@ class QuickshellBarTest(unittest.TestCase):
             "LisaGlassIcon.qml",
             "CircleUtilButton.qml",
             "ClippedProgressBar.qml",
-            "AniSubRadioFace.qml",
+            "AniSubWidgetFace.qml",
         ):
             self.assertGreaterEqual(manifest.count(f'"{qml_file}"'), 2, qml_file)
 

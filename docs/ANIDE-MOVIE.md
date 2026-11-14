@@ -18,7 +18,7 @@ ngắn hạn và được tải lại mỗi lần bắt đầu phát.
 ## Mở bằng phím tắt
 
 ```txt
-SUPER + SHIFT + M   # mở thẳng menu phim
+SUPER + SHIFT + M   # thả panel AniSub xuống từ thanh bar (không mở rofi)
 SUPER + A           # launcher: tab thứ 4 ( AniSub) hoặc gõ "AniSub", "phim" ở tab ứng dụng
 ```
 

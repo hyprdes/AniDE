@@ -78,8 +78,9 @@ troubleshooting.
 
 AniDE brings the movie browser from [anisub](https://github.com/niyakipham/anisub)
 into Rofi: search, browse categories, pick a server and an episode, and play from
-KKPhim. Press **SUPER + SHIFT + M**, pick **AniSub (Phim)** in the **SUPER + A**
-application finder, or run `hyde-shell rofi.movie`. Playback
+KKPhim. Press **SUPER + SHIFT + M** to drop the AniSub panel from the top bar,
+or pick **AniSub (Phim)** in the **SUPER + A** application finder, or run
+`hyde-shell rofi.movie` for the Rofi menu. Playback
 uses `mpv` (or `vlc`, `celluloid`, `haruna`) and passes the KKPhim referer
 headers the HLS servers require. `mpv` and `curl` are part of the default
 package list; a missing player only means the link opens in your browser. See

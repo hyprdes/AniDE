@@ -189,25 +189,6 @@ Item {
         }
     }
 
-    // ── Liquid glass plate: tint, white top sheen and a thin bright rim ──
-    component GlassPlate: Rectangle {
-        property bool pressedLook: false
-        radius: 22
-        color: Qt.rgba(1, 1, 1, pressedLook ? 0.30 : 0.16)
-        border.width: 1
-        border.color: Qt.rgba(1, 1, 1, 0.42)
-
-        Rectangle {
-            anchors.fill: parent
-            anchors.margins: 1
-            radius: parent.radius - 1
-            gradient: Gradient {
-                GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, 0.26) }
-                GradientStop { position: 0.55; color: Qt.rgba(1, 1, 1, 0.02) }
-            }
-        }
-    }
-
     // Grab handle like the sheet in image-18
     Rectangle {
         x: (face.width - width) / 2

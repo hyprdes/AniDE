@@ -1,4 +1,4 @@
-// AniSub panel face: a glass card that drops from the top bar (Win+Shift+M).
+// AniSub panel face: a liquid glass card that drops from the top bar (Win+Shift+M).
 // Layout follows image-18: a grab handle, a badge row with the date, a search
 // pill, the current film as a poster hero with a "Xem" button, a caption pill,
 // and a footer with the result counter and a down arrow that moves to the next
@@ -158,14 +158,54 @@ Item {
         episodeFilm = null;
     }
 
-    // ── Glass card (translucent bar color; the wallpaper shows through) ──
+    // ── Liquid glass card: translucent tint, a white sheen and a bright rim.
+    // The wallpaper blur comes from Hyprland's layer blur on the quickshell namespace.
     Rectangle {
         id: card
         anchors.fill: parent
-        radius: 28
-        color: Qt.alpha(face.cBar, 0.92)
+        radius: 30
+        color: Qt.alpha(face.cBar, 0.40)
         border.width: 1
-        border.color: Qt.alpha(face.cEdge, 0.8)
+        border.color: Qt.rgba(1, 1, 1, 0.5)
+
+        Rectangle {
+            anchors.fill: parent
+            anchors.margins: 1
+            radius: parent.radius - 1
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, 0.24) }
+                GradientStop { position: 0.35; color: Qt.rgba(1, 1, 1, 0.04) }
+                GradientStop { position: 1.0; color: Qt.rgba(1, 1, 1, 0.10) }
+            }
+        }
+
+        Rectangle {
+            anchors.fill: parent
+            anchors.margins: 3
+            radius: parent.radius - 3
+            color: "transparent"
+            border.width: 1
+            border.color: Qt.rgba(1, 1, 1, 0.14)
+        }
+    }
+
+    // ── Liquid glass plate: tint, white top sheen and a thin bright rim ──
+    component GlassPlate: Rectangle {
+        property bool pressedLook: false
+        radius: 22
+        color: Qt.rgba(1, 1, 1, pressedLook ? 0.30 : 0.16)
+        border.width: 1
+        border.color: Qt.rgba(1, 1, 1, 0.42)
+
+        Rectangle {
+            anchors.fill: parent
+            anchors.margins: 1
+            radius: parent.radius - 1
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, 0.26) }
+                GradientStop { position: 0.55; color: Qt.rgba(1, 1, 1, 0.02) }
+            }
+        }
     }
 
     // Grab handle like the sheet in image-18
@@ -179,14 +219,13 @@ Item {
     }
 
     // ── Row 1: count badge, title, and the date pill ──
-    Rectangle {
+    GlassPlate {
         id: badge
         x: face.pad
         y: 26
         width: 40
         height: 40
         radius: 20
-        color: face.cPlate
 
         Text {
             anchors.centerIn: parent
@@ -215,14 +254,13 @@ Item {
         }
     }
 
-    Rectangle {
+    GlassPlate {
         id: datePill
         x: face.width - face.pad - width
         y: 26
         width: 128
         height: 40
         radius: 20
-        color: Qt.alpha(face.cPlate, 0.85)
 
         Column {
             anchors.centerIn: parent
@@ -245,16 +283,13 @@ Item {
     }
 
     // ── Row 2: search pill and close button ──
-    Rectangle {
+    GlassPlate {
         id: searchPill
         x: face.pad
         y: 80
         width: face.width - face.pad * 2 - 44 - 10
         height: 44
         radius: 22
-        color: Qt.alpha(face.cPlate, 0.7)
-        border.width: 1
-        border.color: Qt.alpha(face.cEdge, 0.9)
 
         Canvas {
             x: 8
@@ -295,16 +330,14 @@ Item {
         }
     }
 
-    Rectangle {
+    GlassPlate {
         id: closeBtn
         x: face.width - face.pad - 44
         y: 80
         width: 44
         height: 44
         radius: 22
-        color: closeArea.pressed ? face.cHover : Qt.alpha(face.cPlate, 0.7)
-        border.width: 1
-        border.color: Qt.alpha(face.cEdge, 0.9)
+        pressedLook: closeArea.pressed
 
         Canvas {
             anchors.fill: parent
@@ -364,14 +397,13 @@ Item {
         }
 
         // Status chip: result position, or the feed label when not searching
-        Rectangle {
+        GlassPlate {
             id: statusChip
             x: 0
             y: 0
             width: Math.min(hero.width - face.posterW - 12, chipText.implicitWidth + 20)
             height: 24
             radius: 12
-            color: Qt.alpha(face.cPlate, 0.85)
 
             Text {
                 id: chipText
@@ -440,16 +472,13 @@ Item {
         }
 
         // Caption pill across the bottom of the hero
-        Rectangle {
+        GlassPlate {
             id: caption
             x: 0
             y: 206
             width: hero.width
             height: 44
             radius: 22
-            color: Qt.alpha(face.cPlate, 0.6)
-            border.width: 1
-            border.color: Qt.alpha(face.cEdge, 0.8)
 
             Text {
                 anchors.fill: parent
@@ -481,6 +510,15 @@ Item {
         font.pixelSize: 13
     }
 
+    Rectangle {
+        visible: !face.showingEpisodes && face.current !== null
+        x: face.pad
+        y: face.height - 102
+        width: face.width - face.pad * 2
+        height: 1
+        color: Qt.rgba(1, 1, 1, 0.30)
+    }
+
     // ── Footer: result counter and the down arrow that moves to the next film ──
     Item {
         id: footer
@@ -502,16 +540,14 @@ Item {
             font.bold: true
         }
 
-        Rectangle {
+        GlassPlate {
             id: nextBtn
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             width: 40
             height: 40
             radius: 20
-            color: nextArea.pressed ? face.cHover : Qt.alpha(face.cPlate, 0.7)
-            border.width: 1
-            border.color: Qt.alpha(face.cEdge, 0.9)
+            pressedLook: nextArea.pressed
 
             Canvas {
                 anchors.fill: parent
@@ -540,7 +576,7 @@ Item {
     }
 
     // ── Episode mode: back button, film name, and one pill per episode ──
-    Rectangle {
+    GlassPlate {
         id: backBtn
         visible: face.showingEpisodes
         x: face.pad
@@ -548,7 +584,7 @@ Item {
         width: 40
         height: 40
         radius: 20
-        color: backArea.pressed ? face.cHover : Qt.alpha(face.cPlate, 0.7)
+        pressedLook: backArea.pressed
 
         Canvas {
             anchors.fill: parent
@@ -590,15 +626,13 @@ Item {
         boundsBehavior: Flickable.StopAtBounds
         model: face.episodes
 
-        delegate: Rectangle {
+        delegate: GlassPlate {
             id: epRow
             required property var modelData
             width: episodeList.width
             height: 40
             radius: 20
-            color: epArea.pressed ? face.cHover : Qt.alpha(face.cPlate, 0.7)
-            border.width: 1
-            border.color: Qt.alpha(face.cEdge, 0.8)
+            pressedLook: epArea.pressed
 
             Text {
                 x: 16

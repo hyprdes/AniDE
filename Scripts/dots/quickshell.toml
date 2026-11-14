@@ -17,6 +17,7 @@ paths = [
     "CircleUtilButton.qml",
     "ClippedProgressBar.qml",
     "AniSubPanelFace.qml",
+    "GlassPlate.qml",
 ]
 
 [[quickshell.files]]
@@ -31,6 +32,7 @@ paths = [
     "CircleUtilButton.qml",
     "ClippedProgressBar.qml",
     "AniSubPanelFace.qml",
+    "GlassPlate.qml",
     "theme.json",
 ]
 

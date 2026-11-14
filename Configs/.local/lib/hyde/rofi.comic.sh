@@ -2,7 +2,7 @@
 # @name: rofi.comic
 # @ver: 1.0.0
 # @short: Read NetTruyen comics from Rofi
-# @usage: hyde-shell rofi.comic [search|read|history|settings|diagnose|feed] [args]
+# @usage: hyde-shell rofi.comic [search|read|chapters|read-chapter|history|settings|diagnose|feed|feed-search] [args]
 # @global.flag: -h,--help | Show this help message
 # @cmd: search
 # @cmd.alias: s
@@ -11,6 +11,12 @@
 # @cmd: read
 # @cmd.desc: Read a story slug or URL, asking for the chapter
 # @cmd.opt: <slug-or-url> | NetTruyen story slug or page URL
+# @cmd: chapters
+# @cmd.desc: Print the chapter rows of a story for the wallpaper widget (name|url|chuong-N), never opens rofi
+# @cmd.opt: <slug-or-url> | NetTruyen story slug or page URL
+# @cmd: read-chapter
+# @cmd.desc: Open one chapter chosen in the wallpaper widget, never opens rofi
+# @cmd.opt: <story-url> <chapter-url> <chuong-N> <title> | From the chapters command
 # @cmd: history
 # @cmd.desc: Continue reading from the local history
 # @cmd: settings
@@ -432,6 +438,37 @@ case "${1:-search}" in
         [[ ${#kw} -lt 2 ]] && exit 0
         q=$(python3 -c 'import sys, urllib.parse; print(urllib.parse.quote_plus(sys.argv[1]))' "$kw") || exit 1
         comic_fetch "${COMIC_BASE_URL}/tim-kiem?keyword=${q}" | comic_parse_items | head -n "${COMIC_FEED_LIMIT:-6}"
+        ;;
+    # Wallpaper widget (no rofi): chapter rows name|url|chuong-N of a story
+    chapters)
+        target="${2:-}"
+        [[ -z $target ]] && exit 0
+        case "$target" in
+            http://*|https://*) url="$target" ;;
+            truyen-*) url="${COMIC_BASE_URL}/${target}" ;;
+            *) url="${COMIC_BASE_URL}/truyen-${target}" ;;
+        esac
+        route=$(printf '%s' "$url" | sed -n 's#.*/\(truyen-[A-Za-z0-9_.-]*\)/.*#\1#p')
+        [[ -z $route ]] && route="${url##*/}"
+        comic_fetch "$url" | comic_parse_chapters "$route" | head -n 300
+        ;;
+    # Wallpaper widget (no rofi): read-chapter <story-url> <chapter-url> <chuong-N> <title>
+    read-chapter)
+        story="${2:-}"; chap_url="${3:-}"; chap_num="${4:-}"; title="${5:-Truyện}"
+        if [[ -z $story || -z $chap_url ]]; then
+            printf 'Usage: hyde-shell rofi.comic read-chapter <story-url> <chapter-url> <chuong-N> <title>\n' >&2
+            exit 1
+        fi
+        route=$(printf '%s' "$story" | sed -n 's#.*/\(truyen-[A-Za-z0-9_.-]*\)/.*#\1#p')
+        [[ -z $route ]] && route="${story##*/}"
+        images=$(comic_chapter_images "$chap_url" "$route" "${chap_num#chuong-}")
+        if [[ -z $images ]]; then
+            notify-send "AniSub Comic" "No pages found for ${title}." 2>/dev/null || true
+            exit 1
+        fi
+        comic_add_history "$title" "$story"
+        # shellcheck disable=SC2046
+        comic_open_reader "$title" $(printf '%s\n' "$images")
         ;;
     diagnose) comic_diagnose ;;
     -h|--help|help) grep -E '^# @(usage|cmd)' "$0" | sed 's/^# @/  /' ;;

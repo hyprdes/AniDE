@@ -23,8 +23,13 @@ Item {
     property bool searchActive: false
     property string searchQuery: ""
     property int currentIndex: 0
+    property var chapters: []
+    property bool chaptersLoading: false
+    property var chapterStory: null
+    property bool showingChapters: false
 
-    signal openRequested(var item)
+    signal storyPicked(var story)
+    signal chapterPicked(var chapter)
     signal searchSubmitted(string query)
     signal searchCleared()
 
@@ -53,6 +58,8 @@ Item {
     readonly property color cPress: Qt.lighter(cBlue, 1.5)
 
     readonly property bool showingResults: searchActive && searchQuery !== ""
+    // The feed (hero + transport) shows only when neither results nor chapters are on screen
+    readonly property bool showingFeed: !showingResults && !showingChapters
     readonly property var shownItems: showingResults ? searchItems : items
     readonly property var current: shownItems.length > 0
         ? shownItems[Math.min(currentIndex, shownItems.length - 1)] : null
@@ -145,7 +152,22 @@ Item {
         }
     }
 
+    // A story was picked: its chapter list replaces the feed and search
+    function openStory(story) {
+        if (!story) return;
+        searchActive = false;
+        chapterStory = story;
+        showingChapters = true;
+        storyPicked(story);
+    }
+
+    function closeChapters() {
+        showingChapters = false;
+        chapterStory = null;
+    }
+
     function beginSearch() {
+        showingChapters = false;
         searchActive = true;
         searchInput.forceActiveFocus();
     }
@@ -181,12 +203,52 @@ Item {
         y: face.topY
         width: face.width - face.pad * 3 - face.topH
         height: face.topH
-        visible: !face.searchActive
+        visible: !face.searchActive && !face.showingChapters
         verticalAlignment: Text.AlignVCenter
         elide: Text.ElideRight
         text: face.headerText
         color: face.cPale
         font.pixelSize: face.fontSm
+    }
+
+    // Chapter mode header: back arrow and the story name
+    Rectangle {
+        id: chapterBack
+        x: face.pad
+        y: face.topY
+        width: face.topH
+        height: face.topH
+        radius: face.topH / 2
+        visible: face.showingChapters
+        color: chapterBackArea.pressed ? face.cPress : face.cButton
+
+        Canvas {
+            anchors.fill: parent
+            onPaint: face.paintGlyph(getContext("2d"), "prev", width, height, face.rgbaStr(face.cWhite, 1))
+            onWidthChanged: requestPaint()
+            onHeightChanged: requestPaint()
+            Component.onCompleted: requestPaint()
+        }
+
+        MouseArea {
+            id: chapterBackArea
+            anchors.fill: parent
+            onClicked: face.closeChapters()
+        }
+    }
+
+    Text {
+        x: face.pad * 2 + face.topH
+        y: face.topY
+        width: face.width - face.pad * 4 - face.topH * 2
+        height: face.topH
+        visible: face.showingChapters
+        verticalAlignment: Text.AlignVCenter
+        elide: Text.ElideRight
+        text: face.chapterStory ? face.chapterStory.name : ""
+        color: face.cWhite
+        font.pixelSize: face.fontSm + 1
+        font.bold: true
     }
 
     Rectangle {
@@ -228,6 +290,7 @@ Item {
 
     Rectangle {
         id: searchButton
+        visible: !face.showingChapters
         x: face.width - face.pad - face.topH
         y: face.topY
         width: face.topH
@@ -259,7 +322,7 @@ Item {
     // ── Feed: poster hero, title, info ──
     Rectangle {
         id: hero
-        visible: !face.showingResults
+        visible: face.showingFeed
         x: face.pad
         y: face.cY
         width: face.width - face.pad * 2
@@ -303,13 +366,13 @@ Item {
             anchors.fill: parent
             enabled: face.current !== null
             cursorShape: Qt.PointingHandCursor
-            onClicked: face.openRequested(face.current)
+            onClicked: face.openStory(face.current)
         }
     }
 
     Text {
         id: title
-        visible: !face.showingResults
+        visible: face.showingFeed
         x: face.pad
         y: face.cY + face.heroH + face.pad * 0.5
         width: face.width - face.pad * 2
@@ -325,7 +388,7 @@ Item {
 
     Text {
         id: info
-        visible: !face.showingResults
+        visible: face.showingFeed
         x: face.pad
         y: title.y + title.height
         width: face.width - face.pad * 2
@@ -421,7 +484,7 @@ Item {
                 id: rowArea
                 anchors.fill: parent
                 cursorShape: Qt.PointingHandCursor
-                onClicked: face.openRequested(row.modelData)
+                onClicked: face.openStory(row.modelData)
             }
         }
     }
@@ -445,7 +508,7 @@ Item {
     // ── Footer ──
     Rectangle {
         id: prevBtn
-        visible: !face.showingResults
+        visible: face.showingFeed
         x: face.pad
         y: face.footY
         width: Math.round((face.width - face.pad * 2 - Math.round(12 * face.u)) * 0.3)
@@ -471,7 +534,7 @@ Item {
 
     Rectangle {
         id: playBtn
-        visible: !face.showingResults
+        visible: face.showingFeed
         x: prevBtn.x + prevBtn.width + Math.round(6 * face.u)
         y: face.footY
         width: face.width - face.pad * 2 - prevBtn.width * 2 - Math.round(12 * face.u)
@@ -503,13 +566,13 @@ Item {
             id: playArea
             anchors.fill: parent
             enabled: face.current !== null
-            onClicked: face.openRequested(face.current)
+            onClicked: face.openStory(face.current)
         }
     }
 
     Rectangle {
         id: nextBtn
-        visible: !face.showingResults
+        visible: face.showingFeed
         x: playBtn.x + playBtn.width + Math.round(6 * face.u)
         y: face.footY
         width: prevBtn.width
@@ -531,6 +594,74 @@ Item {
             anchors.fill: parent
             onClicked: face.currentIndex = Math.min(face.shownItems.length - 1, face.currentIndex + 1)
         }
+    }
+
+    // ── Chapters of the picked story: a tap opens that chapter in the reader ──
+    ListView {
+        id: chapterList
+        visible: face.showingChapters && face.chapters.length > 0
+        x: face.pad
+        y: face.cY
+        width: face.width - face.pad * 2
+        height: face.cH
+        clip: true
+        spacing: Math.round(4 * face.u)
+        boundsBehavior: Flickable.StopAtBounds
+        model: face.chapters
+
+        delegate: Rectangle {
+            id: chRow
+            required property var modelData
+            width: chapterList.width
+            height: Math.max(36, Math.round(40 * face.u))
+            radius: Math.round(12 * face.u)
+            color: chArea.pressed ? face.cPress : face.cButton
+
+            Text {
+                x: Math.round(14 * face.u)
+                anchors.verticalCenter: parent.verticalCenter
+                width: chRow.width - Math.round(28 * face.u)
+                elide: Text.ElideRight
+                text: chRow.modelData.name
+                color: face.cWhite
+                font.pixelSize: face.fontMd
+                font.bold: true
+            }
+
+            MouseArea {
+                id: chArea
+                anchors.fill: parent
+                onClicked: face.chapterPicked(chRow.modelData)
+            }
+        }
+    }
+
+    Text {
+        visible: face.showingChapters && face.chapters.length === 0
+        x: face.pad
+        y: face.cY
+        width: face.width - face.pad * 2
+        height: face.cH
+        horizontalAlignment: Text.AlignHCenter
+        verticalAlignment: Text.AlignVCenter
+        wrapMode: Text.WordWrap
+        text: face.chaptersLoading ? "Đang tải danh sách chương…" : "Truyện này chưa có chương."
+        color: face.cPale
+        font.pixelSize: face.fontMd
+    }
+
+    Text {
+        visible: face.showingChapters && face.chapters.length > 0
+        x: face.pad
+        y: face.footY
+        width: face.width - face.pad * 2
+        height: face.footH
+        horizontalAlignment: Text.AlignHCenter
+        verticalAlignment: Text.AlignVCenter
+        elide: Text.ElideRight
+        text: face.chapters.length + " chương · chọn để đọc"
+        color: face.cPale
+        font.pixelSize: face.fontSm
     }
 
     // Search footer: count of results instead of the transport

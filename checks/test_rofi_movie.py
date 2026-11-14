@@ -136,6 +136,35 @@ class WidgetSearchTest(unittest.TestCase):
         self.assertEqual(proc.stdout, "")
         self.assertFalse(self.marker.exists())
 
+    def test_comic_chapters_lists_rows_oldest_first_without_rofi(self):
+        html = self.workdir / "story.html"
+        html.write_text(
+            '<a href="/truyen-naruto/chuong-2/">Chapter 2</a>'
+            '<a href="/truyen-naruto/chuong-10/">Chapter 10</a>'
+            '<a href="/truyen-naruto/chuong-1/">Chapter 1</a>'
+        )
+        proc = self.run_script(COMIC_SCRIPT, ["chapters", "truyen-naruto"], html)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        rows = proc.stdout.splitlines()
+        self.assertEqual([r.split("|")[2] for r in rows], ["chuong-1", "chuong-2", "chuong-10"])
+        for row in rows:
+            self.assertEqual(row.count("|"), 2, row)
+        self.assertFalse(self.marker.exists())
+
+    def test_comic_read_chapter_never_opens_rofi(self):
+        html = self.workdir / "chapter.html"
+        html.write_text('<img src="https://net.imgchapter.store/naruto/chuong-1/page_0.jpg">')
+        env = dict(self.env, STUB_BODY=str(html), COMIC_CACHE=str(self.workdir / "cache"),
+                   COMIC_HISTORY=str(self.workdir / "history"), COMIC_VIEWER="")
+        proc = subprocess.run(
+            ["bash", str(COMIC_SCRIPT), "read-chapter", "https://nettruyen.info/truyen-naruto",
+             "https://nettruyen.info/truyen-naruto/chuong-1/", "chuong-1", "Naruto · Chapter 1"],
+            capture_output=True, text=True, env=env, cwd=ROOT, timeout=60,
+        )
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertFalse(self.marker.exists())
+        self.assertIn("index.html", proc.stdout)
+
 
 class ScriptContractTest(unittest.TestCase):
     def test_syntax_and_shellcheck(self):

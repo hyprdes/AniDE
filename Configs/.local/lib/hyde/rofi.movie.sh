@@ -2,7 +2,7 @@
 # @name: rofi.movie
 # @ver: 1.1.0
 # @short: Watch KKPhim movies from Rofi
-# @usage: hyde-shell rofi.movie [search|browse|recent|history|play|link|open|settings|diagnose|feed|feed-search] [args]
+# @usage: hyde-shell rofi.movie [search|browse|recent|history|play|episodes|play-episode|link|open|settings|diagnose|feed|feed-search] [args]
 # @global.flag: -h,--help | Show this help message
 # @cmd: search
 # @cmd.alias: s
@@ -19,6 +19,12 @@
 # @cmd: play
 # @cmd.desc: Play a movie slug, asking for server and episode
 # @cmd.opt: <slug> | KKPhim movie slug
+# @cmd: episodes
+# @cmd.desc: Print the episode rows of a movie for the wallpaper widget (name|server|number), never opens rofi
+# @cmd.opt: <slug> | KKPhim movie slug
+# @cmd: play-episode
+# @cmd.desc: Play one episode chosen in the wallpaper widget, never opens rofi
+# @cmd.opt: <slug> <server> <number> | Slug, server index and episode number from the episodes command
 # @cmd: link
 # @cmd.desc: Print the HLS (m3u8) link of one episode instead of playing it
 # @cmd.opt: <slug> | KKPhim movie slug
@@ -2172,6 +2178,36 @@ main() {
                 exit 1
             fi
             movie_watch "$1" "$1"
+            ;;
+        # Wallpaper widget (no rofi): episode rows name|server|number of the first server that has episodes
+        episodes)
+            [[ -z ${1:-} ]] && exit 0
+            json=$(movie_detail_json "$1") || exit 0
+            idx=$(movie_servers <<<"$json" | awk -F'|' '$3 + 0 > 0 { print $1; exit }')
+            [[ -z $idx ]] && idx=0
+            movie_episodes "$json" "$idx" | awk -F'|' -v s="$idx" '{ printf "%s|%s|%d\n", $1, s, NR }'
+            ;;
+        # Wallpaper widget (no rofi): play episode <number> of <server> from the episodes command
+        play-episode)
+            if [[ -z ${1:-} || -z ${2:-} || -z ${3:-} ]]; then
+                printf 'Usage: hyde-shell rofi.movie play-episode <slug> <server> <number>\n' >&2
+                exit 1
+            fi
+            json=$(movie_detail_json "$1") || exit 1
+            row=$(movie_episodes "$json" "$2" | sed -n "${3}p")
+            if [[ -z $row ]]; then
+                movie_notify "Không tìm thấy tập" "$1 · tập $3"
+                exit 1
+            fi
+            ep_name=$(printf '%s' "$row" | awk -F'|' '{print $1}')
+            name=$(movie_detail_field "$json" name)
+            name="${name:-$1}"
+            if ! stream=$(movie_stream_url "$row"); then
+                movie_notify "Không có link trực tiếp" "$name · $ep_name"
+                exit 1
+            fi
+            movie_play_url "$stream" "$name - $ep_name" || exit 1
+            movie_history_add "$1" "$name" "$2" "$ep_name"
             ;;
         link)
             if [[ -z ${1:-} ]]; then

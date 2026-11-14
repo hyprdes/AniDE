@@ -648,175 +648,6 @@ ShellRoot {
         }
     }
 
-    // 5.5 AniSub wallpaper-widget building blocks (Movie poster tile + Comic list row)
-    component AniSubPosterTile: Rectangle {
-        id: posterTile
-        property string posterSource: ""
-        property string posterName: ""
-        signal activated()
-        width: 88
-        height: 124
-        radius: 12
-        color: cssRgba(theme.layer2Bg, 0.92)
-        border.width: 2
-        border.color: theme.borderColor
-
-        Image {
-            id: posterImage
-            visible: false
-            anchors.fill: parent
-            source: posterTile.posterSource
-            fillMode: Image.PreserveAspectCrop
-            asynchronous: true
-        }
-
-        Canvas {
-            id: posterCanvas
-            anchors.fill: parent
-            onPaint: {
-                var ctx = getContext("2d");
-                ctx.reset();
-                ctx.save();
-                ctx.beginPath();
-                ctx.roundRect(0, 0, width, height, 12, 12);
-                ctx.clip();
-                if (posterImage.status === Image.Ready && posterTile.posterSource !== "") {
-                    ctx.drawImage(posterImage, 0, 0, width, height);
-                } else {
-                    ctx.fillStyle = cssRgba(theme.accentSecondary, 0.5);
-                    ctx.fillRect(0, 0, width, height);
-                    ctx.fillStyle = cssRgba(theme.mainFg, 0.7);
-                    ctx.font = "26px sans-serif";
-                    ctx.textAlign = "center";
-                    ctx.textBaseline = "middle";
-                    ctx.fillText("▶", width / 2, height / 2);
-                }
-                ctx.restore();
-            }
-            Connections {
-                target: posterImage
-                function onStatusChanged() {
-                    posterCanvas.requestPaint();
-                }
-            }
-        }
-
-        Rectangle {
-            anchors {
-                left: parent.left
-                right: parent.right
-                bottom: parent.bottom
-                margins: 4
-            }
-            height: 26
-            radius: 8
-            color: cssRgba(theme.barBg, 0.88)
-
-            Text {
-                anchors.fill: parent
-                anchors.margins: 4
-                text: posterTile.posterName
-                color: theme.mainFg
-                font.pixelSize: 8
-                font.bold: true
-                elide: Text.ElideRight
-                maximumLineCount: 2
-                wrapMode: Text.WordWrap
-                verticalAlignment: Text.AlignVCenter
-            }
-        }
-
-        MouseArea {
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: posterTile.activated()
-        }
-    }
-
-    component AniSubComicRow: Rectangle {
-        id: comicRow
-        property string coverSource: ""
-        property string rowName: ""
-        property string rowUrl: ""
-        signal activated()
-        width: 284
-        height: 58
-        radius: 10
-        color: cssRgba(theme.hvrBg, 0.55)
-        border.width: 2
-        border.color: cssRgba(theme.borderColor, 0.75)
-
-        Image {
-            id: coverImage
-            visible: false
-            x: 6
-            y: 6
-            width: 34
-            height: 46
-            source: comicRow.coverSource
-            fillMode: Image.PreserveAspectCrop
-            asynchronous: true
-        }
-
-        Canvas {
-            id: coverCanvas
-            x: 6
-            y: 6
-            width: 34
-            height: 46
-            onPaint: {
-                var ctx = getContext("2d");
-                ctx.reset();
-                ctx.save();
-                ctx.beginPath();
-                ctx.roundRect(0, 0, 34, 46, 6, 6);
-                ctx.clip();
-                if (coverImage.status === Image.Ready && comicRow.coverSource !== "") {
-                    ctx.drawImage(coverImage, 0, 0, 34, 46);
-                } else {
-                    ctx.fillStyle = cssRgba(theme.accentSecondary, 0.5);
-                    ctx.fillRect(0, 0, 34, 46);
-                }
-                ctx.restore();
-            }
-            Connections {
-                target: coverImage
-                function onStatusChanged() {
-                    coverCanvas.requestPaint();
-                }
-            }
-        }
-
-        Text {
-            x: 50
-            y: 10
-            width: 224
-            text: comicRow.rowName
-            color: theme.mainFg
-            font.pixelSize: 11
-            font.bold: true
-            elide: Text.ElideRight
-        }
-
-        Text {
-            x: 50
-            y: 30
-            width: 224
-            text: comicRow.rowUrl
-            color: theme.subFg
-            font.pixelSize: 8
-            elide: Text.ElideMiddle
-        }
-
-        MouseArea {
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: comicRow.activated()
-        }
-    }
-
     // 6. DesktopClockCanvas: 5x7 Rounded-Square LED Dot-Matrix Clock Renderer (exact match to image-9.png)
     component DesktopClockCanvas: Canvas {
         id: ledCanvas
@@ -2623,6 +2454,7 @@ ShellRoot {
                             model: shellRoot.anisubMovieItems.length > 0 ? shellRoot.anisubMovieItems : 3
 
                             AniSubPosterTile {
+                                themePalette: theme
                                 posterSource: shellRoot.anisubMovieItems.length > 0 ? modelData.poster : ""
                                 posterName: shellRoot.anisubMovieItems.length > 0 ? modelData.name : "…"
                                 onActivated: {
@@ -2782,6 +2614,7 @@ ShellRoot {
                             model: shellRoot.anisubComicItems.length > 0 ? shellRoot.anisubComicItems : 3
 
                             AniSubComicRow {
+                                themePalette: theme
                                 coverSource: shellRoot.anisubComicItems.length > 0 ? modelData.cover : ""
                                 rowName: shellRoot.anisubComicItems.length > 0 ? modelData.name : "…"
                                 rowUrl: shellRoot.anisubComicItems.length > 0 ? modelData.url : "nettruyen.info"

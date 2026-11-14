@@ -23,6 +23,8 @@ class QuickshellBarTest(unittest.TestCase):
             "LisaGlassIcon.qml",
             "CircleUtilButton.qml",
             "ClippedProgressBar.qml",
+            "AniSubPosterTile.qml",
+            "AniSubComicRow.qml",
             "theme.json",
             "clock_widget.json",
             "anisub_widgets.json",
@@ -81,8 +83,6 @@ class QuickshellBarTest(unittest.TestCase):
             "component BarGroup",
             "component CircularResourceRing",
             "component DesktopClockCanvas",
-            "component AniSubPosterTile",
-            "component AniSubComicRow",
             "anisubMovieWindow",
             "anisubComicWindow",
             "anisub_widgets.json",
@@ -113,7 +113,13 @@ class QuickshellBarTest(unittest.TestCase):
         # The icon system lives in file-based components (immune to QML inline
         # component ordering quirks such as "X is not a type"); the remaining
         # inline components must be declared before first use.
-        for file_type in ("LisaGlassIcon", "CircleUtilButton", "ClippedProgressBar"):
+        for file_type in (
+            "LisaGlassIcon",
+            "CircleUtilButton",
+            "ClippedProgressBar",
+            "AniSubPosterTile",
+            "AniSubComicRow",
+        ):
             self.assertNotIn(f"component {file_type}", shell_qml)
         decl = shell_qml.index("component DreamyMistCanvas")
         use = shell_qml.index("DreamyMistCanvas {")
@@ -125,7 +131,7 @@ class QuickshellBarTest(unittest.TestCase):
 
         restore_psv = (ROOT / "Scripts/restore_cfg.psv").read_text()
         self.assertIn(
-            "S|${HOME}/.config/quickshell|shell.qml Colors.qml RoundCorner.qml LisaGlassIcon.qml CircleUtilButton.qml ClippedProgressBar.qml|hyprland",
+            "S|${HOME}/.config/quickshell|shell.qml Colors.qml RoundCorner.qml LisaGlassIcon.qml CircleUtilButton.qml ClippedProgressBar.qml AniSubPosterTile.qml AniSubComicRow.qml|hyprland",
             restore_psv,
         )
         self.assertIn("theme.json clock_widget.json anisub_widgets.json", restore_psv)
@@ -142,6 +148,8 @@ class QuickshellBarTest(unittest.TestCase):
             "LisaGlassIcon.qml",
             "CircleUtilButton.qml",
             "ClippedProgressBar.qml",
+            "AniSubPosterTile.qml",
+            "AniSubComicRow.qml",
         ):
             self.assertGreaterEqual(manifest.count(f'"{qml_file}"'), 2, qml_file)
 

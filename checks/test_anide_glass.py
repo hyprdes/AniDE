@@ -141,6 +141,22 @@ class QuickshellBarTest(unittest.TestCase):
         self.assertIn("theme.json clock_widget.json anisub_widgets.json", restore_psv)
         self.assertIn("O|${HOME}/.local/share|quickshell|hyprland", restore_psv)
 
+    def test_widget_search_is_on_the_widget_not_rofi(self):
+        shell_qml = (QS_DIR / "shell.qml").read_text()
+        face_qml = (QS_DIR / "AniSubRadioFace.qml").read_text()
+        # the widget window takes on-demand keyboard focus only (never Exclusive)
+        self.assertIn("WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand", shell_qml)
+        self.assertNotIn("WlrKeyboardFocus.Exclusive", shell_qml)
+        # search runs the machine-readable subcommands, never a rofi menu
+        self.assertIn('"rofi.movie", "feed-search", q', shell_qml)
+        self.assertIn('"rofi.comic", "feed-search", q', shell_qml)
+        self.assertIn("function anisubWidgetSearch(kind, query)", shell_qml)
+        self.assertIn("function anisubWidgetSearchClear(kind)", shell_qml)
+        self.assertIn("signal searchSubmitted(string query)", face_qml)
+        self.assertIn("signal searchCleared()", face_qml)
+        self.assertIn("Keys.onEscapePressed: face.endSearch()", face_qml)
+        self.assertNotIn("ctx.roundRect(", face_qml)
+
     def test_quickshell_manifest_and_autostart(self):
         manifest = (ROOT / "Scripts/dots/quickshell.toml").read_text()
         self.assertIn('source_root = "Configs/.config/quickshell"', manifest)

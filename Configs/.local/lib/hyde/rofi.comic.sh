@@ -426,6 +426,13 @@ case "${1:-search}" in
         # Machine-readable wallpaper-widget feed: name|url|slug|cover
         comic_fetch "${COMIC_BASE_URL}/" | comic_parse_items | head -n "${COMIC_FEED_LIMIT:-6}"
         ;;
+    feed-search)
+        # Widget search (never opens rofi): same name|url|slug|cover rows for a keyword
+        kw="${2:-}"
+        [[ ${#kw} -lt 2 ]] && exit 0
+        q=$(python3 -c 'import sys, urllib.parse; print(urllib.parse.quote_plus(sys.argv[1]))' "$kw") || exit 1
+        comic_fetch "${COMIC_BASE_URL}/tim-kiem?keyword=${q}" | comic_parse_items | head -n "${COMIC_FEED_LIMIT:-6}"
+        ;;
     diagnose) comic_diagnose ;;
     -h|--help|help) grep -E '^# @(usage|cmd)' "$0" | sed 's/^# @/  /' ;;
     *) comic_search "${1:-}" ;;

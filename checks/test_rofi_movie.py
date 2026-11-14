@@ -13,6 +13,7 @@ from urllib.parse import quote
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "Configs/.local/lib/hyde/rofi.movie.sh"
+COMIC_SCRIPT = ROOT / "Configs/.local/lib/hyde/rofi.comic.sh"
 FIXTURES = pathlib.Path(__file__).resolve().parent / "fixtures"
 
 
@@ -26,6 +27,114 @@ def run_bash(source, stdin="", env=None):
         env=env,
     )
     return process.returncode, process.stdout, process.stderr
+
+
+CURL_STUB = r"""#!/usr/bin/env bash
+# Test stub: records argv; KKPhim-style calls write to -o, comic calls print to stdout.
+printf '%s\n' "$@" >> "${ARGS_LOG:-/dev/null}"
+out=""
+status=0
+args=("$@")
+for ((i = 0; i < ${#args[@]}; i++)); do
+    case "${args[$i]}" in
+        -o) out="${args[$((i + 1))]}" ;;
+        -w) status=1 ;;
+    esac
+done
+if [[ -n $out ]]; then
+    cp "$STUB_BODY" "$out"
+    [[ $status -eq 1 ]] && printf '200'
+    exit 0
+fi
+cat "$STUB_BODY"
+"""
+
+COMIC_SEARCH_HTML = """<html><body>
+<div class="item"><a href="https://nettruyen.info/truyen-dau-pha-thuong-khung" title="Truyện tranh Đấu Phá Thương Khung"><img data-src="https://nettruyen.info/storage/covers/dau-pha.jpg"></a></div>
+<div class="item"><a href="/truyen-dau-la-dai-luc" title="Đấu La Đại Lục"><img src="https://nettruyen.info/storage/covers/dla.jpg"></a></div>
+</body></html>
+"""
+
+
+class WidgetSearchTest(unittest.TestCase):
+    """The AniSub widget reads its feed and searches without ever opening rofi."""
+
+    def setUp(self):
+        self.workdir = pathlib.Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.workdir, True)
+        curl = self.workdir / "curl"
+        curl.write_text(CURL_STUB)
+        curl.chmod(0o755)
+        rofi = self.workdir / "rofi"
+        rofi.write_text('#!/usr/bin/env bash\n: > "$ROFI_MARKER"\nexit 1\n')
+        rofi.chmod(0o755)
+        self.marker = self.workdir / "rofi-called"
+        self.args_log = self.workdir / "curl-args"
+        self.comic_html = self.workdir / "comic.html"
+        self.comic_html.write_text(COMIC_SEARCH_HTML)
+        home = self.workdir / "home"
+        home.mkdir()
+        self.env = dict(
+            os.environ,
+            PATH=f"{self.workdir}{os.pathsep}{os.environ['PATH']}",
+            HOME=str(home),
+            XDG_CONFIG_HOME=str(home / ".config"),
+            XDG_DATA_HOME=str(home / ".local/share"),
+            XDG_CACHE_HOME=str(home / ".cache"),
+            ROFI_MARKER=str(self.marker),
+            ARGS_LOG=str(self.args_log),
+        )
+
+    def run_script(self, script, args, body):
+        env = dict(self.env, STUB_BODY=str(body))
+        return subprocess.run(
+            ["bash", str(script), *args],
+            capture_output=True,
+            text=True,
+            env=env,
+            cwd=ROOT,
+            timeout=60,
+        )
+
+    def test_movie_feed_is_dispatched_not_usage(self):
+        proc = self.run_script(SCRIPT, ["feed"], FIXTURES / "search.json")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertNotIn("Usage:", proc.stdout)
+        rows = proc.stdout.splitlines()
+        self.assertTrue(rows)
+        for row in rows:
+            self.assertEqual(row.count("|"), 4, row)
+        self.assertFalse(self.marker.exists())
+
+    def test_movie_feed_search_returns_rows_and_sends_keyword(self):
+        proc = self.run_script(SCRIPT, ["feed-search", "naruto"], FIXTURES / "search.json")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        rows = proc.stdout.splitlines()
+        self.assertTrue(rows)
+        for row in rows:
+            self.assertEqual(row.count("|"), 4, row)
+        self.assertIn("naruto", self.args_log.read_text())
+        self.assertFalse(self.marker.exists())
+
+    def test_movie_feed_search_ignores_short_keyword(self):
+        proc = self.run_script(SCRIPT, ["feed-search", "x"], FIXTURES / "search.json")
+        self.assertEqual(proc.stdout, "")
+        self.assertFalse(self.marker.exists())
+
+    def test_comic_feed_search_returns_rows_without_rofi(self):
+        proc = self.run_script(COMIC_SCRIPT, ["feed-search", "dau pha"], self.comic_html)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        rows = proc.stdout.splitlines()
+        self.assertEqual(len(rows), 2, rows)
+        for row in rows:
+            self.assertEqual(row.count("|"), 3, row)
+        self.assertTrue(rows[0].startswith("Đấu Phá Thương Khung|https://nettruyen.info/"), rows[0])
+        self.assertFalse(self.marker.exists())
+
+    def test_comic_feed_search_ignores_short_keyword(self):
+        proc = self.run_script(COMIC_SCRIPT, ["feed-search", "x"], self.comic_html)
+        self.assertEqual(proc.stdout, "")
+        self.assertFalse(self.marker.exists())
 
 
 class ScriptContractTest(unittest.TestCase):

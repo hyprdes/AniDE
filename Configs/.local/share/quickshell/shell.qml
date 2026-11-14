@@ -72,6 +72,10 @@ ShellRoot {
     property real anisubComicScale: 1.0
     property var anisubMovieItems: []
     property var anisubComicItems: []
+    property var anisubMovieSearchItems: []
+    property var anisubComicSearchItems: []
+    property bool anisubMovieSearchLoading: false
+    property bool anisubComicSearchLoading: false
 
     readonly property string anisubWidgetsConfigPath: Quickshell.env("XDG_CONFIG_HOME")
         ? (Quickshell.env("XDG_CONFIG_HOME") + "/quickshell/anisub_widgets.json")
@@ -203,34 +207,87 @@ ShellRoot {
         ]);
     }
 
-    function parseAnisubMovieLine(line) {
-        if (!line) return;
+    // name|info|slug|poster|type row -> item (null when the row is unusable)
+    function anisubMovieItemFromLine(line) {
+        if (!line) return null;
         var p = line.trim().split("|");
-        if (p.length < 3 || !p[2]) return;
+        if (p.length < 3 || !p[2]) return null;
         var poster = p[3] || "";
         if (poster !== "" && poster.indexOf("http") !== 0) {
             poster = "https://phimimg.com/" + poster.replace(/^\//, "");
         }
-        shellRoot.anisubMovieItems = shellRoot.anisubMovieItems.concat([{
+        return {
             name: p[0] || "Phim",
             info: p[1] || "",
             slug: p[2],
             poster: poster,
             thumb: poster
-        }]).slice(0, 6);
+        };
     }
 
-    function parseAnisubComicLine(line) {
-        if (!line) return;
+    function parseAnisubMovieLine(line) {
+        var it = shellRoot.anisubMovieItemFromLine(line);
+        if (it) shellRoot.anisubMovieItems = shellRoot.anisubMovieItems.concat([it]).slice(0, 6);
+    }
+
+    function parseAnisubMovieSearchLine(line) {
+        var it = shellRoot.anisubMovieItemFromLine(line);
+        if (it) shellRoot.anisubMovieSearchItems = shellRoot.anisubMovieSearchItems.concat([it]).slice(0, 6);
+    }
+
+    // name|url|slug|cover row -> item (null when the row is unusable)
+    function anisubComicItemFromLine(line) {
+        if (!line) return null;
         var p = line.trim().split("|");
-        if (p.length < 2 || !p[1]) return;
-        shellRoot.anisubComicItems = shellRoot.anisubComicItems.concat([{
+        if (p.length < 2 || !p[1]) return null;
+        return {
             name: p[0] || "Truyện",
             url: p[1],
             slug: p[2] || "",
             cover: p[3] || "",
             thumb: p[3] || ""
-        }]).slice(0, 6);
+        };
+    }
+
+    function parseAnisubComicLine(line) {
+        var it = shellRoot.anisubComicItemFromLine(line);
+        if (it) shellRoot.anisubComicItems = shellRoot.anisubComicItems.concat([it]).slice(0, 6);
+    }
+
+    function parseAnisubComicSearchLine(line) {
+        var it = shellRoot.anisubComicItemFromLine(line);
+        if (it) shellRoot.anisubComicSearchItems = shellRoot.anisubComicSearchItems.concat([it]).slice(0, 6);
+    }
+
+    // Widget search: runs `rofi.<kind> feed-search <keyword>` (no rofi UI).
+    // Stopping the old process first makes the loading flag reset before the new run.
+    function anisubWidgetSearch(kind, query) {
+        var q = String(query || "").trim();
+        if (kind === "movie") {
+            anisubMovieSearchProc.running = false;
+            shellRoot.anisubMovieSearchItems = [];
+            shellRoot.anisubMovieSearchLoading = true;
+            anisubMovieSearchProc.command = ["hyde-shell", "rofi.movie", "feed-search", q];
+            anisubMovieSearchProc.running = true;
+        } else if (kind === "comic") {
+            anisubComicSearchProc.running = false;
+            shellRoot.anisubComicSearchItems = [];
+            shellRoot.anisubComicSearchLoading = true;
+            anisubComicSearchProc.command = ["hyde-shell", "rofi.comic", "feed-search", q];
+            anisubComicSearchProc.running = true;
+        }
+    }
+
+    function anisubWidgetSearchClear(kind) {
+        if (kind === "movie") {
+            anisubMovieSearchProc.running = false;
+            shellRoot.anisubMovieSearchItems = [];
+            shellRoot.anisubMovieSearchLoading = false;
+        } else if (kind === "comic") {
+            anisubComicSearchProc.running = false;
+            shellRoot.anisubComicSearchItems = [];
+            shellRoot.anisubComicSearchLoading = false;
+        }
     }
 
     function anisubWidgetLaunch(tool, arg) {
@@ -359,6 +416,22 @@ ShellRoot {
         stdout: SplitParser {
             onRead: data => shellRoot.parseAnisubComicLine(data)
         }
+    }
+
+    Process {
+        id: anisubMovieSearchProc
+        stdout: SplitParser {
+            onRead: data => shellRoot.parseAnisubMovieSearchLine(data)
+        }
+        onRunningChanged: if (!running) shellRoot.anisubMovieSearchLoading = false
+    }
+
+    Process {
+        id: anisubComicSearchProc
+        stdout: SplitParser {
+            onRead: data => shellRoot.parseAnisubComicSearchLine(data)
+        }
+        onRunningChanged: if (!running) shellRoot.anisubComicSearchLoading = false
     }
 
     Timer {
@@ -2338,7 +2411,7 @@ ShellRoot {
         }
     }
 
-    // ── ANISUB WALLPAPER WIDGET: AniSub Movie — radio-style card (image-15), draggable + resizable like the clock ──
+    // ── ANISUB WALLPAPER WIDGET: AniSub Movie — radio-style card (image-15); drag, resize, search on the widget ──
     Variants {
         model: Quickshell.screens
 
@@ -2358,6 +2431,8 @@ ShellRoot {
             exclusiveZone: 0
             aboveWindows: false
             color: "transparent"
+            // On-demand keyboard so the widget's search box can take typing (never Exclusive)
+            WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
 
             mask: Region {
                 item: movieCard
@@ -2389,7 +2464,8 @@ ShellRoot {
                         }
                     }
 
-                    // Background drag layer (below the face): drag moves the card, a plain click opens AniSub
+                    // Background drag layer (below the face): drag moves the card. Clicks on
+                    // the card are handled by the face (search, play, previous/next).
                     MouseArea {
                         id: movieDragArea
                         anchors.fill: parent
@@ -2406,8 +2482,6 @@ ShellRoot {
                             shellRoot.anisubMovieY = Math.round(movieCard.y);
                             shellRoot.saveAnisubWidgetsConfig();
                         }
-
-                        onClicked: shellRoot.anisubWidgetLaunch("rofi.movie", "")
                     }
 
                     AniSubRadioFace {
@@ -2418,15 +2492,15 @@ ShellRoot {
                         scale: movieCard.sc
                         themePalette: theme
                         headerText: "KKPhim · Phim mới cập nhật"
+                        searchHint: "Tìm phim trên KKPhim…"
                         items: shellRoot.anisubMovieItems
-                        onOpenRequested: index => {
-                            var list = shellRoot.anisubMovieItems;
-                            if (list.length > 0) {
-                                shellRoot.runCmd(["hyde-shell", "rofi.movie", "play", list[index].slug]);
-                            } else {
-                                shellRoot.anisubWidgetLaunch("rofi.movie", "");
-                            }
+                        searchItems: shellRoot.anisubMovieSearchItems
+                        searchLoading: shellRoot.anisubMovieSearchLoading
+                        onOpenRequested: item => {
+                            if (item && item.slug) shellRoot.runCmd(["hyde-shell", "rofi.movie", "play", item.slug]);
                         }
+                        onSearchSubmitted: query => shellRoot.anisubWidgetSearch("movie", query)
+                        onSearchCleared: shellRoot.anisubWidgetSearchClear("movie")
                     }
 
                     // Resize grip (bottom-right): drag to scale the widget freely
@@ -2470,7 +2544,7 @@ ShellRoot {
         }
     }
 
-    // ── ANISUB WALLPAPER WIDGET: AniSub Comic — radio-style card (image-15), draggable + resizable like the clock ──
+    // ── ANISUB WALLPAPER WIDGET: AniSub Comic — radio-style card (image-15); drag, resize, search on the widget ──
     Variants {
         model: Quickshell.screens
 
@@ -2490,6 +2564,8 @@ ShellRoot {
             exclusiveZone: 0
             aboveWindows: false
             color: "transparent"
+            // On-demand keyboard so the widget's search box can take typing (never Exclusive)
+            WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
 
             mask: Region {
                 item: comicCard
@@ -2521,7 +2597,8 @@ ShellRoot {
                         }
                     }
 
-                    // Background drag layer (below the face): drag moves the card, a plain click opens AniSub
+                    // Background drag layer (below the face): drag moves the card. Clicks on
+                    // the card are handled by the face (search, play, previous/next).
                     MouseArea {
                         id: comicDragArea
                         anchors.fill: parent
@@ -2538,8 +2615,6 @@ ShellRoot {
                             shellRoot.anisubComicY = Math.round(comicCard.y);
                             shellRoot.saveAnisubWidgetsConfig();
                         }
-
-                        onClicked: shellRoot.anisubWidgetLaunch("rofi.comic", "")
                     }
 
                     AniSubRadioFace {
@@ -2550,15 +2625,15 @@ ShellRoot {
                         scale: comicCard.sc
                         themePalette: theme
                         headerText: "NetTruyen · Truyện mới cập nhật"
+                        searchHint: "Tìm truyện trên NetTruyen…"
                         items: shellRoot.anisubComicItems
-                        onOpenRequested: index => {
-                            var list = shellRoot.anisubComicItems;
-                            if (list.length > 0) {
-                                shellRoot.runCmd(["hyde-shell", "rofi.comic", "read", list[index].slug]);
-                            } else {
-                                shellRoot.anisubWidgetLaunch("rofi.comic", "");
-                            }
+                        searchItems: shellRoot.anisubComicSearchItems
+                        searchLoading: shellRoot.anisubComicSearchLoading
+                        onOpenRequested: item => {
+                            if (item && item.slug) shellRoot.runCmd(["hyde-shell", "rofi.comic", "read", item.slug]);
                         }
+                        onSearchSubmitted: query => shellRoot.anisubWidgetSearch("comic", query)
+                        onSearchCleared: shellRoot.anisubWidgetSearchClear("comic")
                     }
 
                     // Resize grip (bottom-right): drag to scale the widget freely

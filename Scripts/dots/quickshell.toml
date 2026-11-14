@@ -16,8 +16,7 @@ paths = [
     "LisaGlassIcon.qml",
     "CircleUtilButton.qml",
     "ClippedProgressBar.qml",
-    "AniSubPosterTile.qml",
-    "AniSubComicRow.qml",
+    "AniSubRadioFace.qml",
 ]
 
 [[quickshell.files]]
@@ -31,8 +30,7 @@ paths = [
     "LisaGlassIcon.qml",
     "CircleUtilButton.qml",
     "ClippedProgressBar.qml",
-    "AniSubPosterTile.qml",
-    "AniSubComicRow.qml",
+    "AniSubRadioFace.qml",
     "theme.json",
 ]
 

@@ -25,6 +25,7 @@ class QuickshellBarTest(unittest.TestCase):
             "ClippedProgressBar.qml",
             "theme.json",
             "clock_widget.json",
+            "anisub_widgets.json",
         ):
             file_path = QS_DIR / filename
             share_path = ROOT / "Configs/.local/share/quickshell" / filename
@@ -80,6 +81,13 @@ class QuickshellBarTest(unittest.TestCase):
             "component BarGroup",
             "component CircularResourceRing",
             "component DesktopClockCanvas",
+            "component AniSubPosterTile",
+            "component AniSubComicRow",
+            "anisubMovieWindow",
+            "anisubComicWindow",
+            "anisub_widgets.json",
+            "applyAnisubWidgetsJson",
+            "saveAnisubWidgetsConfig",
             "LisaGlassIcon {",
             "CircleUtilButton {",
             "ClippedProgressBar {",
@@ -120,6 +128,7 @@ class QuickshellBarTest(unittest.TestCase):
             "S|${HOME}/.config/quickshell|shell.qml Colors.qml RoundCorner.qml LisaGlassIcon.qml CircleUtilButton.qml ClippedProgressBar.qml|hyprland",
             restore_psv,
         )
+        self.assertIn("theme.json clock_widget.json anisub_widgets.json", restore_psv)
         self.assertIn("O|${HOME}/.local/share|quickshell|hyprland", restore_psv)
 
     def test_quickshell_manifest_and_autostart(self):

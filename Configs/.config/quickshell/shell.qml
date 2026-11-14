@@ -61,6 +61,20 @@ ShellRoot {
         ? (Quickshell.env("XDG_CONFIG_HOME") + "/quickshell/clock_widget.json")
         : ((Quickshell.env("HOME") || "") + "/.config/quickshell/clock_widget.json")
 
+    // ── AniSub wallpaper widgets (Movie + Comic) state — same drag pattern as the clock ──
+    property bool anisubMovieVisible: true
+    property int anisubMovieX: 72
+    property int anisubMovieY: 348
+    property bool anisubComicVisible: true
+    property int anisubComicX: 72
+    property int anisubComicY: 596
+    property var anisubMovieItems: []
+    property var anisubComicItems: []
+
+    readonly property string anisubWidgetsConfigPath: Quickshell.env("XDG_CONFIG_HOME")
+        ? (Quickshell.env("XDG_CONFIG_HOME") + "/quickshell/anisub_widgets.json")
+        : ((Quickshell.env("HOME") || "") + "/.config/quickshell/anisub_widgets.json")
+
     function runCmd(args) {
         Quickshell.execDetached(args);
     }
@@ -141,6 +155,75 @@ ShellRoot {
             shellRoot.clockConfigPath,
             payload
         ]);
+    }
+
+    function applyAnisubWidgetsJson(raw) {
+        if (!raw) return;
+        try {
+            var d = JSON.parse(raw);
+            if (d.movieVisible !== undefined) shellRoot.anisubMovieVisible = Boolean(d.movieVisible);
+            if (d.movieX !== undefined) shellRoot.anisubMovieX = Math.max(8, Number(d.movieX) || 72);
+            if (d.movieY !== undefined) shellRoot.anisubMovieY = Math.max(48, Number(d.movieY) || 348);
+            if (d.comicVisible !== undefined) shellRoot.anisubComicVisible = Boolean(d.comicVisible);
+            if (d.comicX !== undefined) shellRoot.anisubComicX = Math.max(8, Number(d.comicX) || 72);
+            if (d.comicY !== undefined) shellRoot.anisubComicY = Math.max(48, Number(d.comicY) || 596);
+        } catch (e) {
+            // Ignore malformed JSON during write
+        }
+    }
+
+    function saveAnisubWidgetsConfig() {
+        var payload = JSON.stringify({
+            movieVisible: shellRoot.anisubMovieVisible,
+            movieX: Math.round(shellRoot.anisubMovieX),
+            movieY: Math.round(shellRoot.anisubMovieY),
+            comicVisible: shellRoot.anisubComicVisible,
+            comicX: Math.round(shellRoot.anisubComicX),
+            comicY: Math.round(shellRoot.anisubComicY)
+        }, null, 2);
+        shellRoot.runCmd([
+            "sh", "-c",
+            "mkdir -p \"$(dirname \"$1\")\" && printf '%s\\n' \"$2\" > \"$1\"",
+            "sh",
+            shellRoot.anisubWidgetsConfigPath,
+            payload
+        ]);
+    }
+
+    function parseAnisubMovieLine(line) {
+        if (!line) return;
+        var p = line.trim().split("|");
+        if (p.length < 3 || !p[2]) return;
+        var poster = p[3] || "";
+        if (poster !== "" && poster.indexOf("http") !== 0) {
+            poster = "https://phimimg.com/" + poster.replace(/^\//, "");
+        }
+        shellRoot.anisubMovieItems = shellRoot.anisubMovieItems.concat([{
+            name: p[0] || "Phim",
+            info: p[1] || "",
+            slug: p[2],
+            poster: poster
+        }]).slice(0, 3);
+    }
+
+    function parseAnisubComicLine(line) {
+        if (!line) return;
+        var p = line.trim().split("|");
+        if (p.length < 2 || !p[1]) return;
+        shellRoot.anisubComicItems = shellRoot.anisubComicItems.concat([{
+            name: p[0] || "Truyện",
+            url: p[1],
+            slug: p[2] || "",
+            cover: p[3] || ""
+        }]).slice(0, 3);
+    }
+
+    function anisubWidgetLaunch(tool, arg) {
+        if (arg) {
+            shellRoot.runCmd(["hyde-shell", tool, arg]);
+        } else {
+            shellRoot.runCmd(["hyde-shell", tool]);
+        }
     }
 
     function iconForClass(cls) {
@@ -232,6 +315,51 @@ ShellRoot {
         watchChanges: false
         onLoaded: {
             shellRoot.applyClockConfigJson(text());
+        }
+    }
+
+    // Live anisub_widgets.json load (settings toggles apply without restart)
+    FileView {
+        id: anisubWidgetsFile
+        path: shellRoot.anisubWidgetsConfigPath
+        watchChanges: true
+        onFileChanged: reload()
+        onLoaded: {
+            shellRoot.applyAnisubWidgetsJson(text());
+        }
+    }
+
+    // AniSub wallpaper-widget data feeds (KKPhim rows + NetTruyen rows)
+    Process {
+        id: anisubMovieProc
+        command: ["hyde-shell", "rofi.movie", "feed"]
+        stdout: SplitParser {
+            onRead: data => shellRoot.parseAnisubMovieLine(data)
+        }
+    }
+
+    Process {
+        id: anisubComicProc
+        command: ["hyde-shell", "rofi.comic", "feed"]
+        stdout: SplitParser {
+            onRead: data => shellRoot.parseAnisubComicLine(data)
+        }
+    }
+
+    Timer {
+        interval: 600000
+        running: true
+        repeat: true
+        triggeredOnStart: true
+        onTriggered: {
+            if (shellRoot.anisubMovieVisible) {
+                shellRoot.anisubMovieItems = [];
+                anisubMovieProc.running = true;
+            }
+            if (shellRoot.anisubComicVisible) {
+                shellRoot.anisubComicItems = [];
+                anisubComicProc.running = true;
+            }
         }
     }
 
@@ -517,6 +645,175 @@ ShellRoot {
             color: ringRoot.primaryColor
             font.family: "JetBrainsMono Nerd Font"
             font.pixelSize: 8
+        }
+    }
+
+    // 5.5 AniSub wallpaper-widget building blocks (Movie poster tile + Comic list row)
+    component AniSubPosterTile: Rectangle {
+        id: posterTile
+        property string posterSource: ""
+        property string posterName: ""
+        signal activated()
+        width: 88
+        height: 124
+        radius: 12
+        color: cssRgba(theme.layer2Bg, 0.92)
+        border.width: 2
+        border.color: theme.borderColor
+
+        Image {
+            id: posterImage
+            visible: false
+            anchors.fill: parent
+            source: posterTile.posterSource
+            fillMode: Image.PreserveAspectCrop
+            asynchronous: true
+        }
+
+        Canvas {
+            id: posterCanvas
+            anchors.fill: parent
+            onPaint: {
+                var ctx = getContext("2d");
+                ctx.reset();
+                ctx.save();
+                ctx.beginPath();
+                ctx.roundRect(0, 0, width, height, 12, 12);
+                ctx.clip();
+                if (posterImage.status === Image.Ready && posterTile.posterSource !== "") {
+                    ctx.drawImage(posterImage, 0, 0, width, height);
+                } else {
+                    ctx.fillStyle = cssRgba(theme.accentSecondary, 0.5);
+                    ctx.fillRect(0, 0, width, height);
+                    ctx.fillStyle = cssRgba(theme.mainFg, 0.7);
+                    ctx.font = "26px sans-serif";
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    ctx.fillText("▶", width / 2, height / 2);
+                }
+                ctx.restore();
+            }
+            Connections {
+                target: posterImage
+                function onStatusChanged() {
+                    posterCanvas.requestPaint();
+                }
+            }
+        }
+
+        Rectangle {
+            anchors {
+                left: parent.left
+                right: parent.right
+                bottom: parent.bottom
+                margins: 4
+            }
+            height: 26
+            radius: 8
+            color: cssRgba(theme.barBg, 0.88)
+
+            Text {
+                anchors.fill: parent
+                anchors.margins: 4
+                text: posterTile.posterName
+                color: theme.mainFg
+                font.pixelSize: 8
+                font.bold: true
+                elide: Text.ElideRight
+                maximumLineCount: 2
+                wrapMode: Text.WordWrap
+                verticalAlignment: Text.AlignVCenter
+            }
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: posterTile.activated()
+        }
+    }
+
+    component AniSubComicRow: Rectangle {
+        id: comicRow
+        property string coverSource: ""
+        property string rowName: ""
+        property string rowUrl: ""
+        signal activated()
+        width: 284
+        height: 58
+        radius: 10
+        color: cssRgba(theme.hvrBg, 0.55)
+        border.width: 2
+        border.color: cssRgba(theme.borderColor, 0.75)
+
+        Image {
+            id: coverImage
+            visible: false
+            x: 6
+            y: 6
+            width: 34
+            height: 46
+            source: comicRow.coverSource
+            fillMode: Image.PreserveAspectCrop
+            asynchronous: true
+        }
+
+        Canvas {
+            id: coverCanvas
+            x: 6
+            y: 6
+            width: 34
+            height: 46
+            onPaint: {
+                var ctx = getContext("2d");
+                ctx.reset();
+                ctx.save();
+                ctx.beginPath();
+                ctx.roundRect(0, 0, 34, 46, 6, 6);
+                ctx.clip();
+                if (coverImage.status === Image.Ready && comicRow.coverSource !== "") {
+                    ctx.drawImage(coverImage, 0, 0, 34, 46);
+                } else {
+                    ctx.fillStyle = cssRgba(theme.accentSecondary, 0.5);
+                    ctx.fillRect(0, 0, 34, 46);
+                }
+                ctx.restore();
+            }
+            Connections {
+                target: coverImage
+                function onStatusChanged() {
+                    coverCanvas.requestPaint();
+                }
+            }
+        }
+
+        Text {
+            x: 50
+            y: 10
+            width: 224
+            text: comicRow.rowName
+            color: theme.mainFg
+            font.pixelSize: 11
+            font.bold: true
+            elide: Text.ElideRight
+        }
+
+        Text {
+            x: 50
+            y: 30
+            width: 224
+            text: comicRow.rowUrl
+            color: theme.subFg
+            font.pixelSize: 8
+            elide: Text.ElideMiddle
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: comicRow.activated()
         }
     }
 
@@ -2189,6 +2486,327 @@ ShellRoot {
                                 }
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+
+    // ── ANISUB WALLPAPER WIDGETS — Movie + Comic cards, draggable like the clock ──
+    Variants {
+        model: Quickshell.screens
+
+        PanelWindow {
+            id: anisubMovieWindow
+            required property var modelData
+            screen: modelData
+            visible: shellRoot.anisubMovieVisible
+
+            anchors {
+                top: true
+                bottom: true
+                left: true
+                right: true
+            }
+
+            exclusiveZone: 0
+            aboveWindows: false
+            color: "transparent"
+
+            mask: Region {
+                item: movieCard
+            }
+
+            Item {
+                id: movieSurface
+                anchors.fill: parent
+
+                Rectangle {
+                    id: movieCard
+                    x: shellRoot.anisubMovieX
+                    y: shellRoot.anisubMovieY
+                    width: 320
+                    height: 188
+                    radius: 18
+                    color: cssRgba(theme.barBg, 0.97)
+                    border.width: 3
+                    border.color: theme.borderColor
+
+                    Connections {
+                        target: shellRoot
+                        function onAnisubMovieXChanged() {
+                            if (!movieDragArea.pressed) movieCard.x = shellRoot.anisubMovieX;
+                        }
+                        function onAnisubMovieYChanged() {
+                            if (!movieDragArea.pressed) movieCard.y = shellRoot.anisubMovieY;
+                        }
+                    }
+
+                    // Drag anywhere on the card background; click opens AniSub Movie
+                    MouseArea {
+                        id: movieDragArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+                        drag.target: movieCard
+                        drag.axis: Drag.XAndYAxis
+                        drag.minimumX: 12
+                        drag.maximumX: Math.max(12, movieSurface.width - movieCard.width - 12)
+                        drag.minimumY: 52
+                        drag.maximumY: Math.max(52, movieSurface.height - movieCard.height - 12)
+
+                        onReleased: {
+                            shellRoot.anisubMovieX = Math.round(movieCard.x);
+                            shellRoot.anisubMovieY = Math.round(movieCard.y);
+                            shellRoot.saveAnisubWidgetsConfig();
+                        }
+
+                        onClicked: shellRoot.anisubWidgetLaunch("rofi.movie", "");
+                    }
+
+                    Row {
+                        anchors {
+                            top: parent.top
+                            left: parent.left
+                            right: parent.right
+                            topMargin: 12
+                            leftMargin: 14
+                            rightMargin: 14
+                        }
+                        spacing: 10
+
+                        Text {
+                            text: "✳"
+                            color: theme.glowColor
+                            font.pixelSize: 16
+                            font.bold: true
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+
+                        Text {
+                            text: "AniSub Movie"
+                            color: theme.mainFg
+                            font.pixelSize: 13
+                            font.bold: true
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+
+                        Item { width: 6; height: 1 }
+
+                        Rectangle {
+                            height: 20
+                            width: movieChip.implicitWidth + 14
+                            radius: 10
+                            color: theme.mainFg
+                            anchors.verticalCenter: parent.verticalCenter
+
+                            Text {
+                                id: movieChip
+                                anchors.centerIn: parent
+                                text: "KKPhim"
+                                color: theme.barBg
+                                font.pixelSize: 8
+                                font.bold: true
+                            }
+                        }
+                    }
+
+                    Row {
+                        anchors {
+                            top: parent.top
+                            topMargin: 46
+                            horizontalCenter: parent.horizontalCenter
+                        }
+                        spacing: 10
+
+                        Repeater {
+                            model: shellRoot.anisubMovieItems.length > 0 ? shellRoot.anisubMovieItems : 3
+
+                            AniSubPosterTile {
+                                posterSource: shellRoot.anisubMovieItems.length > 0 ? modelData.poster : ""
+                                posterName: shellRoot.anisubMovieItems.length > 0 ? modelData.name : "…"
+                                onActivated: {
+                                    if (shellRoot.anisubMovieItems.length > 0) {
+                                        shellRoot.runCmd(["hyde-shell", "rofi.movie", "play", modelData.slug]);
+                                    } else {
+                                        shellRoot.anisubWidgetLaunch("rofi.movie", "");
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Text {
+                        anchors {
+                            bottom: parent.bottom
+                            left: parent.left
+                            margins: 12
+                        }
+                        text: shellRoot.anisubMovieItems.length > 0
+                            ? (shellRoot.anisubMovieItems[0].info || "Phim mới · KKPhim")
+                            : "Đang tải phim mới…"
+                        color: theme.subFg
+                        font.pixelSize: 8
+                    }
+                }
+            }
+        }
+    }
+
+    Variants {
+        model: Quickshell.screens
+
+        PanelWindow {
+            id: anisubComicWindow
+            required property var modelData
+            screen: modelData
+            visible: shellRoot.anisubComicVisible
+
+            anchors {
+                top: true
+                bottom: true
+                left: true
+                right: true
+            }
+
+            exclusiveZone: 0
+            aboveWindows: false
+            color: "transparent"
+
+            mask: Region {
+                item: comicCard
+            }
+
+            Item {
+                id: comicSurface
+                anchors.fill: parent
+
+                Rectangle {
+                    id: comicCard
+                    x: shellRoot.anisubComicX
+                    y: shellRoot.anisubComicY
+                    width: 320
+                    height: 248
+                    radius: 18
+                    color: cssRgba(theme.barBg, 0.97)
+                    border.width: 3
+                    border.color: theme.borderColor
+
+                    Connections {
+                        target: shellRoot
+                        function onAnisubComicXChanged() {
+                            if (!comicDragArea.pressed) comicCard.x = shellRoot.anisubComicX;
+                        }
+                        function onAnisubComicYChanged() {
+                            if (!comicDragArea.pressed) comicCard.y = shellRoot.anisubComicY;
+                        }
+                    }
+
+                    MouseArea {
+                        id: comicDragArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+                        drag.target: comicCard
+                        drag.axis: Drag.XAndYAxis
+                        drag.minimumX: 12
+                        drag.maximumX: Math.max(12, comicSurface.width - comicCard.width - 12)
+                        drag.minimumY: 52
+                        drag.maximumY: Math.max(52, comicSurface.height - comicCard.height - 12)
+
+                        onReleased: {
+                            shellRoot.anisubComicX = Math.round(comicCard.x);
+                            shellRoot.anisubComicY = Math.round(comicCard.y);
+                            shellRoot.saveAnisubWidgetsConfig();
+                        }
+
+                        onClicked: shellRoot.anisubWidgetLaunch("rofi.comic", "");
+                    }
+
+                    Row {
+                        anchors {
+                            top: parent.top
+                            left: parent.left
+                            right: parent.right
+                            topMargin: 12
+                            leftMargin: 14
+                            rightMargin: 14
+                        }
+                        spacing: 10
+
+                        Text {
+                            text: "✳"
+                            color: theme.glowColor
+                            font.pixelSize: 16
+                            font.bold: true
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+
+                        Text {
+                            text: "AniSub Comic"
+                            color: theme.mainFg
+                            font.pixelSize: 13
+                            font.bold: true
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+
+                        Item { width: 6; height: 1 }
+
+                        Rectangle {
+                            height: 20
+                            width: comicChip.implicitWidth + 14
+                            radius: 10
+                            color: theme.mainFg
+                            anchors.verticalCenter: parent.verticalCenter
+
+                            Text {
+                                id: comicChip
+                                anchors.centerIn: parent
+                                text: "NetTruyen"
+                                color: theme.barBg
+                                font.pixelSize: 8
+                                font.bold: true
+                            }
+                        }
+                    }
+
+                    Column {
+                        anchors {
+                            top: parent.top
+                            topMargin: 44
+                            horizontalCenter: parent.horizontalCenter
+                        }
+                        spacing: 8
+
+                        Repeater {
+                            model: shellRoot.anisubComicItems.length > 0 ? shellRoot.anisubComicItems : 3
+
+                            AniSubComicRow {
+                                coverSource: shellRoot.anisubComicItems.length > 0 ? modelData.cover : ""
+                                rowName: shellRoot.anisubComicItems.length > 0 ? modelData.name : "…"
+                                rowUrl: shellRoot.anisubComicItems.length > 0 ? modelData.url : "nettruyen.info"
+                                onActivated: {
+                                    if (shellRoot.anisubComicItems.length > 0) {
+                                        shellRoot.runCmd(["hyde-shell", "rofi.comic", "read", modelData.slug]);
+                                    } else {
+                                        shellRoot.anisubWidgetLaunch("rofi.comic", "");
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Text {
+                        anchors {
+                            bottom: parent.bottom
+                            left: parent.left
+                            margins: 12
+                        }
+                        text: shellRoot.anisubComicItems.length > 0
+                            ? "Truyện mới · NetTruyen"
+                            : "Đang tải truyện mới…"
+                        color: theme.subFg
+                        font.pixelSize: 8
                     }
                 }
             }

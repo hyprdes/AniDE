@@ -173,6 +173,9 @@ ensure_config() {
         if [[ -f "${src_dir}/clock_widget.json" && ! -f "${QS_CONFIG_DIR}/clock_widget.json" ]]; then
             cp -f "${src_dir}/clock_widget.json" "${QS_CONFIG_DIR}/clock_widget.json" 2>/dev/null || true
         fi
+        if [[ -f "${src_dir}/anisub_widgets.json" && ! -f "${QS_CONFIG_DIR}/anisub_widgets.json" ]]; then
+            cp -f "${src_dir}/anisub_widgets.json" "${QS_CONFIG_DIR}/anisub_widgets.json" 2>/dev/null || true
+        fi
     fi
     sync_wallpaper_theme
 }

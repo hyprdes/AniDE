@@ -2,7 +2,7 @@
 # @name: rofi.comic
 # @ver: 1.0.0
 # @short: Read NetTruyen comics from Rofi
-# @usage: hyde-shell rofi.comic [search|read|history|settings|diagnose] [args]
+# @usage: hyde-shell rofi.comic [search|read|history|settings|diagnose|feed] [args]
 # @global.flag: -h,--help | Show this help message
 # @cmd: search
 # @cmd.alias: s
@@ -85,7 +85,7 @@ comic_fetch() {
 
 # name|url|slug rows from a story-list page (home / search / genre).
 comic_parse_items() {
-    COMIC_BASE_URL="${COMIC_BASE_URL}" python3 - << 'PYEOF'
+    COMIC_BASE_URL="${COMIC_BASE_URL}" python3 /dev/fd/3 3<< 'PYEOF'
 import html as htmlmod
 import os
 import re
@@ -148,7 +148,7 @@ PYEOF
 # name|url|number rows from a story page (chapter list, sorted old -> new).
 comic_parse_chapters() {
     local route="$1"
-    COMIC_BASE_URL="${COMIC_BASE_URL}" NT_ROUTE="${route}" python3 - << 'PYEOF'
+    COMIC_BASE_URL="${COMIC_BASE_URL}" NT_ROUTE="${route}" python3 /dev/fd/3 3<< 'PYEOF'
 import html as htmlmod
 import os
 import re
@@ -184,7 +184,7 @@ PYEOF
 
 # image URL rows from a chapter page (page_<i> pattern first, then imgchapter).
 comic_parse_images() {
-    COMIC_IMAGE_HOST="${COMIC_IMAGE_HOST}" python3 - << 'PYEOF'
+    COMIC_IMAGE_HOST="${COMIC_IMAGE_HOST}" python3 /dev/fd/3 3<< 'PYEOF'
 import os
 import re
 import sys
@@ -422,6 +422,10 @@ case "${1:-search}" in
     read) comic_read "${2:-}" ;;
     history) comic_history ;;
     settings) comic_settings ;;
+    feed)
+        # Machine-readable wallpaper-widget feed: name|url|slug|cover
+        comic_fetch "${COMIC_BASE_URL}/" | comic_parse_items | head -n "${COMIC_FEED_LIMIT:-6}"
+        ;;
     diagnose) comic_diagnose ;;
     -h|--help|help) grep -E '^# @(usage|cmd)' "$0" | sed 's/^# @/  /' ;;
     *) comic_search "${1:-}" ;;

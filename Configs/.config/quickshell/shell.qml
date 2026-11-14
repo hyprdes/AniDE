@@ -68,8 +68,10 @@ ShellRoot {
     property bool anisubComicVisible: true
     property int anisubComicX: 72
     property int anisubComicY: 596
-    property real anisubMovieScale: 1.0
-    property real anisubComicScale: 1.0
+    property real anisubMovieW: 300
+    property real anisubMovieH: 440
+    property real anisubComicW: 300
+    property real anisubComicH: 440
     property var anisubMovieItems: []
     property var anisubComicItems: []
     property var anisubMovieSearchItems: []
@@ -173,18 +175,26 @@ ShellRoot {
             if (d.comicVisible !== undefined) shellRoot.anisubComicVisible = Boolean(d.comicVisible);
             if (d.comicX !== undefined) shellRoot.anisubComicX = Math.max(8, Number(d.comicX) || 72);
             if (d.comicY !== undefined) shellRoot.anisubComicY = Math.max(48, Number(d.comicY) || 596);
-            if (d.movieScale !== undefined) shellRoot.anisubMovieScale = shellRoot.clampAnisubScale(d.movieScale);
-            if (d.comicScale !== undefined) shellRoot.anisubComicScale = shellRoot.clampAnisubScale(d.comicScale);
+            if (d.movieW !== undefined) shellRoot.anisubMovieW = shellRoot.clampAnisubW(d.movieW);
+            if (d.movieH !== undefined) shellRoot.anisubMovieH = shellRoot.clampAnisubH(d.movieH);
+            if (d.comicW !== undefined) shellRoot.anisubComicW = shellRoot.clampAnisubW(d.comicW);
+            if (d.comicH !== undefined) shellRoot.anisubComicH = shellRoot.clampAnisubH(d.comicH);
         } catch (e) {
             // Ignore malformed JSON during write
         }
     }
 
-    // Free resize range for the wallpaper widgets (design units x scale)
-    function clampAnisubScale(v) {
+    // Free resize range for the wallpaper widgets, in pixels (width and height separately)
+    function clampAnisubW(v) {
         var n = Number(v);
-        if (!(n > 0)) n = 1.0;
-        return Math.max(0.6, Math.min(2.2, n));
+        if (!(n > 0)) n = 300;
+        return Math.max(200, Math.min(720, Math.round(n)));
+    }
+
+    function clampAnisubH(v) {
+        var n = Number(v);
+        if (!(n > 0)) n = 440;
+        return Math.max(240, Math.min(900, Math.round(n)));
     }
 
     function saveAnisubWidgetsConfig() {
@@ -195,8 +205,10 @@ ShellRoot {
             comicVisible: shellRoot.anisubComicVisible,
             comicX: Math.round(shellRoot.anisubComicX),
             comicY: Math.round(shellRoot.anisubComicY),
-            movieScale: Math.round(shellRoot.anisubMovieScale * 100) / 100,
-            comicScale: Math.round(shellRoot.anisubComicScale * 100) / 100
+            movieW: Math.round(shellRoot.anisubMovieW),
+            movieH: Math.round(shellRoot.anisubMovieH),
+            comicW: Math.round(shellRoot.anisubComicW),
+            comicH: Math.round(shellRoot.anisubComicH)
         }, null, 2);
         shellRoot.runCmd([
             "sh", "-c",
@@ -2411,7 +2423,7 @@ ShellRoot {
         }
     }
 
-    // ── ANISUB WALLPAPER WIDGET: AniSub Movie — radio-style card (image-15); drag, resize, search on the widget ──
+    // ── ANISUB WALLPAPER WIDGET: AniSub Movie — poster-first card; drag, free resize (width and height), search on the widget ──
     Variants {
         model: Quickshell.screens
 
@@ -2446,9 +2458,8 @@ ShellRoot {
                     id: movieCard
                     x: shellRoot.anisubMovieX
                     y: shellRoot.anisubMovieY
-                    property real sc: shellRoot.anisubMovieScale
-                    width: 280 * sc
-                    height: 320 * sc
+                    width: shellRoot.anisubMovieW
+                    height: shellRoot.anisubMovieH
                     color: "transparent"
 
                     Connections {
@@ -2459,13 +2470,16 @@ ShellRoot {
                         function onAnisubMovieYChanged() {
                             if (!movieDragArea.pressed) movieCard.y = shellRoot.anisubMovieY;
                         }
-                        function onAnisubMovieScaleChanged() {
-                            if (!movieGripArea.pressed) movieCard.sc = shellRoot.anisubMovieScale;
+                        function onAnisubMovieWChanged() {
+                            if (!movieGripArea.pressed) movieCard.width = shellRoot.anisubMovieW;
+                        }
+                        function onAnisubMovieHChanged() {
+                            if (!movieGripArea.pressed) movieCard.height = shellRoot.anisubMovieH;
                         }
                     }
 
                     // Background drag layer (below the face): drag moves the card. Clicks on
-                    // the card are handled by the face (search, play, previous/next).
+                    // the card are handled by the face (search, open, previous/next).
                     MouseArea {
                         id: movieDragArea
                         anchors.fill: parent
@@ -2484,12 +2498,9 @@ ShellRoot {
                         }
                     }
 
-                    AniSubRadioFace {
+                    AniSubWidgetFace {
                         id: movieFace
-                        x: 0
-                        y: 0
-                        transformOrigin: Item.TopLeft
-                        scale: movieCard.sc
+                        anchors.fill: parent
                         themePalette: theme
                         headerText: "KKPhim · Phim mới cập nhật"
                         searchHint: "Tìm phim trên KKPhim…"
@@ -2503,38 +2514,46 @@ ShellRoot {
                         onSearchCleared: shellRoot.anisubWidgetSearchClear("movie")
                     }
 
-                    // Resize grip (bottom-right): drag to scale the widget freely
+                    // Resize grip (bottom-right): drag changes width and height independently
                     Rectangle {
                         id: movieGrip
-                        x: movieCard.width - width
-                        y: movieCard.height - height
-                        width: 24
-                        height: 24
+                        x: movieCard.width - width - 4
+                        y: movieCard.height - height - 4
+                        width: 22
+                        height: 22
                         radius: 8
                         color: Qt.rgba(1, 1, 1, 0.55)
 
                         MouseArea {
                             id: movieGripArea
-                            property real gripOffset: 0
+                            property real startX: 0
+                            property real startY: 0
+                            property real startW: 0
+                            property real startH: 0
                             anchors.fill: parent
                             cursorShape: Qt.SizeFDiagCursor
                             preventStealing: true
 
                             onPressed: mouse => {
                                 var p = mapToItem(movieSurface, mouse.x, mouse.y);
-                                gripOffset = (movieCard.x + movieCard.width) - p.x;
+                                startX = p.x;
+                                startY = p.y;
+                                startW = movieCard.width;
+                                startH = movieCard.height;
                             }
 
                             onPositionChanged: mouse => {
                                 if (!movieGripArea.pressed) return;
                                 var p = mapToItem(movieSurface, mouse.x, mouse.y);
-                                var w = p.x + gripOffset - movieCard.x;
-                                var maxW = movieSurface.width - movieCard.x - 8;
-                                movieCard.sc = Math.max(0.6, Math.min(2.2, w / 280, maxW / 280));
+                                var maxW = Math.max(200, movieSurface.width - movieCard.x - 8);
+                                var maxH = Math.max(240, movieSurface.height - movieCard.y - 8);
+                                movieCard.width = Math.max(200, Math.min(720, maxW, startW + (p.x - startX)));
+                                movieCard.height = Math.max(240, Math.min(900, maxH, startH + (p.y - startY)));
                             }
 
                             onReleased: {
-                                shellRoot.anisubMovieScale = Math.round(movieCard.sc * 100) / 100;
+                                shellRoot.anisubMovieW = Math.round(movieCard.width);
+                                shellRoot.anisubMovieH = Math.round(movieCard.height);
                                 shellRoot.saveAnisubWidgetsConfig();
                             }
                         }
@@ -2544,7 +2563,7 @@ ShellRoot {
         }
     }
 
-    // ── ANISUB WALLPAPER WIDGET: AniSub Comic — radio-style card (image-15); drag, resize, search on the widget ──
+    // ── ANISUB WALLPAPER WIDGET: AniSub Comic — poster-first card; drag, free resize (width and height), search on the widget ──
     Variants {
         model: Quickshell.screens
 
@@ -2579,9 +2598,8 @@ ShellRoot {
                     id: comicCard
                     x: shellRoot.anisubComicX
                     y: shellRoot.anisubComicY
-                    property real sc: shellRoot.anisubComicScale
-                    width: 280 * sc
-                    height: 320 * sc
+                    width: shellRoot.anisubComicW
+                    height: shellRoot.anisubComicH
                     color: "transparent"
 
                     Connections {
@@ -2592,13 +2610,16 @@ ShellRoot {
                         function onAnisubComicYChanged() {
                             if (!comicDragArea.pressed) comicCard.y = shellRoot.anisubComicY;
                         }
-                        function onAnisubComicScaleChanged() {
-                            if (!comicGripArea.pressed) comicCard.sc = shellRoot.anisubComicScale;
+                        function onAnisubComicWChanged() {
+                            if (!comicGripArea.pressed) comicCard.width = shellRoot.anisubComicW;
+                        }
+                        function onAnisubComicHChanged() {
+                            if (!comicGripArea.pressed) comicCard.height = shellRoot.anisubComicH;
                         }
                     }
 
                     // Background drag layer (below the face): drag moves the card. Clicks on
-                    // the card are handled by the face (search, play, previous/next).
+                    // the card are handled by the face (search, open, previous/next).
                     MouseArea {
                         id: comicDragArea
                         anchors.fill: parent
@@ -2617,12 +2638,9 @@ ShellRoot {
                         }
                     }
 
-                    AniSubRadioFace {
+                    AniSubWidgetFace {
                         id: comicFace
-                        x: 0
-                        y: 0
-                        transformOrigin: Item.TopLeft
-                        scale: comicCard.sc
+                        anchors.fill: parent
                         themePalette: theme
                         headerText: "NetTruyen · Truyện mới cập nhật"
                         searchHint: "Tìm truyện trên NetTruyen…"
@@ -2636,38 +2654,46 @@ ShellRoot {
                         onSearchCleared: shellRoot.anisubWidgetSearchClear("comic")
                     }
 
-                    // Resize grip (bottom-right): drag to scale the widget freely
+                    // Resize grip (bottom-right): drag changes width and height independently
                     Rectangle {
                         id: comicGrip
-                        x: comicCard.width - width
-                        y: comicCard.height - height
-                        width: 24
-                        height: 24
+                        x: comicCard.width - width - 4
+                        y: comicCard.height - height - 4
+                        width: 22
+                        height: 22
                         radius: 8
                         color: Qt.rgba(1, 1, 1, 0.55)
 
                         MouseArea {
                             id: comicGripArea
-                            property real gripOffset: 0
+                            property real startX: 0
+                            property real startY: 0
+                            property real startW: 0
+                            property real startH: 0
                             anchors.fill: parent
                             cursorShape: Qt.SizeFDiagCursor
                             preventStealing: true
 
                             onPressed: mouse => {
                                 var p = mapToItem(comicSurface, mouse.x, mouse.y);
-                                gripOffset = (comicCard.x + comicCard.width) - p.x;
+                                startX = p.x;
+                                startY = p.y;
+                                startW = comicCard.width;
+                                startH = comicCard.height;
                             }
 
                             onPositionChanged: mouse => {
                                 if (!comicGripArea.pressed) return;
                                 var p = mapToItem(comicSurface, mouse.x, mouse.y);
-                                var w = p.x + gripOffset - comicCard.x;
-                                var maxW = comicSurface.width - comicCard.x - 8;
-                                comicCard.sc = Math.max(0.6, Math.min(2.2, w / 280, maxW / 280));
+                                var maxW = Math.max(200, comicSurface.width - comicCard.x - 8);
+                                var maxH = Math.max(240, comicSurface.height - comicCard.y - 8);
+                                comicCard.width = Math.max(200, Math.min(720, maxW, startW + (p.x - startX)));
+                                comicCard.height = Math.max(240, Math.min(900, maxH, startH + (p.y - startY)));
                             }
 
                             onReleased: {
-                                shellRoot.anisubComicScale = Math.round(comicCard.sc * 100) / 100;
+                                shellRoot.anisubComicW = Math.round(comicCard.width);
+                                shellRoot.anisubComicH = Math.round(comicCard.height);
                                 shellRoot.saveAnisubWidgetsConfig();
                             }
                         }

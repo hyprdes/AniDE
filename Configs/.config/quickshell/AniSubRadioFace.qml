@@ -1,9 +1,13 @@
 // AniSub wallpaper-widget face (Movie + Comic) — radio-style card from image-15.
 // Design units 280 x 320; the parent scales it freely (resize grip), so every
 // size here is in design units. Layout:
-//   white display  : small header, big title, info line, current thumbnail on the edge
-//   dial ruler     : one tick per feed item, red needle = current item
+//   white display  : header (or search box), big title, info line, current thumbnail on the edge
+//   dial ruler     : one tick per shown item, red needle = current item
 //   transport      : previous / open current item / next
+// Search happens on the widget itself: the magnifier opens a search box; Enter
+// sends the keyword to the parent (searchSubmitted) and the parent feeds the
+// results back through searchItems / searchLoading. Escape or the magnifier
+// closes it and returns to the feed.
 // File-based component (same pattern as LisaGlassIcon) so it resolves inside
 // Repeater / Variants templates. Colors come in as themePalette (theme.xxx).
 // GPL-3.0-or-later; see CREDITS.md.
@@ -17,10 +21,17 @@ Item {
     property var themePalette: null
     property string headerText: ""
     property string placeholderText: "Đang tải…"
+    property string searchHint: "Tìm kiếm…"
     property var items: []
+    property var searchItems: []
+    property bool searchLoading: false
+    property bool searchActive: false
+    property string searchQuery: ""
     property int currentIndex: 0
 
-    signal openRequested(int index)
+    signal openRequested(var item)
+    signal searchSubmitted(string query)
+    signal searchCleared()
 
     readonly property color cBlue: themePalette ? themePalette.mainFg : "#2434e0"
     readonly property color cWhite: themePalette ? themePalette.surfaceBg : "#ffffff"
@@ -30,10 +41,13 @@ Item {
     readonly property color cPale: themePalette ? themePalette.accentSecondary : "#c9d2f7"
     readonly property color cButton: Qt.lighter(cBlue, 1.25)
 
-    readonly property int count: items.length > 0 ? items.length : 1
-    readonly property var current: items.length > 0 ? items[Math.min(currentIndex, items.length - 1)] : null
+    // Results replace the feed while a search is submitted
+    readonly property bool showingResults: searchActive && searchQuery !== ""
+    readonly property var shownItems: showingResults ? searchItems : items
+    readonly property int count: shownItems.length > 0 ? shownItems.length : 1
+    readonly property var current: shownItems.length > 0 ? shownItems[Math.min(currentIndex, shownItems.length - 1)] : null
 
-    onItemsChanged: currentIndex = Math.max(0, Math.min(currentIndex, items.length - 1))
+    onShownItemsChanged: currentIndex = Math.max(0, Math.min(currentIndex, shownItems.length - 1))
 
     function rgbaStr(c, a) {
         return "rgba(" + Math.round(c.r * 255) + "," + Math.round(c.g * 255) + ","
@@ -53,6 +67,27 @@ Item {
         ctx.lineTo(x, y + r);
         ctx.arcTo(x, y, x + r, y, r);
         ctx.closePath();
+    }
+
+    function beginSearch() {
+        searchActive = true;
+        searchInput.forceActiveFocus();
+    }
+
+    function endSearch() {
+        searchActive = false;
+        searchQuery = "";
+        searchInput.text = "";
+        currentIndex = 0;
+        searchCleared();
+    }
+
+    function submitSearch() {
+        var q = searchInput.text.trim();
+        if (q.length < 2) return;
+        searchQuery = q;
+        currentIndex = 0;
+        searchSubmitted(q);
     }
 
     // Body: pale-cobalt wallpaper-synced card, no gradient
@@ -80,7 +115,8 @@ Item {
         id: header
         x: 16
         y: 22
-        width: face.width - 32
+        width: face.width - 72
+        visible: !face.searchActive
         horizontalAlignment: Text.AlignHCenter
         elide: Text.ElideRight
         text: face.headerText
@@ -88,34 +124,95 @@ Item {
         font.pixelSize: 11
     }
 
-    Text {
-        id: title
-        x: 16
-        y: 54
-        width: face.width - 32
-        height: 36
-        horizontalAlignment: Text.AlignHCenter
-        verticalAlignment: Text.AlignVCenter
-        elide: Text.ElideRight
-        text: face.current ? face.current.name : face.placeholderText
-        color: face.cBlue
-        font.pixelSize: 22
-        font.bold: true
+    // Search box (on the widget): visible while searching
+    Rectangle {
+        id: searchField
+        x: 12
+        y: 12
+        width: face.width - 66
+        height: 30
+        radius: 15
+        visible: face.searchActive
+        color: Qt.rgba(face.cPale.r, face.cPale.g, face.cPale.b, 0.55)
+        border.width: 1
+        border.color: face.cBorder
+
+        TextInput {
+            id: searchInput
+            anchors.fill: parent
+            anchors.leftMargin: 12
+            anchors.rightMargin: 12
+            verticalAlignment: TextInput.AlignVCenter
+            font.pixelSize: 12
+            color: face.cBlue
+            selectByMouse: true
+            clip: true
+            onAccepted: face.submitSearch()
+            Keys.onEscapePressed: face.endSearch()
+        }
+
+        Text {
+            anchors.fill: parent
+            anchors.leftMargin: 12
+            verticalAlignment: Text.AlignVCenter
+            visible: searchInput.text === ""
+            text: face.searchHint
+            color: Qt.rgba(face.cBlue.r, face.cBlue.g, face.cBlue.b, 0.5)
+            font.pixelSize: 12
+        }
     }
 
-    Text {
-        id: info
-        x: 16
-        y: 96
-        width: face.width - 32
-        horizontalAlignment: Text.AlignHCenter
-        elide: Text.ElideRight
-        text: face.current ? (face.current.info || "") : ""
-        color: face.cGray
-        font.pixelSize: 12
+    // Magnifier (opens search) / cross (closes it)
+    Rectangle {
+        id: searchButton
+        x: face.width - 42
+        y: 12
+        width: 30
+        height: 30
+        radius: 15
+        color: searchButtonArea.pressed ? Qt.lighter(face.cBlue, 1.5) : face.cButton
+
+        Canvas {
+            id: searchIcon
+            anchors.fill: parent
+            onPaint: {
+                var ctx = getContext("2d");
+                ctx.reset();
+                var s = Math.min(width, height) * 0.2;
+                var cx = width / 2;
+                var cy = height / 2;
+                ctx.strokeStyle = face.rgbaStr(face.cWhite, 1);
+                ctx.lineWidth = Math.max(1.5, s * 0.45);
+                ctx.lineCap = "round";
+                ctx.beginPath();
+                if (face.searchActive) {
+                    ctx.moveTo(cx - s, cy - s);
+                    ctx.lineTo(cx + s, cy + s);
+                    ctx.moveTo(cx + s, cy - s);
+                    ctx.lineTo(cx - s, cy + s);
+                } else {
+                    ctx.arc(cx - 0.3 * s, cy - 0.3 * s, 1.2 * s, 0, 2 * Math.PI);
+                    ctx.moveTo(cx + 0.7 * s, cy + 0.7 * s);
+                    ctx.lineTo(cx + 1.6 * s, cy + 1.6 * s);
+                }
+                ctx.stroke();
+            }
+            onWidthChanged: requestPaint()
+            onHeightChanged: requestPaint()
+            Component.onCompleted: requestPaint()
+            Connections {
+                target: face
+                function onSearchActiveChanged() { searchIcon.requestPaint(); }
+            }
+        }
+
+        MouseArea {
+            id: searchButtonArea
+            anchors.fill: parent
+            onClicked: face.searchActive ? face.endSearch() : face.beginSearch()
+        }
     }
 
-    // Current item thumbnail sitting on the white/blue edge (image-15 mascot slot)
     Rectangle {
         id: thumb
         x: (face.width - width) / 2
@@ -165,6 +262,47 @@ Item {
         }
     }
 
+    // Title + info (search states are spelled out here)
+    Text {
+        id: title
+        x: 16
+        y: 54
+        width: face.width - 32
+        height: 36
+        horizontalAlignment: Text.AlignHCenter
+        verticalAlignment: Text.AlignVCenter
+        elide: Text.ElideRight
+        text: {
+            if (face.showingResults) {
+                if (face.searchLoading && face.searchItems.length === 0) return "Đang tìm…";
+                if (face.searchItems.length === 0) return "Không có kết quả";
+            }
+            return face.current ? face.current.name : face.placeholderText;
+        }
+        color: face.cBlue
+        font.pixelSize: 22
+        font.bold: true
+    }
+
+    Text {
+        id: info
+        x: 16
+        y: 96
+        width: face.width - 32
+        horizontalAlignment: Text.AlignHCenter
+        elide: Text.ElideRight
+        text: {
+            if (face.showingResults) {
+                if (face.searchLoading) return "Đang tìm “" + face.searchQuery + "”…";
+                return face.searchItems.length + " kết quả cho “" + face.searchQuery + "”";
+            }
+            if (face.searchActive) return "Nhập ít nhất 2 ký tự, nhấn Enter để tìm";
+            return face.current ? (face.current.info || "") : "";
+        }
+        color: face.cGray
+        font.pixelSize: 12
+    }
+
     // Dial ruler: track pans so the current item sits under the needle
     Item {
         id: rulerClip
@@ -208,7 +346,7 @@ Item {
                     y: 26
                     width: 30
                     horizontalAlignment: Text.AlignHCenter
-                    text: face.items.length > 0 ? String(index + 1) : "–"
+                    text: face.shownItems.length > 0 ? String(index + 1) : "–"
                     color: Qt.rgba(1, 1, 1, index === face.currentIndex ? 1.0 : 0.55)
                     font.pixelSize: index === face.currentIndex ? 11 : 9
                     font.bold: index === face.currentIndex
@@ -300,7 +438,7 @@ Item {
         MouseArea {
             id: playArea
             anchors.fill: parent
-            onClicked: face.openRequested(face.currentIndex)
+            onClicked: face.openRequested(face.current)
         }
     }
 

@@ -2,7 +2,7 @@
 # @name: rofi.movie
 # @ver: 1.1.0
 # @short: Watch KKPhim movies from Rofi
-# @usage: hyde-shell rofi.movie [search|browse|recent|history|play|link|open|settings|diagnose|feed] [args]
+# @usage: hyde-shell rofi.movie [search|browse|recent|history|play|link|open|settings|diagnose|feed|feed-search] [args]
 # @global.flag: -h,--help | Show this help message
 # @cmd: search
 # @cmd.alias: s
@@ -2119,6 +2119,7 @@ Commands:
   browse [category]       Browse categories, genres and countries by page
   recent                  Latest updates on KKPhim
   feed [category] [page]  Machine-readable rows (name|info|slug|poster|type) for the wallpaper widget
+  feed-search <keyword>   Same rows for a KKPhim search (wallpaper widget search box)
   history                 Continue watching (local history)
   play <slug>             Play a movie slug
   link <slug> [episode]   Print the HLS link of an episode instead of playing
@@ -2157,6 +2158,14 @@ main() {
         browse | b) movie_browse "${1:-}" "${2:-}" "${3:-}" ;;
         recent | r) movie_recent ;;
         history) movie_history_menu ;;
+        # Wallpaper widget (machine-readable, never opens rofi): name+year|info|slug|poster|type
+        feed)
+            movie_list_json "${1:-phim-moi-cap-nhat}" "${2:-1}" "" "" | movie_rows | head -n "${ROFI_MOVIE_FEED_LIMIT:-6}"
+            ;;
+        feed-search)
+            # Widget search: same rows for a keyword; empty output for keywords under 2 characters
+            movie_search_json "${1:-}" 1 | movie_rows | head -n "${ROFI_MOVIE_FEED_LIMIT:-6}"
+            ;;
         play)
             if [[ -z ${1:-} ]]; then
                 printf 'Usage: hyde-shell rofi.movie play <slug>\n' >&2

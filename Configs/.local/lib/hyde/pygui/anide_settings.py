@@ -1,23 +1,27 @@
 #!/usr/bin/env python3
 """AniDE Settings: a lightweight front door to the existing desktop tools.
 
-UI follows the glass window mockup (image-12): a frameless dark glass panel
-with a pill header, cascading sidebar buttons, a chamfered hero preview with
-a toggle, and a chamfered profile card. Original implementation inspired by
-the settings UX of SekaiPop and end-4/dots-hyprland. GPL-3.0-or-later; see
-CREDITS.md.
+UI follows the image-14 dashboard mockup: a bold white-framed dark window,
+white pill top bar, left rail with the bottom dot, grey media tiles with
+image glyphs and white "Open" pills, a skeleton-lines panel and a card
+stack. Colors sync with the wallpaper through the HyDE wallbash palette
+(~/.cache/hyde/wall.dcol, wallbash/shell-colors) and the wallpaper image.
+Original implementation inspired by the settings UX of SekaiPop and
+end-4/dots-hyprland. GPL-3.0-or-later; see CREDITS.md.
 """
-import getpass
 import os
 from pathlib import Path
 import re
 import shutil
-import socket
 import sys
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 
 SECTIONS = (
+    ("Widget", "\u25a6", "AniSub media widgets", (
+        ("AniSub (Movie)", "Movie widget: search, browse and play KKPhim movies from Rofi.", ("hyde-shell", "rofi.movie"), ("hyde-shell", "rofi", "mpv", "curl", "jq")),
+        ("AniSub Comic", "Comic widget: search and read NetTruyen stories and chapters.", ("hyde-shell", "rofi.comic"), ("hyde-shell", "rofi", "curl", "python3")),
+    )),
     ("Appearance", "◈", "Make the desktop yours", (
         ("Curated themes", "Choose a theme and apply its Wallbash colors across your desktop.", ("hyde-shell", "app", "-t", "scope", "--", "theme.select.sh"), ("hyde-shell", "rofi")),
         ("Wallpaper", "Pick a wallpaper using the existing HyDE selector.", ("hyde-shell", "wallpaper", "--select", "--global"), ("hyde-shell", "rofi")),
@@ -72,165 +76,134 @@ def theme_colors(path):
 
 
 # ---------------------------------------------------------------------------
-# image-12 glass design helpers
+# image-14 dashboard design helpers (wallpaper-synced monochrome greys)
 # ---------------------------------------------------------------------------
 
-def chamfered_path(rect, radius, tl=0, tr=0, br=0, bl=0):
-    """Rounded rect path with optional 45-degree chamfer cuts per corner."""
-    x1, y1, x2, y2 = rect.left(), rect.top(), rect.right(), rect.bottom()
-    path = QtGui.QPainterPath()
-    path.moveTo(x1 + (tl or radius), y1)
-    if tr:
-        path.lineTo(x2 - tr, y1)
-        path.lineTo(x2, y1 + tr)
-    else:
-        path.lineTo(x2 - radius, y1)
-        path.arcTo(QtCore.QRectF(x2 - radius, y1, radius, radius), 90, -90)
-    if br:
-        path.lineTo(x2, y2 - br)
-        path.lineTo(x2 - br, y2)
-    else:
-        path.lineTo(x2, y2 - radius)
-        path.arcTo(QtCore.QRectF(x2 - radius, y2 - radius, radius, radius), 0, -90)
-    if bl:
-        path.lineTo(x1 + bl, y2)
-        path.lineTo(x1, y2 - bl)
-    else:
-        path.lineTo(x1 + radius, y2)
-        path.arcTo(QtCore.QRectF(x1, y2 - radius, radius, radius), 270, -90)
-    if tl:
-        path.lineTo(x1, y1 + tl)
-        path.lineTo(x1 + tl, y1)
-    else:
-        path.lineTo(x1, y1 + radius)
-        path.arcTo(QtCore.QRectF(x1, y1, radius, radius), 180, -90)
-    path.closeSubpath()
-    return path
+def blend_hex(base_hex, tint, amount):
+    """Mix base_hex toward the tint color by amount (0..1)."""
+    base = QtGui.QColor(base_hex)
+    if tint is None:
+        return base.name()
+    out = QtGui.QColor(
+        round(base.red() + (tint.red() - base.red()) * amount),
+        round(base.green() + (tint.green() - base.green()) * amount),
+        round(base.blue() + (tint.blue() - base.blue()) * amount),
+    )
+    return out.name()
 
 
-def wallpaper_pixmap():
-    """Best-effort wallpaper preview; returns None when nothing is readable."""
-    cache = Path(os.environ.get("XDG_CACHE_HOME", "") or Path.home() / ".cache") / "hyde"
+def wallpaper_tint():
+    """Dominant wallpaper color from the HyDE pipeline, or None.
+
+    Sources, in order of trust: the wallbash palette HyDE regenerates on every
+    wallpaper change (~/.cache/hyde/wall.dcol or wallbash/shell-colors - the
+    colors that feed ./config/hyde's wallbash themes), the wallpaper image
+    itself (wall.blur / wall.set), and the quickshell theme.json bar color.
+    """
     candidates = []
+    cache = Path(os.environ.get("XDG_CACHE_HOME", "") or Path.home() / ".cache") / "hyde"
+    for name in ("wall.dcol", "wallbash/shell-colors"):
+        try:
+            text = (cache / name).read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        match = re.search(r"(?:dcol_pry1|wallbash_pry1)=[\"']?(#[0-9a-fA-F]{6})", text)
+        if match:
+            candidates.append(QtGui.QColor(match.group(1)))
     for name in ("wall.blur", "wall.set"):
         path = cache / name
         if path.exists() or path.is_symlink():
-            candidates.append(os.path.realpath(path))
+            pixmap = QtGui.QPixmap(os.path.realpath(path))
+            if not pixmap.isNull():
+                tiny = pixmap.scaled(1, 1, QtCore.Qt.AspectRatioMode.IgnoreAspectRatio,
+                                     QtCore.Qt.TransformationMode.SmoothTransformation)
+                candidates.append(tiny.toImage().pixelColor(0, 0))
     try:
-        text = (Path(os.environ.get("XDG_CONFIG_HOME", "") or Path.home() / ".config") / "quickshell" / "theme.json").read_text(encoding="utf-8")
-    except (OSError, UnicodeError):
-        text = ""
-    for value in re.findall(r'"wallBlurPath"\s*:\s*"([^"]+)"', text):
-        candidates.append(value)
-    for candidate in candidates:
-        pixmap = QtGui.QPixmap(candidate)
-        if not pixmap.isNull():
-            return pixmap
-    return None
+        text = (Path(os.environ.get("XDG_CONFIG_HOME", "") or Path.home() / ".config")
+                / "quickshell" / "theme.json").read_text(encoding="utf-8", errors="replace")
+        match = re.search(r'"barBg"\s*:\s*"(#[0-9a-fA-F]{6})"', text)
+        if match:
+            candidates.append(QtGui.QColor(match.group(1)))
+    except OSError:
+        pass
+    if not candidates:
+        return None
+    return QtGui.QColor(
+        round(sum(c.red() for c in candidates) / len(candidates)),
+        round(sum(c.green() for c in candidates) / len(candidates)),
+        round(sum(c.blue() for c in candidates) / len(candidates)),
+    )
 
 
-def apply_theme(app):
-    """Apply the dark glass styling from the image-12 mockup."""
-    app.setStyleSheet("""
-        QWidget#root { background: transparent; }
-        QWidget { color: #e9e9e9; font-size: 13px; }
-        QLabel#iconSquare {
-            background: #d4d4d4; color: #262626; border-radius: 10px;
-            font-size: 18px; font-weight: 700;
-        }
-        QLabel#titlePill {
-            background: #d2d2d2; color: #232323; border-radius: 14px;
-            padding: 5px 15px; font-weight: 700;
-        }
-        QLabel#subPill {
-            background: #bfbfbf; color: #2c2c2c; border-radius: 14px;
-            padding: 5px 13px; font-weight: 500;
-        }
-        QFrame#searchPill {
-            background: rgba(18, 18, 18, 130);
-            border: 1px solid rgba(255, 255, 255, 40); border-radius: 19px;
-        }
-        QLineEdit#searchEdit {
-            background: transparent; border: none; color: #e9e9e9;
-            padding: 4px 8px;
-        }
-        QPushButton#searchGo { background: #ffffff; border: none; border-radius: 13px; }
-        QPushButton#searchGo:hover { background: #e6e6e6; }
-        QPushButton#closeBtn {
-            background: transparent; border: none; border-radius: 15px;
-            color: #b9b9b9; font-size: 14px;
-        }
-        QPushButton#closeBtn:hover { background: rgba(255, 255, 255, 28); color: #ffffff; }
-        QFrame#sidebar { background: transparent; border: none; }
-        QPushButton#nav {
-            background: rgba(208, 208, 208, 155); color: #262626; border: none;
-            border-radius: 21px; padding: 11px 18px; text-align: left;
-            font-weight: 600;
-        }
-        QPushButton#nav:hover { background: rgba(222, 222, 222, 195); }
-        QPushButton#nav:checked { background: #e8e8e8; }
-        QLabel#railDot { background: #8f8f8f; border-radius: 3px; }
-        QLabel#profileName { color: #f4f4f4; font-size: 13px; font-weight: 700; }
-        QLabel#profileLine { color: #9d9d9d; font-size: 11px; }
-        QLabel#status { color: #8c8c8c; font-size: 11px; }
-        QFrame#card {
-            background: rgba(255, 255, 255, 16);
-            border: 1px solid rgba(255, 255, 255, 36); border-radius: 14px;
-        }
-        QLabel#cardTitle { font-size: 14px; font-weight: 600; color: #f0f0f0; }
-        QLabel#description { color: #a6a6a6; font-size: 12px; }
-        QPushButton#open {
-            background: rgba(255, 255, 255, 22);
-            border: 1px solid rgba(255, 255, 255, 60); border-radius: 11px;
-            padding: 7px 13px; color: #ececec;
-        }
-        QPushButton#open:hover { background: rgba(255, 255, 255, 42); border-color: #ffffff; }
-        QPushButton#open:disabled { color: #777777; border-color: rgba(255, 255, 255, 28); }
-        QScrollArea { border: none; background: transparent; }
-        QWidget#page { background: transparent; }
-        QScrollBar:vertical { background: transparent; width: 8px; margin: 2px; }
-        QScrollBar::handle:vertical {
-            background: rgba(255, 255, 255, 48); border-radius: 4px; min-height: 26px;
-        }
-        QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
-        QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: transparent; }
-        QScrollBar:horizontal { background: transparent; height: 8px; margin: 2px; }
-        QScrollBar::handle:horizontal {
-            background: rgba(255, 255, 255, 48); border-radius: 4px; min-width: 26px;
-        }
-        QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width: 0; }
-        QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal { background: transparent; }
-    """)
+def settings_palette():
+    tint = wallpaper_tint()
+    return {
+        "frame": blend_hex("#f4f4f2", tint, 0.10),
+        "bg": blend_hex("#2f2f2f", tint, 0.16),
+        "card": blend_hex("#a9a9a9", tint, 0.18),
+        "panel": blend_hex("#3b3b3b", tint, 0.16),
+    }
 
 
-class ToggleSwitch(QtWidgets.QPushButton):
-    """Pill toggle with a round knob, matching the mockup's bottom-left switch."""
+def draw_image_glyph(painter, rect, color):
+    """The mockup's image placeholder: rounded frame + sun + mountain."""
+    painter.save()
+    painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
+    w, h = rect.width(), rect.height()
+    cx, cy = rect.center().x(), rect.center().y()
+    icon_w = w * 0.62
+    icon_h = icon_w * 0.78
+    frame = QtCore.QRectF(cx - icon_w / 2, cy - icon_h / 2, icon_w, icon_h)
+    painter.setPen(QtGui.QPen(color, max(2.0, icon_w * 0.055)))
+    painter.setBrush(QtCore.Qt.BrushStyle.NoBrush)
+    painter.drawRoundedRect(frame, icon_w * 0.16, icon_w * 0.16)
+    painter.setPen(QtCore.Qt.PenStyle.NoPen)
+    painter.setBrush(color)
+    painter.drawEllipse(QtCore.QRectF(frame.left() + icon_w * 0.17, frame.top() + icon_h * 0.14,
+                                      icon_w * 0.17, icon_w * 0.17))
+    mountain = QtGui.QPainterPath()
+    mountain.moveTo(frame.left() + icon_w * 0.12, frame.bottom() - icon_h * 0.14)
+    mountain.lineTo(frame.left() + icon_w * 0.42, frame.top() + icon_h * 0.40)
+    mountain.lineTo(frame.left() + icon_w * 0.60, frame.top() + icon_h * 0.62)
+    mountain.lineTo(frame.left() + icon_w * 0.72, frame.top() + icon_h * 0.48)
+    mountain.lineTo(frame.right() - icon_w * 0.10, frame.bottom() - icon_h * 0.14)
+    mountain.closeSubpath()
+    painter.drawPath(mountain)
+    painter.restore()
 
-    def __init__(self, parent=None):
+
+class GlyphLabel(QtWidgets.QWidget):
+    """Image-placeholder glyph, the mockup's card icon."""
+
+    def __init__(self, color, size=64, parent=None):
         super().__init__(parent)
-        self.setCheckable(True)
-        self.setChecked(True)  # image-12 shows the switch on (knob right)
-        self.setFixedSize(64, 30)
-        self.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+        self._color = QtGui.QColor(color)
+        self._size = size
+        self.setFixedSize(size, size)
+
+    def paintEvent(self, event):
+        painter = QtGui.QPainter(self)
+        draw_image_glyph(painter, QtCore.QRectF(self.rect()), self._color)
+
+
+class RootPanel(QtWidgets.QWidget):
+    """Bold white frame around the dark interior (image-14 signature)."""
+
+    def __init__(self, parent=None, **kwargs):
+        super().__init__(parent, **kwargs)
+        self.frame_color = QtGui.QColor("#f4f4f2")
+        self.bg_color = QtGui.QColor("#2f2f2f")
 
     def paintEvent(self, event):
         painter = QtGui.QPainter(self)
         painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
-        track = QtCore.QRectF(self.rect())
-        painter.setPen(QtGui.QPen(QtGui.QColor(255, 255, 255, 46), 1))
-        painter.setBrush(QtGui.QColor("#333333"))
-        painter.drawRoundedRect(track, 15, 15)
-        knob = 24
-        margin = (self.height() - knob) / 2
-        if self.isChecked():
-            x = self.width() - knob - margin
-            knob_color = QtGui.QColor("#ffffff")
-        else:
-            x = margin
-            knob_color = QtGui.QColor("#9a9a9a")
+        outer = QtCore.QRectF(self.rect()).adjusted(1, 1, -1, -1)
         painter.setPen(QtCore.Qt.PenStyle.NoPen)
-        painter.setBrush(knob_color)
-        painter.drawEllipse(QtCore.QRectF(x, margin, knob, knob))
+        painter.setBrush(self.frame_color)
+        painter.drawRoundedRect(outer, 30, 30)
+        inner = outer.adjusted(7, 7, -7, -7)
+        painter.setBrush(self.bg_color)
+        painter.drawRoundedRect(inner, 24, 24)
 
 
 class DragBar(QtWidgets.QWidget):
@@ -244,200 +217,179 @@ class DragBar(QtWidgets.QWidget):
         super().mousePressEvent(event)
 
 
-class HeroCard(QtWidgets.QWidget):
-    """Chamfered wallpaper preview card with an image placeholder."""
+class CardStack(QtWidgets.QWidget):
+    """The stacked-cards widget from the mockup (decorative)."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setObjectName("hero")
-        self.setMinimumHeight(210)
-        self._pixmap = None
-        self._overlay = None
-
-    def set_pixmap(self, pixmap):
-        self._pixmap = pixmap
-        self.update()
-
-    def set_overlay(self, widget):
-        self._overlay = widget
-        widget.setParent(self)
-        self._place_overlay()
-
-    def _place_overlay(self):
-        if self._overlay is not None:
-            self._overlay.move(22, self.height() - self._overlay.height() - 20)
-
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        self._place_overlay()
+        self.setFixedSize(128, 112)
+        self._layers = ("#9d9d9d", "#949494", "#8a8a8a")
 
     def paintEvent(self, event):
         painter = QtGui.QPainter(self)
         painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
-        path = chamfered_path(QtCore.QRectF(self.rect()).adjusted(1, 1, -1, -1), 18, tr=64)
-        painter.setPen(QtGui.QPen(QtGui.QColor(255, 255, 255, 28), 1))
-        if self._pixmap is not None and not self._pixmap.isNull():
-            painter.setBrush(QtGui.QColor("#8b8b8b"))
-            painter.drawPath(path)
-            painter.save()
-            painter.setClipPath(path)
-            scaled = self._pixmap.scaled(
-                self.size(),
-                QtCore.Qt.AspectRatioMode.KeepAspectRatioByExpanding,
-                QtCore.Qt.TransformationMode.SmoothTransformation,
-            )
-            x = (self.width() - scaled.width()) // 2
-            y = (self.height() - scaled.height()) // 2
-            painter.setOpacity(0.82)
-            painter.drawPixmap(x, y, scaled)
-            painter.restore()
-        else:
-            painter.setBrush(QtGui.QColor("#8b8b8b"))
-            painter.drawPath(path)
-            self._draw_placeholder(painter)
-
-    def _draw_placeholder(self, painter):
-        icon_w, icon_h = 96, 76
-        x = (self.width() - icon_w) / 2
-        y = (self.height() - icon_h) / 2 - 6
-        painter.setPen(QtGui.QPen(QtGui.QColor("#b4b4b4"), 6))
-        painter.setBrush(QtCore.Qt.BrushStyle.NoBrush)
-        painter.drawRoundedRect(QtCore.QRectF(x, y, icon_w, icon_h), 14, 14)
-        painter.setPen(QtCore.Qt.PenStyle.NoPen)
-        painter.setBrush(QtGui.QColor("#b4b4b4"))
-        painter.drawEllipse(QtCore.QRectF(x + 24, y + 16, 15, 15))
-        mountain = QtGui.QPainterPath()
-        mountain.moveTo(x + 12, y + 62)
-        mountain.lineTo(x + 42, y + 30)
-        mountain.lineTo(x + 62, y + 50)
-        mountain.lineTo(x + 72, y + 40)
-        mountain.lineTo(x + 84, y + 62)
-        mountain.closeSubpath()
-        painter.drawPath(mountain)
+        offsets = ((22, 2), (11, 11), (0, 20))
+        for (dx, dy), color in zip(offsets, self._layers):
+            rect = QtCore.QRectF(dx, dy, 88, 88)
+            painter.setPen(QtGui.QPen(QtGui.QColor(255, 255, 255, 30), 1))
+            painter.setBrush(QtGui.QColor(color))
+            painter.drawRoundedRect(rect, 14, 14)
 
 
-class AvatarCircle(QtWidgets.QWidget):
-    """White circle avatar with the user's initial."""
+class ActionTile(QtWidgets.QFrame):
+    """Grey media tile: caption, image glyph, white Open pill (image-14)."""
 
-    def __init__(self, initial, parent=None):
+    def __init__(self, caption, parent=None):
         super().__init__(parent)
-        self._initial = initial
-        self.setFixedSize(56, 56)
-
-    def paintEvent(self, event):
-        painter = QtGui.QPainter(self)
-        painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
-        painter.setPen(QtCore.Qt.PenStyle.NoPen)
-        painter.setBrush(QtGui.QColor("#ffffff"))
-        painter.drawEllipse(self.rect().adjusted(1, 1, -1, -1))
-        painter.setPen(QtGui.QColor("#2b2b2b"))
-        font = painter.font()
-        font.setBold(True)
-        font.setPixelSize(22)
-        painter.setFont(font)
-        painter.drawText(self.rect(), QtCore.Qt.AlignmentFlag.AlignCenter, self._initial)
-
-
-class ProfileCard(QtWidgets.QWidget):
-    """Dark card with a chamfered top-left corner: avatar + identity lines."""
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
+        self.setObjectName("tile")
         self.setMinimumHeight(150)
         layout = QtWidgets.QVBoxLayout(self)
-        layout.setContentsMargins(18, 18, 16, 16)
+        layout.setContentsMargins(14, 12, 14, 12)
         layout.setSpacing(6)
-        try:
-            user = getpass.getuser()
-        except Exception:
-            user = "user"
-        host = socket.gethostname() or "anide"
-        avatar = AvatarCircle(user[:1].upper() or "A")
-        layout.addWidget(avatar, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
-        layout.addSpacing(6)
-        name = QtWidgets.QLabel(user, objectName="profileName")
-        layout.addWidget(name)
-        layout.addWidget(QtWidgets.QLabel(host, objectName="profileLine"))
-        layout.addWidget(QtWidgets.QLabel("AniDE  ·  Hyprland", objectName="profileLine"))
+        layout.addWidget(QtWidgets.QLabel(caption, objectName="tileCaption"),
+                         0, QtCore.Qt.AlignmentFlag.AlignLeft)
+        layout.addStretch()
+        glyph_row = QtWidgets.QHBoxLayout()
+        glyph_row.addStretch()
+        glyph_row.addWidget(GlyphLabel("#3c3c3c", 62))
+        glyph_row.addStretch()
+        layout.addLayout(glyph_row)
         layout.addStretch()
 
-    def paintEvent(self, event):
-        painter = QtGui.QPainter(self)
-        painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
-        path = chamfered_path(QtCore.QRectF(self.rect()).adjusted(1, 1, -1, -1), 16, tl=44)
-        painter.setPen(QtGui.QPen(QtGui.QColor(255, 255, 255, 24), 1))
-        painter.setBrush(QtGui.QColor("#3d3d3d"))
-        painter.drawPath(path)
+
+class LinesPanel(QtWidgets.QFrame):
+    """Dark skeleton-lines panel with the white dot (image-14)."""
+
+    def __init__(self, subtitle, parent=None):
+        super().__init__(parent)
+        self.setObjectName("linesPanel")
+        self.setMinimumHeight(136)
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.setContentsMargins(18, 16, 18, 16)
+        layout.setSpacing(8)
+        top = QtWidgets.QHBoxLayout()
+        top.addStretch()
+        dot = QtWidgets.QLabel(objectName="panelDot")
+        dot.setFixedSize(22, 22)
+        top.addWidget(dot)
+        layout.addLayout(top)
+        for width in (190, 148, 96):
+            bar = QtWidgets.QLabel(objectName="skeletonBar")
+            bar.setFixedSize(width, 10)
+            layout.addWidget(bar, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
+        layout.addStretch()
+        label = QtWidgets.QLabel(subtitle, objectName="subtitle")
+        label.setWordWrap(True)
+        layout.addWidget(label)
 
 
-class RootPanel(QtWidgets.QWidget):
-    """The dark glass window panel from the mockup."""
-
-    def paintEvent(self, event):
-        painter = QtGui.QPainter(self)
-        painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
-        rect = QtCore.QRectF(self.rect()).adjusted(1, 1, -1, -1)
-        gradient = QtGui.QLinearGradient(rect.topLeft(), rect.bottomLeft())
-        gradient.setColorAt(0, QtGui.QColor("#343434"))
-        gradient.setColorAt(1, QtGui.QColor("#292929"))
-        painter.setPen(QtGui.QPen(QtGui.QColor(255, 255, 255, 26), 1))
-        painter.setBrush(gradient)
-        painter.drawRoundedRect(rect, 22, 22)
+def apply_theme(app):
+    """Apply the image-14 dashboard styling (wallpaper-synced greys)."""
+    pal = settings_palette()
+    app.setStyleSheet(f"""
+        QWidget#root {{ background: transparent; }}
+        QWidget {{ color: #e9e9e9; font-size: 13px; }}
+        QLabel#titlePill {{
+            background: {pal["frame"]}; color: #2b2b2b; border-radius: 15px;
+            padding: 5px 16px; font-weight: 700;
+        }}
+        QFrame#searchPill {{ background: {pal["frame"]}; border-radius: 15px; }}
+        QLineEdit#searchEdit {{
+            background: transparent; border: none; color: #2b2b2b;
+            padding: 3px 12px; font-weight: 600;
+        }}
+        QPushButton#roundBtn {{
+            background: {pal["frame"]}; border: none; border-radius: 16px;
+            color: #2b2b2b; font-size: 13px; font-weight: 700;
+        }}
+        QPushButton#roundBtn:hover {{ background: #ffffff; }}
+        QFrame#rail {{ background: {pal["panel"]}; border: none; border-radius: 26px; }}
+        QPushButton#nav {{
+            background: rgba(255, 255, 255, 18); color: #dddddd; border: none;
+            border-radius: 12px; padding: 8px; font-size: 15px;
+        }}
+        QPushButton#nav:hover {{ background: rgba(255, 255, 255, 36); }}
+        QPushButton#nav:checked {{ background: {pal["frame"]}; color: #2b2b2b; }}
+        QLabel#railDot {{ background: {pal["frame"]}; border-radius: 18px; }}
+        QFrame#tile {{ background: {pal["card"]}; border: none; border-radius: 16px; }}
+        QFrame#rowsCard {{ background: {pal["card"]}; border: none; border-radius: 16px; }}
+        QFrame#linesPanel {{ background: {pal["panel"]}; border: none; border-radius: 16px; }}
+        QLabel#tileCaption {{ color: #262626; font-size: 11px; font-weight: 700; }}
+        QLabel#heroPill {{
+            background: #ffffff; color: #262626; border-radius: 12px;
+            padding: 5px 14px; font-weight: 700;
+        }}
+        QLabel#panelDot {{ background: #f4f4f2; border-radius: 11px; }}
+        QLabel#skeletonBar {{ background: #f0f0f0; border-radius: 5px; }}
+        QLabel#subtitle {{ color: #b9b9b9; font-size: 12px; }}
+        QLabel#rowTitle {{ color: #262626; font-size: 13px; font-weight: 700; }}
+        QLabel#rowDesc {{ color: #454545; font-size: 11px; }}
+        QLabel#status {{ color: #8f8f8f; font-size: 11px; }}
+        QPushButton#open {{
+            background: #ffffff; color: #262626; border: none;
+            border-radius: 12px; padding: 6px 14px; font-weight: 700;
+        }}
+        QPushButton#open:hover {{ background: #e9e9e9; }}
+        QPushButton#open:disabled {{ color: #9a9a9a; background: #d6d6d6; }}
+        QScrollArea {{ border: none; background: transparent; }}
+        QWidget#page {{ background: transparent; }}
+        QScrollBar:vertical {{ background: transparent; width: 8px; margin: 2px; }}
+        QScrollBar::handle:vertical {{
+            background: rgba(255, 255, 255, 60); border-radius: 4px; min-height: 26px;
+        }}
+        QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0; }}
+        QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{ background: transparent; }}
+    """)
 
 
 class SettingsWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("AniDE Settings")
-        self.resize(960, 680)
-        self.setMinimumSize(700, 480)
+        self.resize(980, 700)
+        self.setMinimumSize(720, 500)
         self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowType.FramelessWindowHint)
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground, True)
         self.cards = []
         root = RootPanel(objectName="root")
         self.setCentralWidget(root)
+        pal = settings_palette()
+        root.frame_color = QtGui.QColor(pal["frame"])
+        root.bg_color = QtGui.QColor(pal["bg"])
         shadow = QtWidgets.QGraphicsDropShadowEffect(root)
-        shadow.setBlurRadius(42)
-        shadow.setOffset(0, 12)
-        shadow.setColor(QtGui.QColor(0, 0, 0, 150))
+        shadow.setBlurRadius(44)
+        shadow.setOffset(0, 14)
+        shadow.setColor(QtGui.QColor(0, 0, 0, 160))
         root.setGraphicsEffect(shadow)
         outer = QtWidgets.QVBoxLayout(root)
-        outer.setContentsMargins(26, 22, 26, 24)
-        outer.setSpacing(16)
+        outer.setContentsMargins(30, 26, 30, 28)
+        outer.setSpacing(14)
 
-        # ── Header: icon square, title pills, search pill, close ──
+        # ── Top bar: section pill, search pill, star + close circles ──
         header = DragBar()
-        header.setFixedHeight(44)
+        header.setFixedHeight(40)
         header_row = QtWidgets.QHBoxLayout(header)
         header_row.setContentsMargins(0, 0, 0, 0)
         header_row.setSpacing(10)
-        icon_square = QtWidgets.QLabel("◈", objectName="iconSquare")
-        icon_square.setFixedSize(40, 40)
-        icon_square.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-        header_row.addWidget(icon_square)
         self.titlePill = QtWidgets.QLabel(SECTIONS[0][0], objectName="titlePill")
-        self.subPill = QtWidgets.QLabel(SECTIONS[0][2], objectName="subPill")
         header_row.addWidget(self.titlePill)
-        header_row.addWidget(self.subPill)
         header_row.addStretch()
         search_pill = QtWidgets.QFrame(objectName="searchPill")
-        search_pill.setFixedSize(260, 38)
+        search_pill.setFixedSize(240, 32)
         search_row = QtWidgets.QHBoxLayout(search_pill)
-        search_row.setContentsMargins(4, 4, 5, 4)
-        search_row.setSpacing(4)
+        search_row.setContentsMargins(2, 2, 2, 2)
         self.search = QtWidgets.QLineEdit(objectName="searchEdit")
-        self.search.setPlaceholderText("Search this section…")
+        self.search.setPlaceholderText("Search…")
         self.search.textChanged.connect(self.filter_cards)
         search_row.addWidget(self.search)
-        search_go = QtWidgets.QPushButton(objectName="searchGo")
-        search_go.setFixedSize(26, 26)
-        search_go.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
-        search_go.setToolTip("Clear search")
-        search_go.clicked.connect(self.search.clear)
-        search_row.addWidget(search_go)
         header_row.addWidget(search_pill)
-        self.closeBtn = QtWidgets.QPushButton("✕", objectName="closeBtn")
-        self.closeBtn.setFixedSize(30, 30)
+        self.starBtn = QtWidgets.QPushButton("★", objectName="roundBtn")
+        self.starBtn.setFixedSize(32, 32)
+        self.starBtn.setToolTip("Widgets")
+        self.starBtn.clicked.connect(lambda: self.buttons.button(0).click())
+        header_row.addWidget(self.starBtn)
+        self.closeBtn = QtWidgets.QPushButton("\u2715", objectName="roundBtn")
+        self.closeBtn.setFixedSize(32, 32)
         self.closeBtn.setToolTip("Close (Esc)")
         self.closeBtn.clicked.connect(self.close)
         header_row.addWidget(self.closeBtn)
@@ -445,103 +397,129 @@ class SettingsWindow(QtWidgets.QMainWindow):
         escape = QtGui.QShortcut(QtGui.QKeySequence("Esc"), self)
         escape.activated.connect(self.close)
 
-        # ── Body: sidebar, hero+cards, profile rail ──
+        # ── Body: left rail (sections + bottom dot) + content stack ──
         body = QtWidgets.QHBoxLayout()
-        body.setSpacing(16)
-        sidebar = QtWidgets.QFrame(objectName="sidebar")
-        sidebar.setFixedWidth(230)
-        nav = QtWidgets.QVBoxLayout(sidebar)
-        nav.setContentsMargins(0, 8, 0, 0)
-        nav.setSpacing(10)
+        body.setSpacing(14)
+        rail = QtWidgets.QFrame(objectName="rail")
+        rail.setFixedWidth(66)
+        rail_layout = QtWidgets.QVBoxLayout(rail)
+        rail_layout.setContentsMargins(10, 14, 10, 14)
+        rail_layout.setSpacing(8)
         self.buttons = QtWidgets.QButtonGroup(self)
         self.buttons.setExclusive(True)
         self.stack = QtWidgets.QStackedWidget()
         for index, (title, icon, subtitle, actions) in enumerate(SECTIONS):
-            button = QtWidgets.QPushButton(f"{icon}   {title}".replace("&", "&&"), objectName="nav")
+            button = QtWidgets.QPushButton(icon, objectName="nav")
             button.setCheckable(True)
-            button.setFixedWidth(206 - index * 12)
+            button.setFixedSize(46, 38)
+            button.setToolTip(title)
             self.buttons.addButton(button, index)
-            nav.addWidget(button)
+            rail_layout.addWidget(button)
             self.stack.addWidget(self.make_page(title, subtitle, actions))
         self.buttons.idClicked.connect(self.select_section)
         self.buttons.button(0).setChecked(True)
-        nav.addStretch()
-        body.addWidget(sidebar)
+        rail_layout.addStretch()
+        rail_dot = QtWidgets.QLabel(objectName="railDot")
+        rail_dot.setFixedSize(36, 36)
+        rail_dot.setToolTip("AniDE")
+        rail_layout.addWidget(rail_dot, 0, QtCore.Qt.AlignmentFlag.AlignHCenter)
+        body.addWidget(rail)
 
-        center = QtWidgets.QVBoxLayout()
-        center.setSpacing(12)
-        self.hero = HeroCard()
-        self.toggle = ToggleSwitch()
-        self.toggle.setToolTip("Night light")
-        self.toggle.clicked.connect(self.toggle_night_light)
-        self.hero.set_overlay(self.toggle)
-        wallpaper = wallpaper_pixmap()
-        if wallpaper is not None:
-            self.hero.set_pixmap(wallpaper)
-        center.addWidget(self.hero, 2)
-        center.addWidget(self.stack, 3)
+        content = QtWidgets.QVBoxLayout()
+        content.setSpacing(10)
+        content.addWidget(self.stack, 1)
         self.status = QtWidgets.QLabel("Changes are made by the selected desktop tool.", objectName="status")
         self.status.setWordWrap(True)
-        center.addWidget(self.status)
-        body.addLayout(center, 1)
-
-        rail = QtWidgets.QVBoxLayout()
-        rail.setSpacing(10)
-        for _ in range(4):
-            dot = QtWidgets.QLabel(objectName="railDot")
-            dot.setFixedSize(10, 10)
-            rail.addWidget(dot, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
-        rail.addStretch()
-        rail.addWidget(ProfileCard())
-        body.addLayout(rail)
+        content.addWidget(self.status)
+        body.addLayout(content, 1)
         outer.addLayout(body, 1)
 
     def make_page(self, title, subtitle, actions):
-        scroll = QtWidgets.QScrollArea()
-        scroll.setWidgetResizable(True)
         page = QtWidgets.QWidget(objectName="page")
         layout = QtWidgets.QVBoxLayout(page)
-        layout.setContentsMargins(2, 4, 10, 4)
-        layout.setSpacing(10)
-        for name, description, command, dependencies in actions:
-            card = QtWidgets.QFrame(objectName="card")
-            row = QtWidgets.QHBoxLayout(card)
-            row.setContentsMargins(16, 12, 16, 12)
-            text = QtWidgets.QVBoxLayout()
-            text.addWidget(QtWidgets.QLabel(name, objectName="cardTitle"))
-            desc = QtWidgets.QLabel(description, objectName="description")
-            desc.setWordWrap(True)
-            text.addWidget(desc)
-            row.addLayout(text, 1)
-            button = QtWidgets.QPushButton("Open  ↗", objectName="open")
-            missing = [dep for dep in dependencies if not shutil.which(dep)]
-            if missing:
-                button.setEnabled(False)
-                button.setToolTip("Missing: " + ", ".join(missing))
-                desc.setText(description + "\nMissing: " + ", ".join(missing))
-            else:
-                button.clicked.connect(lambda checked=False, argv=command, label=name: self.launch(argv, label))
-            row.addWidget(button)
-            layout.addWidget(card)
-            self.cards.append((card, (name + " " + description).casefold()))
+        layout.setContentsMargins(2, 2, 2, 2)
+        layout.setSpacing(12)
+
+        # Row 1: media tiles for the first three actions
+        tiles_row = QtWidgets.QHBoxLayout()
+        tiles_row.setSpacing(12)
+        for name, description, command, dependencies in actions[:3]:
+            tile = ActionTile(name)
+            open_button = self.make_open_button(name, command, dependencies)
+            tile.layout().addWidget(open_button, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
+            tiles_row.addWidget(tile, 1)
+            self.cards.append((tile, (name + " " + description).casefold()))
+        layout.addLayout(tiles_row)
+
+        # Row 2: hero card + skeleton panel + card stack
+        hero_row = QtWidgets.QHBoxLayout()
+        hero_row.setSpacing(12)
+        hero = QtWidgets.QFrame(objectName="tile")
+        hero.setMinimumHeight(200)
+        hero_layout = QtWidgets.QVBoxLayout(hero)
+        hero_layout.setContentsMargins(18, 16, 18, 16)
+        hero_layout.addStretch()
+        glyph_row = QtWidgets.QHBoxLayout()
+        glyph_row.addStretch()
+        glyph_row.addWidget(GlyphLabel("#3c3c3c", 110))
+        glyph_row.addStretch()
+        hero_layout.addLayout(glyph_row)
+        hero_layout.addStretch()
+        hero_layout.addWidget(QtWidgets.QLabel(title, objectName="heroPill"),
+                              0, QtCore.Qt.AlignmentFlag.AlignLeft)
+        hero_row.addWidget(hero, 3)
+        right = QtWidgets.QVBoxLayout()
+        right.setSpacing(12)
+        panel = LinesPanel(subtitle)
+        right.addWidget(panel, 1)
+        right.addWidget(CardStack(), 0, QtCore.Qt.AlignmentFlag.AlignRight)
+        hero_row.addLayout(right, 2)
+        layout.addLayout(hero_row)
+
+        # Row 3: remaining actions as compact rows with white Open pills
+        rest = actions[3:]
+        if rest:
+            rows_card = QtWidgets.QFrame(objectName="rowsCard")
+            rows_layout = QtWidgets.QVBoxLayout(rows_card)
+            rows_layout.setContentsMargins(18, 12, 18, 12)
+            rows_layout.setSpacing(8)
+            for name, description, command, dependencies in rest:
+                row = QtWidgets.QHBoxLayout()
+                row.setSpacing(12)
+                text = QtWidgets.QVBoxLayout()
+                text.addWidget(QtWidgets.QLabel(name, objectName="rowTitle"))
+                text.addWidget(QtWidgets.QLabel(description, objectName="rowDesc"))
+                row.addLayout(text, 1)
+                row.addWidget(self.make_open_button(name, command, dependencies))
+                holder = QtWidgets.QWidget()
+                holder.setLayout(row)
+                rows_layout.addWidget(holder)
+                self.cards.append((holder, (name + " " + description).casefold()))
+            layout.addWidget(rows_card)
+
         layout.addStretch()
-        scroll.setWidget(page)
-        return scroll
+        return page
+
+    def make_open_button(self, name, command, dependencies):
+        button = QtWidgets.QPushButton("Open  \u2197", objectName="open")
+        missing = [dep for dep in dependencies if not shutil.which(dep)]
+        if missing:
+            button.setEnabled(False)
+            button.setToolTip("Missing: " + ", ".join(missing))
+        else:
+            button.clicked.connect(lambda checked=False, argv=command, label=name: self.launch(argv, label))
+        return button
 
     def select_section(self, index):
         self.stack.setCurrentIndex(index)
         self.search.clear()
-        self.buttons.button(index).setChecked(True)
         self.titlePill.setText(SECTIONS[index][0])
-        self.subPill.setText(SECTIONS[index][2])
+        self.buttons.button(index).setChecked(True)
 
     def filter_cards(self, text):
         query = text.strip().casefold()
         for card, words in self.cards:
             card.setVisible(not query or query in words)
-
-    def toggle_night_light(self):
-        self.launch(("hyde-shell", "hyprsunset", "--toggle"), "Night light")
 
     def launch(self, command, label):
         started, _pid = QtCore.QProcess.startDetached(command[0], list(command[1:]))

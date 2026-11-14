@@ -80,22 +80,43 @@ class SettingsTest(unittest.TestCase):
             self.assertEqual(window.stack.currentIndex(), 1)
             window.close()
 
-    def test_image12_glass_design_contract(self):
+    def test_image14_dashboard_design_contract(self):
         window = self.module.SettingsWindow()
         self.assertTrue(bool(window.windowFlags() & QtCore.Qt.WindowType.FramelessWindowHint))
         self.assertIsInstance(window.centralWidget(), self.module.RootPanel)
-        self.assertEqual(window.hero.objectName(), "hero")
-        self.assertTrue(window.toggle.isCheckable())
-        self.assertTrue(window.toggle.isChecked())
         self.assertEqual(window.closeBtn.text(), "\u2715")
+        self.assertTrue(window.starBtn.text())
         self.assertEqual(window.titlePill.text(), self.module.SECTIONS[0][0])
         window.select_section(2)
         self.assertEqual(window.titlePill.text(), self.module.SECTIONS[2][0])
-        self.assertEqual(window.subPill.text(), self.module.SECTIONS[2][2])
-        nav_texts = [b.text() for b in window.findChildren(QtWidgets.QPushButton) if b.objectName() == "nav"]
-        for title, icon, _subtitle, _actions in self.module.SECTIONS:
-            self.assertIn(f"{icon}   {title}".replace("&", "&&"), nav_texts)
+        self.assertEqual(window.search.text(), "")
+        navs = [b for b in window.findChildren(QtWidgets.QPushButton) if b.objectName() == "nav"]
+        self.assertEqual(len(navs), len(self.module.SECTIONS))
+        stacks = window.findChildren(self.module.CardStack)
+        self.assertGreaterEqual(len(stacks), len(self.module.SECTIONS))
+        tiles = [t for t in window.findChildren(QtWidgets.QFrame) if t.objectName() == "tile"]
+        self.assertTrue(tiles)
         window.close()
+
+    def test_widget_section_and_comic_launcher(self):
+        titles = [s[0] for s in self.module.SECTIONS]
+        self.assertEqual(titles[0], "Widget")
+        widget = self.module.SECTIONS[0][3]
+        names = [a[0] for a in widget]
+        self.assertEqual(names, ["AniSub (Movie)", "AniSub Comic"])
+        movie, comic = widget
+        self.assertEqual(movie[2], ("hyde-shell", "rofi.movie"))
+        self.assertEqual(comic[2], ("hyde-shell", "rofi.comic"))
+        launcher = ROOT / "Configs/.local/lib/hyde/rofi.comic.sh"
+        self.assertTrue(launcher.is_file())
+        subprocess.run(["bash", "-n", str(launcher)], check=True)
+        text = launcher.read_text()
+        self.assertIn("# @name: rofi.comic", text)
+        self.assertIn("hyde-shell rofi.comic", text)
+        self.assertIn("/tim-kiem?keyword=", text)
+        self.assertIn("net.imgchapter.store", text)
+        self.assertIn("chuong-", text)
+        self.assertIn("truyen-", text)
 
     def test_commands_are_fixed_argv(self):
         for _, _, _, actions in self.module.SECTIONS:

@@ -2,7 +2,9 @@
   "movieVisible": true,
   "movieX": 72,
   "movieY": 348,
+  "movieScale": 1.0,
   "comicVisible": true,
   "comicX": 72,
-  "comicY": 596
+  "comicY": 596,
+  "comicScale": 1.0
 }

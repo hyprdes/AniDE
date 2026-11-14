@@ -68,6 +68,8 @@ ShellRoot {
     property bool anisubComicVisible: true
     property int anisubComicX: 72
     property int anisubComicY: 596
+    property real anisubMovieScale: 1.0
+    property real anisubComicScale: 1.0
     property var anisubMovieItems: []
     property var anisubComicItems: []
 
@@ -167,9 +169,18 @@ ShellRoot {
             if (d.comicVisible !== undefined) shellRoot.anisubComicVisible = Boolean(d.comicVisible);
             if (d.comicX !== undefined) shellRoot.anisubComicX = Math.max(8, Number(d.comicX) || 72);
             if (d.comicY !== undefined) shellRoot.anisubComicY = Math.max(48, Number(d.comicY) || 596);
+            if (d.movieScale !== undefined) shellRoot.anisubMovieScale = shellRoot.clampAnisubScale(d.movieScale);
+            if (d.comicScale !== undefined) shellRoot.anisubComicScale = shellRoot.clampAnisubScale(d.comicScale);
         } catch (e) {
             // Ignore malformed JSON during write
         }
+    }
+
+    // Free resize range for the wallpaper widgets (design units x scale)
+    function clampAnisubScale(v) {
+        var n = Number(v);
+        if (!(n > 0)) n = 1.0;
+        return Math.max(0.6, Math.min(2.2, n));
     }
 
     function saveAnisubWidgetsConfig() {
@@ -179,7 +190,9 @@ ShellRoot {
             movieY: Math.round(shellRoot.anisubMovieY),
             comicVisible: shellRoot.anisubComicVisible,
             comicX: Math.round(shellRoot.anisubComicX),
-            comicY: Math.round(shellRoot.anisubComicY)
+            comicY: Math.round(shellRoot.anisubComicY),
+            movieScale: Math.round(shellRoot.anisubMovieScale * 100) / 100,
+            comicScale: Math.round(shellRoot.anisubComicScale * 100) / 100
         }, null, 2);
         shellRoot.runCmd([
             "sh", "-c",
@@ -202,8 +215,9 @@ ShellRoot {
             name: p[0] || "Phim",
             info: p[1] || "",
             slug: p[2],
-            poster: poster
-        }]).slice(0, 3);
+            poster: poster,
+            thumb: poster
+        }]).slice(0, 6);
     }
 
     function parseAnisubComicLine(line) {
@@ -214,8 +228,9 @@ ShellRoot {
             name: p[0] || "Truyện",
             url: p[1],
             slug: p[2] || "",
-            cover: p[3] || ""
-        }]).slice(0, 3);
+            cover: p[3] || "",
+            thumb: p[3] || ""
+        }]).slice(0, 6);
     }
 
     function anisubWidgetLaunch(tool, arg) {
@@ -2323,7 +2338,7 @@ ShellRoot {
         }
     }
 
-    // ── ANISUB WALLPAPER WIDGETS — Movie + Comic cards, draggable like the clock ──
+    // ── ANISUB WALLPAPER WIDGET: AniSub Movie — radio-style card (image-15), draggable + resizable like the clock ──
     Variants {
         model: Quickshell.screens
 
@@ -2356,12 +2371,10 @@ ShellRoot {
                     id: movieCard
                     x: shellRoot.anisubMovieX
                     y: shellRoot.anisubMovieY
-                    width: 320
-                    height: 188
-                    radius: 18
-                    color: cssRgba(theme.barBg, 0.97)
-                    border.width: 3
-                    border.color: theme.borderColor
+                    property real sc: shellRoot.anisubMovieScale
+                    width: 280 * sc
+                    height: 320 * sc
+                    color: "transparent"
 
                     Connections {
                         target: shellRoot
@@ -2371,13 +2384,15 @@ ShellRoot {
                         function onAnisubMovieYChanged() {
                             if (!movieDragArea.pressed) movieCard.y = shellRoot.anisubMovieY;
                         }
+                        function onAnisubMovieScaleChanged() {
+                            if (!movieGripArea.pressed) movieCard.sc = shellRoot.anisubMovieScale;
+                        }
                     }
 
-                    // Drag anywhere on the card background; click opens AniSub Movie
+                    // Background drag layer (below the face): drag moves the card, a plain click opens AniSub
                     MouseArea {
                         id: movieDragArea
                         anchors.fill: parent
-                        hoverEnabled: true
                         cursorShape: pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
                         drag.target: movieCard
                         drag.axis: Drag.XAndYAxis
@@ -2392,99 +2407,70 @@ ShellRoot {
                             shellRoot.saveAnisubWidgetsConfig();
                         }
 
-                        onClicked: shellRoot.anisubWidgetLaunch("rofi.movie", "");
+                        onClicked: shellRoot.anisubWidgetLaunch("rofi.movie", "")
                     }
 
-                    Row {
-                        anchors {
-                            top: parent.top
-                            left: parent.left
-                            right: parent.right
-                            topMargin: 12
-                            leftMargin: 14
-                            rightMargin: 14
-                        }
-                        spacing: 10
-
-                        Text {
-                            text: "✳"
-                            color: theme.glowColor
-                            font.pixelSize: 16
-                            font.bold: true
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-
-                        Text {
-                            text: "AniSub Movie"
-                            color: theme.mainFg
-                            font.pixelSize: 13
-                            font.bold: true
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-
-                        Item { width: 6; height: 1 }
-
-                        Rectangle {
-                            height: 20
-                            width: movieChip.implicitWidth + 14
-                            radius: 10
-                            color: theme.mainFg
-                            anchors.verticalCenter: parent.verticalCenter
-
-                            Text {
-                                id: movieChip
-                                anchors.centerIn: parent
-                                text: "KKPhim"
-                                color: theme.barBg
-                                font.pixelSize: 8
-                                font.bold: true
+                    AniSubRadioFace {
+                        id: movieFace
+                        x: 0
+                        y: 0
+                        transformOrigin: Item.TopLeft
+                        scale: movieCard.sc
+                        themePalette: theme
+                        headerText: "KKPhim · Phim mới cập nhật"
+                        items: shellRoot.anisubMovieItems
+                        onOpenRequested: index => {
+                            var list = shellRoot.anisubMovieItems;
+                            if (list.length > 0) {
+                                shellRoot.runCmd(["hyde-shell", "rofi.movie", "play", list[index].slug]);
+                            } else {
+                                shellRoot.anisubWidgetLaunch("rofi.movie", "");
                             }
                         }
                     }
 
-                    Row {
-                        anchors {
-                            top: parent.top
-                            topMargin: 46
-                            horizontalCenter: parent.horizontalCenter
-                        }
-                        spacing: 10
+                    // Resize grip (bottom-right): drag to scale the widget freely
+                    Rectangle {
+                        id: movieGrip
+                        x: movieCard.width - width
+                        y: movieCard.height - height
+                        width: 24
+                        height: 24
+                        radius: 8
+                        color: Qt.rgba(1, 1, 1, 0.55)
 
-                        Repeater {
-                            model: shellRoot.anisubMovieItems.length > 0 ? shellRoot.anisubMovieItems : 3
+                        MouseArea {
+                            id: movieGripArea
+                            property real gripOffset: 0
+                            anchors.fill: parent
+                            cursorShape: Qt.SizeFDiagCursor
+                            preventStealing: true
 
-                            AniSubPosterTile {
-                                themePalette: theme
-                                posterSource: shellRoot.anisubMovieItems.length > 0 ? modelData.poster : ""
-                                posterName: shellRoot.anisubMovieItems.length > 0 ? modelData.name : "…"
-                                onActivated: {
-                                    if (shellRoot.anisubMovieItems.length > 0) {
-                                        shellRoot.runCmd(["hyde-shell", "rofi.movie", "play", modelData.slug]);
-                                    } else {
-                                        shellRoot.anisubWidgetLaunch("rofi.movie", "");
-                                    }
-                                }
+                            onPressed: mouse => {
+                                var p = mapToItem(movieSurface, mouse.x, mouse.y);
+                                gripOffset = (movieCard.x + movieCard.width) - p.x;
+                            }
+
+                            onPositionChanged: mouse => {
+                                if (!movieGripArea.pressed) return;
+                                var p = mapToItem(movieSurface, mouse.x, mouse.y);
+                                var w = p.x + gripOffset - movieCard.x;
+                                var maxW = movieSurface.width - movieCard.x - 8;
+                                movieCard.sc = Math.max(0.6, Math.min(2.2, w / 280, maxW / 280));
+                            }
+
+                            onReleased: {
+                                shellRoot.anisubMovieScale = Math.round(movieCard.sc * 100) / 100;
+                                shellRoot.saveAnisubWidgetsConfig();
                             }
                         }
-                    }
-
-                    Text {
-                        anchors {
-                            bottom: parent.bottom
-                            left: parent.left
-                            margins: 12
-                        }
-                        text: shellRoot.anisubMovieItems.length > 0
-                            ? (shellRoot.anisubMovieItems[0].info || "Phim mới · KKPhim")
-                            : "Đang tải phim mới…"
-                        color: theme.subFg
-                        font.pixelSize: 8
                     }
                 }
             }
         }
     }
 
+    // ── ANISUB WALLPAPER WIDGET: AniSub Comic — radio-style card (image-15), draggable + resizable like the clock ──
     Variants {
         model: Quickshell.screens
 
@@ -2517,12 +2503,10 @@ ShellRoot {
                     id: comicCard
                     x: shellRoot.anisubComicX
                     y: shellRoot.anisubComicY
-                    width: 320
-                    height: 248
-                    radius: 18
-                    color: cssRgba(theme.barBg, 0.97)
-                    border.width: 3
-                    border.color: theme.borderColor
+                    property real sc: shellRoot.anisubComicScale
+                    width: 280 * sc
+                    height: 320 * sc
+                    color: "transparent"
 
                     Connections {
                         target: shellRoot
@@ -2532,12 +2516,15 @@ ShellRoot {
                         function onAnisubComicYChanged() {
                             if (!comicDragArea.pressed) comicCard.y = shellRoot.anisubComicY;
                         }
+                        function onAnisubComicScaleChanged() {
+                            if (!comicGripArea.pressed) comicCard.sc = shellRoot.anisubComicScale;
+                        }
                     }
 
+                    // Background drag layer (below the face): drag moves the card, a plain click opens AniSub
                     MouseArea {
                         id: comicDragArea
                         anchors.fill: parent
-                        hoverEnabled: true
                         cursorShape: pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
                         drag.target: comicCard
                         drag.axis: Drag.XAndYAxis
@@ -2552,94 +2539,63 @@ ShellRoot {
                             shellRoot.saveAnisubWidgetsConfig();
                         }
 
-                        onClicked: shellRoot.anisubWidgetLaunch("rofi.comic", "");
+                        onClicked: shellRoot.anisubWidgetLaunch("rofi.comic", "")
                     }
 
-                    Row {
-                        anchors {
-                            top: parent.top
-                            left: parent.left
-                            right: parent.right
-                            topMargin: 12
-                            leftMargin: 14
-                            rightMargin: 14
-                        }
-                        spacing: 10
-
-                        Text {
-                            text: "✳"
-                            color: theme.glowColor
-                            font.pixelSize: 16
-                            font.bold: true
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-
-                        Text {
-                            text: "AniSub Comic"
-                            color: theme.mainFg
-                            font.pixelSize: 13
-                            font.bold: true
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-
-                        Item { width: 6; height: 1 }
-
-                        Rectangle {
-                            height: 20
-                            width: comicChip.implicitWidth + 14
-                            radius: 10
-                            color: theme.mainFg
-                            anchors.verticalCenter: parent.verticalCenter
-
-                            Text {
-                                id: comicChip
-                                anchors.centerIn: parent
-                                text: "NetTruyen"
-                                color: theme.barBg
-                                font.pixelSize: 8
-                                font.bold: true
+                    AniSubRadioFace {
+                        id: comicFace
+                        x: 0
+                        y: 0
+                        transformOrigin: Item.TopLeft
+                        scale: comicCard.sc
+                        themePalette: theme
+                        headerText: "NetTruyen · Truyện mới cập nhật"
+                        items: shellRoot.anisubComicItems
+                        onOpenRequested: index => {
+                            var list = shellRoot.anisubComicItems;
+                            if (list.length > 0) {
+                                shellRoot.runCmd(["hyde-shell", "rofi.comic", "read", list[index].slug]);
+                            } else {
+                                shellRoot.anisubWidgetLaunch("rofi.comic", "");
                             }
                         }
                     }
 
-                    Column {
-                        anchors {
-                            top: parent.top
-                            topMargin: 44
-                            horizontalCenter: parent.horizontalCenter
-                        }
-                        spacing: 8
+                    // Resize grip (bottom-right): drag to scale the widget freely
+                    Rectangle {
+                        id: comicGrip
+                        x: comicCard.width - width
+                        y: comicCard.height - height
+                        width: 24
+                        height: 24
+                        radius: 8
+                        color: Qt.rgba(1, 1, 1, 0.55)
 
-                        Repeater {
-                            model: shellRoot.anisubComicItems.length > 0 ? shellRoot.anisubComicItems : 3
+                        MouseArea {
+                            id: comicGripArea
+                            property real gripOffset: 0
+                            anchors.fill: parent
+                            cursorShape: Qt.SizeFDiagCursor
+                            preventStealing: true
 
-                            AniSubComicRow {
-                                themePalette: theme
-                                coverSource: shellRoot.anisubComicItems.length > 0 ? modelData.cover : ""
-                                rowName: shellRoot.anisubComicItems.length > 0 ? modelData.name : "…"
-                                rowUrl: shellRoot.anisubComicItems.length > 0 ? modelData.url : "nettruyen.info"
-                                onActivated: {
-                                    if (shellRoot.anisubComicItems.length > 0) {
-                                        shellRoot.runCmd(["hyde-shell", "rofi.comic", "read", modelData.slug]);
-                                    } else {
-                                        shellRoot.anisubWidgetLaunch("rofi.comic", "");
-                                    }
-                                }
+                            onPressed: mouse => {
+                                var p = mapToItem(comicSurface, mouse.x, mouse.y);
+                                gripOffset = (comicCard.x + comicCard.width) - p.x;
+                            }
+
+                            onPositionChanged: mouse => {
+                                if (!comicGripArea.pressed) return;
+                                var p = mapToItem(comicSurface, mouse.x, mouse.y);
+                                var w = p.x + gripOffset - comicCard.x;
+                                var maxW = comicSurface.width - comicCard.x - 8;
+                                comicCard.sc = Math.max(0.6, Math.min(2.2, w / 280, maxW / 280));
+                            }
+
+                            onReleased: {
+                                shellRoot.anisubComicScale = Math.round(comicCard.sc * 100) / 100;
+                                shellRoot.saveAnisubWidgetsConfig();
                             }
                         }
-                    }
-
-                    Text {
-                        anchors {
-                            bottom: parent.bottom
-                            left: parent.left
-                            margins: 12
-                        }
-                        text: shellRoot.anisubComicItems.length > 0
-                            ? "Truyện mới · NetTruyen"
-                            : "Đang tải truyện mới…"
-                        color: theme.subFg
-                        font.pixelSize: 8
                     }
                 }
             }

@@ -23,8 +23,7 @@ class QuickshellBarTest(unittest.TestCase):
             "LisaGlassIcon.qml",
             "CircleUtilButton.qml",
             "ClippedProgressBar.qml",
-            "AniSubPosterTile.qml",
-            "AniSubComicRow.qml",
+            "AniSubRadioFace.qml",
             "theme.json",
             "clock_widget.json",
             "anisub_widgets.json",
@@ -85,6 +84,12 @@ class QuickshellBarTest(unittest.TestCase):
             "component DesktopClockCanvas",
             "anisubMovieWindow",
             "anisubComicWindow",
+            "anisubMovieScale",
+            "anisubComicScale",
+            "AniSubRadioFace {",
+            "movieGripArea",
+            "comicGripArea",
+            "clampAnisubScale",
             "anisub_widgets.json",
             "applyAnisubWidgetsJson",
             "saveAnisubWidgetsConfig",
@@ -117,8 +122,7 @@ class QuickshellBarTest(unittest.TestCase):
             "LisaGlassIcon",
             "CircleUtilButton",
             "ClippedProgressBar",
-            "AniSubPosterTile",
-            "AniSubComicRow",
+            "AniSubRadioFace",
         ):
             self.assertNotIn(f"component {file_type}", shell_qml)
         decl = shell_qml.index("component DreamyMistCanvas")
@@ -131,7 +135,7 @@ class QuickshellBarTest(unittest.TestCase):
 
         restore_psv = (ROOT / "Scripts/restore_cfg.psv").read_text()
         self.assertIn(
-            "S|${HOME}/.config/quickshell|shell.qml Colors.qml RoundCorner.qml LisaGlassIcon.qml CircleUtilButton.qml ClippedProgressBar.qml AniSubPosterTile.qml AniSubComicRow.qml|hyprland",
+            "S|${HOME}/.config/quickshell|shell.qml Colors.qml RoundCorner.qml LisaGlassIcon.qml CircleUtilButton.qml ClippedProgressBar.qml AniSubRadioFace.qml|hyprland",
             restore_psv,
         )
         self.assertIn("theme.json clock_widget.json anisub_widgets.json", restore_psv)
@@ -148,8 +152,7 @@ class QuickshellBarTest(unittest.TestCase):
             "LisaGlassIcon.qml",
             "CircleUtilButton.qml",
             "ClippedProgressBar.qml",
-            "AniSubPosterTile.qml",
-            "AniSubComicRow.qml",
+            "AniSubRadioFace.qml",
         ):
             self.assertGreaterEqual(manifest.count(f'"{qml_file}"'), 2, qml_file)
 

@@ -5,7 +5,7 @@ import QtQuick
 Item {
     id: utilBtn
     property string iconText: ""
-    property color accentColor: "#ff4f18"
+    property color accentColor: "#e8449b"
     property bool glas: true
     property bool activeState: false
     property int iconVariant: 0

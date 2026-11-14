@@ -5,8 +5,8 @@ import QtQuick
 Item {
     id: progressRoot
     property real value: 0.0
-    property color fill: "#ff4f18"
-    property color trackColor: Qt.rgba(0.15, 0.16, 0.24, 0.14)
+    property color fill: "#2434e0"
+    property color trackColor: Qt.rgba(0.14, 0.20, 0.87, 0.16)
 
     implicitWidth: 42
     implicitHeight: 12

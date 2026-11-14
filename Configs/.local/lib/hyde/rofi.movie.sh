@@ -2,7 +2,7 @@
 # @name: rofi.movie
 # @ver: 1.1.0
 # @short: Watch KKPhim movies from Rofi
-# @usage: hyde-shell rofi.movie [search|browse|recent|history|play|link|open|settings|diagnose] [args]
+# @usage: hyde-shell rofi.movie [search|browse|recent|history|play|link|open|settings|diagnose|feed] [args]
 # @global.flag: -h,--help | Show this help message
 # @cmd: search
 # @cmd.alias: s
@@ -2006,6 +2006,11 @@ movie_script_mode() {
         list)
             movie_script_list "${a1:-phim-moi-cap-nhat}" "${a2:-1}" "${a3:-}" "${a4:-}"
             ;;
+        feed)
+            # Machine-readable wallpaper-widget feed: name+year|info|slug|poster|type
+            movie_list_json "${a1:-phim-moi-cap-nhat}" "${a2:-1}" "" "" |
+                movie_rows | head -n "${ROFI_MOVIE_FEED_LIMIT:-6}"
+            ;;
         search)
             movie_script_search "${a1:-}" "${a2:-1}"
             ;;
@@ -2113,6 +2118,7 @@ Commands:
   search [keyword]        Search KKPhim and play the selection
   browse [category]       Browse categories, genres and countries by page
   recent                  Latest updates on KKPhim
+  feed [category] [page]  Machine-readable rows (name|info|slug|poster|type) for the wallpaper widget
   history                 Continue watching (local history)
   play <slug>             Play a movie slug
   link <slug> [episode]   Print the HLS link of an episode instead of playing

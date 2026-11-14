@@ -118,6 +118,37 @@ class SettingsTest(unittest.TestCase):
         self.assertIn("chuong-", text)
         self.assertIn("truyen-", text)
 
+    def test_wallpaper_widget_toggles_feed_and_page_scroll(self):
+        import json
+
+        window = self.module.SettingsWindow()
+        self.assertTrue(window.movieToggle.isCheckable())
+        self.assertTrue(window.comicToggle.isCheckable())
+        page_scrolls = [
+            s for s in window.findChildren(QtWidgets.QScrollArea)
+            if s.objectName() == "pageScroll"
+        ]
+        self.assertEqual(len(page_scrolls), 1, "tall settings pages must scroll, not clip")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            with mock.patch.dict(os.environ, {"XDG_CONFIG_HOME": tmp}):
+                self.module.write_widget_flags(True, False)
+                data = json.loads((Path(tmp) / "quickshell" / "anisub_widgets.json").read_text())
+                self.assertIs(data["movieVisible"], True)
+                self.assertIs(data["comicVisible"], False)
+                self.module.write_widget_flags(False, True)
+                movie, comic, raw = self.module.read_widget_flags()
+                self.assertFalse(movie)
+                self.assertTrue(comic)
+                self.assertIs(raw["movieVisible"], False)
+
+        for script in ("rofi.comic.sh", "rofi.movie.sh"):
+            path = ROOT / "Configs/.local/lib/hyde" / script
+            subprocess.run(["bash", "-n", str(path)], check=True)
+            text = path.read_text()
+            self.assertIn("feed)", text)
+            self.assertIn("Machine-readable wallpaper-widget feed", text)
+
     def test_commands_are_fixed_argv(self):
         for _, _, _, actions in self.module.SECTIONS:
             for _, _, command, dependencies in actions:

@@ -192,10 +192,15 @@ class QuickshellBarTest(unittest.TestCase):
             self.assertFalse((ROOT / "Configs/.local/share/quickshell" / gone_file).exists(), gone_file)
 
     def test_win_shift_m_opens_the_panel_not_rofi(self):
+        # HyDE's key_binds.lua is synced to every machine; hyprland.lua is
+        # preserve-only, so an override there never reaches an existing install.
+        binds = (ROOT / "Configs/.local/share/hypr/lua/key_binds.lua").read_text()
+        line = next(l for l in binds.splitlines() if 'MOD .. " + SHIFT + M"' in l)
+        self.assertIn('exec_cmd("hyde-shell anisub_panel toggle")', line)
+        self.assertNotIn("rofi.movie", line)
+        self.assertNotIn("menu.movie", line)
         hypr = (ROOT / "Configs/.config/hypr/hyprland.lua").read_text()
-        self.assertIn('hyde.config.modifiers.main .. " + SHIFT + M"', hypr)
-        self.assertIn('exec_cmd("hyde-shell anisub_panel toggle")', hypr)
-        self.assertNotIn("rofi.movie", hypr)
+        self.assertNotIn("anisub_panel", hypr)
         script = ROOT / "Configs/.local/lib/hyde/anisub_panel.sh"
         self.assertTrue(script.is_file())
         self.assertTrue(os.access(script, os.X_OK))

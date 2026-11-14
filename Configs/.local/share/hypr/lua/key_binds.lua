@@ -184,8 +184,8 @@ _F = {description = "[Launcher|Rofi menus] Calculator"}
 hl.bind(MOD .. " + SHIFT + K", hl.dsp.exec_cmd(hyde.sh.menu.calculator()), _F)
 _F = {description = "[Launcher|Rofi menus] Web Search"}
 hl.bind(MOD .. " + SHIFT + slash", hl.dsp.exec_cmd(hyde.sh.menu.search()), _F)
-_F = {description = "[Launcher|Rofi menus] Movies KKPhim"}
-hl.bind(MOD .. " + SHIFT + M", hl.dsp.exec_cmd(hyde.sh.menu.movie()), _F)
+_F = {description = "[Launcher|Rofi menus] AniSub panel"}
+hl.bind(MOD .. " + SHIFT + M", hl.dsp.exec_cmd("hyde-shell anisub_panel toggle"), _F)
 
 -- $hc=Hardware Controls
 -- $d=[$hc|Audio]

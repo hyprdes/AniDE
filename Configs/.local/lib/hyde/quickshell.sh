@@ -165,16 +165,13 @@ ensure_config() {
     fi
 
     if [[ -n "${src_dir}" ]]; then
-        for qml_file in shell.qml Colors.qml RoundCorner.qml LisaGlassIcon.qml CircleUtilButton.qml ClippedProgressBar.qml AniSubWidgetFace.qml AniSubMovieFace.qml; do
+        for qml_file in shell.qml Colors.qml RoundCorner.qml LisaGlassIcon.qml CircleUtilButton.qml ClippedProgressBar.qml AniSubPanelFace.qml; do
             if [[ -f "${src_dir}/${qml_file}" ]] && ! cmp -s "${src_dir}/${qml_file}" "${QS_CONFIG_DIR}/${qml_file}" 2>/dev/null; then
                 cp -f "${src_dir}/${qml_file}" "${QS_CONFIG_DIR}/${qml_file}" 2>/dev/null || true
             fi
         done
         if [[ -f "${src_dir}/clock_widget.json" && ! -f "${QS_CONFIG_DIR}/clock_widget.json" ]]; then
             cp -f "${src_dir}/clock_widget.json" "${QS_CONFIG_DIR}/clock_widget.json" 2>/dev/null || true
-        fi
-        if [[ -f "${src_dir}/anisub_widgets.json" && ! -f "${QS_CONFIG_DIR}/anisub_widgets.json" ]]; then
-            cp -f "${src_dir}/anisub_widgets.json" "${QS_CONFIG_DIR}/anisub_widgets.json" 2>/dev/null || true
         fi
     fi
     sync_wallpaper_theme

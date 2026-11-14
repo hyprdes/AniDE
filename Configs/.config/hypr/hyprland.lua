@@ -68,3 +68,11 @@ if hl then
 	})
 end
 
+-- Win+Shift+M opens the AniSub panel under the top bar instead of the rofi movie
+-- menu. The combination and flags match HyDE's bind in key_binds.lua, so this one
+-- replaces it (description is not a flag, so it can differ).
+if hl then
+	hl.bind(hyde.config.modifiers.main .. " + SHIFT + M", hl.dsp.exec_cmd("hyde-shell anisub_panel toggle"), {
+		description = "[Launcher|Rofi menus] AniSub panel",
+	})
+end

@@ -78,6 +78,10 @@ ShellRoot {
     property var anisubComicSearchItems: []
     property bool anisubMovieSearchLoading: false
     property bool anisubComicSearchLoading: false
+    property var anisubMovieEpisodes: []
+    property bool anisubMovieEpisodesLoading: false
+    property var anisubComicChapters: []
+    property bool anisubComicChaptersLoading: false
 
     readonly property string anisubWidgetsConfigPath: Quickshell.env("XDG_CONFIG_HOME")
         ? (Quickshell.env("XDG_CONFIG_HOME") + "/quickshell/anisub_widgets.json")
@@ -271,6 +275,62 @@ ShellRoot {
         if (it) shellRoot.anisubComicSearchItems = shellRoot.anisubComicSearchItems.concat([it]).slice(0, 6);
     }
 
+    // name|server|number row -> episode (the widget never opens rofi for episodes)
+    function parseAnisubEpisodeLine(line) {
+        if (!line) return;
+        var p = line.trim().split("|");
+        if (p.length < 3 || !p[2]) return;
+        if (shellRoot.anisubMovieEpisodes.length >= 300) return;
+        shellRoot.anisubMovieEpisodes = shellRoot.anisubMovieEpisodes.concat([{
+            name: p[0] || "Tập",
+            server: p[1] || "0",
+            num: p[2]
+        }]);
+    }
+
+    // name|url|chuong-N row -> chapter
+    function parseAnisubChapterLine(line) {
+        if (!line) return;
+        var p = line.trim().split("|");
+        if (p.length < 3 || !p[1]) return;
+        if (shellRoot.anisubComicChapters.length >= 300) return;
+        shellRoot.anisubComicChapters = shellRoot.anisubComicChapters.concat([{
+            name: p[0] || "Chương",
+            url: p[1],
+            num: p[2]
+        }]);
+    }
+
+    function anisubMovieLoadEpisodes(film) {
+        if (!film || !film.slug) return;
+        anisubMovieEpisodesProc.running = false;
+        shellRoot.anisubMovieEpisodes = [];
+        shellRoot.anisubMovieEpisodesLoading = true;
+        anisubMovieEpisodesProc.command = ["hyde-shell", "rofi.movie", "episodes", film.slug];
+        anisubMovieEpisodesProc.running = true;
+    }
+
+    function anisubMoviePlayEpisode(film, ep) {
+        if (!film || !film.slug || !ep) return;
+        shellRoot.runCmd(["hyde-shell", "rofi.movie", "play-episode", film.slug, ep.server, ep.num]);
+    }
+
+    function anisubComicLoadChapters(story) {
+        if (!story || !story.url) return;
+        anisubComicChaptersProc.running = false;
+        shellRoot.anisubComicChapters = [];
+        shellRoot.anisubComicChaptersLoading = true;
+        anisubComicChaptersProc.command = ["hyde-shell", "rofi.comic", "chapters", story.url];
+        anisubComicChaptersProc.running = true;
+    }
+
+    // Opens the chapter in the reader; the story name and url come from the picked story
+    function anisubComicReadChapter(story, chapter) {
+        if (!story || !story.url || !chapter || !chapter.url) return;
+        shellRoot.runCmd(["hyde-shell", "rofi.comic", "read-chapter", story.url, chapter.url,
+                          chapter.num, story.name + " · " + chapter.name]);
+    }
+
     // Widget search: runs `rofi.<kind> feed-search <keyword>` (no rofi UI).
     // Stopping the old process first makes the loading flag reset before the new run.
     function anisubWidgetSearch(kind, query) {
@@ -444,6 +504,22 @@ ShellRoot {
             onRead: data => shellRoot.parseAnisubComicSearchLine(data)
         }
         onRunningChanged: if (!running) shellRoot.anisubComicSearchLoading = false
+    }
+
+    Process {
+        id: anisubMovieEpisodesProc
+        stdout: SplitParser {
+            onRead: data => shellRoot.parseAnisubEpisodeLine(data)
+        }
+        onRunningChanged: if (!running) shellRoot.anisubMovieEpisodesLoading = false
+    }
+
+    Process {
+        id: anisubComicChaptersProc
+        stdout: SplitParser {
+            onRead: data => shellRoot.parseAnisubChapterLine(data)
+        }
+        onRunningChanged: if (!running) shellRoot.anisubComicChaptersLoading = false
     }
 
     Timer {
@@ -2423,7 +2499,7 @@ ShellRoot {
         }
     }
 
-    // ── ANISUB WALLPAPER WIDGET: AniSub Movie — poster-first card; drag, free resize (width and height), search on the widget ──
+    // ── ANISUB WALLPAPER WIDGET: AniSub Movie — glass card (after the reference); drag, free resize, search on the widget ──
     Variants {
         model: Quickshell.screens
 
@@ -2443,11 +2519,12 @@ ShellRoot {
             exclusiveZone: 0
             aboveWindows: false
             color: "transparent"
-            // On-demand keyboard so the widget's search box can take typing (never Exclusive)
+            // On-demand keyboard so the search box can take typing (never Exclusive)
             WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
 
+            // Idle: only the search pill takes input; searching: the whole glass card
             mask: Region {
-                item: movieCard
+                item: movieFace.maskItem
             }
 
             Item {
@@ -2478,8 +2555,7 @@ ShellRoot {
                         }
                     }
 
-                    // Background drag layer (below the face): drag moves the card. Clicks on
-                    // the card are handled by the face (search, open, previous/next).
+                    // Background drag layer (below the face): dragging the glass card moves it.
                     MouseArea {
                         id: movieDragArea
                         anchors.fill: parent
@@ -2498,25 +2574,30 @@ ShellRoot {
                         }
                     }
 
-                    AniSubWidgetFace {
+                    AniSubMovieFace {
                         id: movieFace
                         anchors.fill: parent
                         themePalette: theme
-                        headerText: "KKPhim · Phim mới cập nhật"
-                        searchHint: "Tìm phim trên KKPhim…"
-                        items: shellRoot.anisubMovieItems
+                        dragTarget: movieCard
                         searchItems: shellRoot.anisubMovieSearchItems
                         searchLoading: shellRoot.anisubMovieSearchLoading
-                        onOpenRequested: item => {
-                            if (item && item.slug) shellRoot.runCmd(["hyde-shell", "rofi.movie", "play", item.slug]);
-                        }
+                        episodes: shellRoot.anisubMovieEpisodes
+                        episodesLoading: shellRoot.anisubMovieEpisodesLoading
                         onSearchSubmitted: query => shellRoot.anisubWidgetSearch("movie", query)
                         onSearchCleared: shellRoot.anisubWidgetSearchClear("movie")
+                        onEpisodesRequested: film => shellRoot.anisubMovieLoadEpisodes(film)
+                        onPlayEpisode: (film, ep) => shellRoot.anisubMoviePlayEpisode(film, ep)
+                        onDragReleased: {
+                            shellRoot.anisubMovieX = Math.round(movieCard.x);
+                            shellRoot.anisubMovieY = Math.round(movieCard.y);
+                            shellRoot.saveAnisubWidgetsConfig();
+                        }
                     }
 
-                    // Resize grip (bottom-right): drag changes width and height independently
+                    // Resize grip (bottom-right), only while the glass card is shown
                     Rectangle {
                         id: movieGrip
+                        visible: !movieFace.idle
                         x: movieCard.width - width - 4
                         y: movieCard.height - height - 4
                         width: 22
@@ -2647,9 +2728,8 @@ ShellRoot {
                         items: shellRoot.anisubComicItems
                         searchItems: shellRoot.anisubComicSearchItems
                         searchLoading: shellRoot.anisubComicSearchLoading
-                        onOpenRequested: item => {
-                            if (item && item.slug) shellRoot.runCmd(["hyde-shell", "rofi.comic", "read", item.slug]);
-                        }
+                        onStoryPicked: story => shellRoot.anisubComicLoadChapters(story)
+                        onChapterPicked: chapter => shellRoot.anisubComicReadChapter(comicFace.chapterStory, chapter)
                         onSearchSubmitted: query => shellRoot.anisubWidgetSearch("comic", query)
                         onSearchCleared: shellRoot.anisubWidgetSearchClear("comic")
                     }

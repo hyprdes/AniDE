@@ -24,6 +24,7 @@ class QuickshellBarTest(unittest.TestCase):
             "CircleUtilButton.qml",
             "ClippedProgressBar.qml",
             "AniSubWidgetFace.qml",
+            "AniSubMovieFace.qml",
             "theme.json",
             "clock_widget.json",
             "anisub_widgets.json",
@@ -138,7 +139,7 @@ class QuickshellBarTest(unittest.TestCase):
 
         restore_psv = (ROOT / "Scripts/restore_cfg.psv").read_text()
         self.assertIn(
-            "S|${HOME}/.config/quickshell|shell.qml Colors.qml RoundCorner.qml LisaGlassIcon.qml CircleUtilButton.qml ClippedProgressBar.qml AniSubWidgetFace.qml|hyprland",
+            "S|${HOME}/.config/quickshell|shell.qml Colors.qml RoundCorner.qml LisaGlassIcon.qml CircleUtilButton.qml ClippedProgressBar.qml AniSubWidgetFace.qml AniSubMovieFace.qml|hyprland",
             restore_psv,
         )
         self.assertIn("theme.json clock_widget.json anisub_widgets.json", restore_psv)
@@ -194,6 +195,7 @@ class QuickshellBarTest(unittest.TestCase):
             "CircleUtilButton.qml",
             "ClippedProgressBar.qml",
             "AniSubWidgetFace.qml",
+            "AniSubMovieFace.qml",
         ):
             self.assertGreaterEqual(manifest.count(f'"{qml_file}"'), 2, qml_file)
 

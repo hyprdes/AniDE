@@ -6,12 +6,16 @@ import QtQuick
 Item {
     id: utilBtn
     property string iconText: ""
-    property color accentColor: "#e8449b"
+    // Frame preset: point themePalette at the shell theme (Colors.qml) and the
+    // button takes the frame's skin, colours and glyph font from it. Left null,
+    // the stand-alone defaults below apply. Any of them can still be set per button.
+    property var themePalette: null
+    property color accentColor: themePalette ? themePalette.frameAccentA : "#e8449b"
     property bool glas: true
     property bool activeState: false
     property int iconVariant: 0
-    property color iconPlateColor: "#f2f1f7"
-    property color iconInkColor: "#242739"
+    property color iconPlateColor: themePalette ? themePalette.framePill : "#f2f1f7"
+    property color iconInkColor: themePalette ? themePalette.frameInk : "#242739"
     property real iconArcStart: -210
     property real iconArcSweep: 90
     property real iconSparkX: 0.86
@@ -20,12 +24,13 @@ Item {
     property real iconSparkRot: 0
     // Flat skin (frame layout, image-1): a thin glyph, either bare inside a white
     // pill (plate: false) or on its own white circle (plate: true).
-    // flat: false keeps the layered glass icon above.
-    property bool flat: false
+    // flat: false keeps the layered glass icon above; with themePalette set, that
+    // is what the frame uses when it follows the wallpaper.
+    property bool flat: themePalette ? !themePalette.followWallpaper : false
     property bool plate: false
-    property color flatPlateColor: "#ffffff"
-    property color flatHoverColor: "#e8e8e8"
-    property string glyphFont: "JetBrainsMono Nerd Font"
+    property color flatPlateColor: themePalette ? themePalette.framePill : "#ffffff"
+    property color flatHoverColor: themePalette ? themePalette.frameHover : "#e8e8e8"
+    property string glyphFont: themePalette ? themePalette.frameGlyphFont : "JetBrainsMono Nerd Font"
     signal triggered()
     signal rightTriggered()
 

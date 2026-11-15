@@ -1,8 +1,11 @@
-// FrameLauncher: the app launcher of the frame layout (Win+A). The middle of
-// the bottom frame edge swells up into a drawer: a list of applications on a
-// FrameBump in the frame color, with a live search field sitting in the edge
-// itself, where the bar shows its input pill. Fills the window that hosts it;
-// a click anywhere outside the drawer closes it.
+// FrameLauncher: the app launcher of the frame layout (Win+A). A drawer in the
+// frame color rises through the middle of the bottom frame edge: a list of
+// applications above the edge, and a live search field inside the edge, where
+// the bar shows its input pill. Fills the window that hosts it; a click
+// anywhere outside the drawer closes it.
+// The drawer is one sheet that only ever moves: nothing is repainted while it
+// rises or sinks. (A Canvas resized on every frame repaints a frame late and
+// shows its old picture stretched in between, which reads as stutter.)
 // Pure QtQuick: the host passes in the desktop entries and resolves icons, so
 // this file needs no Quickshell import.
 // File-based component (not inline): immune to QML inline-component ordering quirks ("X is not a type").
@@ -64,18 +67,31 @@ Item {
     readonly property int visibleRows: Math.max(1, Math.min(maxRows, results.length))
     property real listH: visibleRows * rowH
     readonly property real fullH: pad + listH + gap + fieldH + fieldBottom
-    // 0: flush with the edge, 1: fully risen
-    property real openness: open ? 1.0 : 0.0
-    readonly property real cardH: edgeHeight + Math.max(0, fullH - edgeHeight) * openness
+    // 0: sunk below the screen edge, 1: fully risen
+    property real openness: 0.0
     readonly property real cardX: Math.round((width - cardW) / 2)
-    readonly property real cardTop: height - cardH
-    readonly property real fieldTop: height - fieldBottom - fieldH
+    readonly property real cardTop: height - fullH * openness
+    // How far the sheet stands above the edge line
+    readonly property real rise: Math.max(0, height - edgeHeight - cardTop)
 
-    Behavior on openness {
-        NumberAnimation {
-            duration: 240
-            easing.type: Easing.OutCubic
-        }
+    // Rising eases out; sinking is shorter and speeds up, so the drawer is
+    // gone at once instead of creeping through its last pixels
+    NumberAnimation {
+        id: riseAnim
+        target: root
+        property: "openness"
+        to: 1.0
+        duration: 220
+        easing.type: Easing.OutCubic
+    }
+
+    NumberAnimation {
+        id: sinkAnim
+        target: root
+        property: "openness"
+        to: 0.0
+        duration: 140
+        easing.type: Easing.InQuad
     }
 
     Behavior on listH {
@@ -202,14 +218,22 @@ Item {
 
     onEntriesChanged: rebuildIndex()
     onQueryChanged: refresh()
-    Component.onCompleted: rebuildIndex()
+    Component.onCompleted: {
+        openness = open ? 1.0 : 0.0;
+        rebuildIndex();
+    }
 
     // Every opening starts from an empty field with the first app selected
     onOpenChanged: {
         if (open) {
+            sinkAnim.stop();
             input.text = "";
             refresh();
             focusInput();
+            riseAnim.start();
+        } else {
+            riseAnim.stop();
+            sinkAnim.start();
         }
     }
 
@@ -220,52 +244,55 @@ Item {
         onClicked: root.closeRequested()
     }
 
-    // ── Drawer body: a bump above the edge line, a plain strip inside the edge ──
+    // ── Drawer body ──
+    // Foot: the two concave shoulders that join the sheet to the edge line.
+    // Fixed size, so it is painted once; it is only squashed flat while the
+    // sheet is still lower than the shoulders are tall.
     FrameBump {
-        id: bump
+        id: foot
         pointsDown: false
         x: root.cardX - root.shoulder
-        y: Math.round(root.cardTop)
+        y: root.height - root.edgeHeight - height
         width: root.cardW + 2 * root.shoulder
-        height: Math.max(0, root.height - root.edgeHeight - y)
+        height: root.shoulder
         shoulder: root.shoulder
-        bodyRadius: root.px(24)
+        bodyRadius: 0
+        visible: root.rise > 0
         // Opaque even when the frame is translucent: the drawer lies over the
         // bar's title tab and input pill, and they must not show through
         fillColor: root.cBg
         fillAlpha: 1.0
+        transform: Scale {
+            origin.y: foot.height
+            yScale: Math.min(1, root.rise / Math.max(1, root.shoulder))
+        }
     }
 
+    // Sheet: round on top; its lower corners hang below the screen edge
     Rectangle {
-        id: edgeStrip
-        x: root.cardX
-        y: root.height - root.edgeHeight
-        width: root.cardW
-        height: root.edgeHeight
-        color: root.cBg
-        // Covers the bar's own input pill, so it fades in rather than blinking
-        opacity: Math.min(1, root.openness * 4)
-    }
-
-    // Swallows clicks on the drawer so they do not count as "outside"
-    MouseArea {
+        id: sheet
         x: root.cardX
         y: root.cardTop
         width: root.cardW
-        height: root.cardH
-        acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
-        onClicked: input.forceActiveFocus()
+        height: root.fullH + radius
+        radius: root.px(24)
+        color: root.cBg
+
+        // Swallows clicks on the drawer so they do not count as "outside"
+        MouseArea {
+            anchors.fill: parent
+            acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
+            onClicked: input.forceActiveFocus()
+        }
     }
 
-    // ── Results: ride up with the top of the drawer, cut off above the field ──
+    // ── Results: ride on the sheet ──
     Item {
-        id: listClip
+        id: listBox
         x: root.cardX + root.pad
         y: root.cardTop + root.pad
         width: root.cardW - 2 * root.pad
-        height: Math.max(0, Math.min(root.listH, root.fieldTop - root.gap - y))
-        clip: true
-        opacity: Math.min(1, root.openness * 2)
+        height: root.listH
 
         ListView {
             id: list
@@ -394,12 +421,11 @@ Item {
     Rectangle {
         id: field
         x: root.cardX + root.pad
-        y: root.fieldTop
+        y: root.cardTop + root.pad + root.listH + root.gap
         width: root.cardW - 2 * root.pad
         height: root.fieldH
         radius: height / 2
         color: root.cPill
-        opacity: Math.min(1, root.openness * 4)
 
         Text {
             id: fieldGlyph

@@ -19,6 +19,7 @@ paths = [
     "AniSubPanelFace.qml",
     "GlassPlate.qml",
     "FrameBump.qml",
+    "FrameLauncher.qml",
 ]
 
 [[quickshell.files]]
@@ -35,6 +36,7 @@ paths = [
     "AniSubPanelFace.qml",
     "GlassPlate.qml",
     "FrameBump.qml",
+    "FrameLauncher.qml",
     "theme.json",
     "frame.json",
 ]

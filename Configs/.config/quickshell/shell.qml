@@ -91,8 +91,60 @@ ShellRoot {
     property var anisubMovieEpisodes: []
     property bool anisubMovieEpisodesLoading: false
 
+    // ── App launcher (Win+A): rises out of the bottom frame edge ──
+    property bool launcherOpen: false
+    property string launcherScreen: ""
+
     function runCmd(args) {
         Quickshell.execDetached(args);
+    }
+
+    // Opens on the named screen, or on the focused monitor when none is named
+    function launcherShow(show, screenName) {
+        if (show) {
+            var mon = Hyprland.focusedMonitor;
+            var want = screenName ? String(screenName) : ((mon && mon.name) ? String(mon.name) : "");
+            var screens = Quickshell.screens;
+            var found = "";
+            for (var i = 0; i < screens.length; i++) {
+                if (screens[i].name === want) found = want;
+            }
+            if (found === "" && screens.length > 0) found = screens[0].name;
+            launcherScreen = found;
+        }
+        launcherOpen = show;
+    }
+
+    // Themed icon of a desktop entry; "" when the icon theme has none
+    function launcherIconSource(entry) {
+        var name = (entry && entry.icon) ? String(entry.icon) : "";
+        if (name === "") return "";
+        if (name.charAt(0) === "/") return "file://" + name;
+        return Quickshell.iconPath(name, true);
+    }
+
+    // Starts the chosen app and closes the launcher. DesktopEntry.execute()
+    // ignores Terminal=true, so those entries are handed to a terminal here.
+    function launcherRun(entry) {
+        launcherShow(false);
+        if (!entry) return;
+        if (!entry.runInTerminal) {
+            entry.execute();
+            return;
+        }
+        var cmd = [
+            "sh", "-c",
+            'if command -v xdg-terminal-exec >/dev/null 2>&1; then exec xdg-terminal-exec "$@"; fi; exec "${TERMINAL:-kitty}" -e "$@"',
+            "sh"
+        ];
+        var parts = entry.command;
+        for (var i = 0; parts && i < parts.length; i++) cmd.push(String(parts[i]));
+        var dir = entry.workingDirectory ? String(entry.workingDirectory) : "";
+        if (dir !== "") {
+            Quickshell.execDetached({ command: cmd, workingDirectory: dir });
+        } else {
+            Quickshell.execDetached(cmd);
+        }
     }
 
     function cssRgba(c, a) {
@@ -1002,7 +1054,7 @@ ShellRoot {
             readonly property int circleS: frameScope.px(14)      // "+", bell and user circles
             readonly property int inputH: frameScope.px(18)
             readonly property int inputW: frameScope.px(136)      // input pill and title pill
-            readonly property int btnS: pillH - 6      // glyph buttons inside a pill
+            readonly property int btnS: pillH - frameScope.px(3)   // glyph buttons inside a pill
             readonly property int iconPx: frameScope.px(15)       // taskbar icons
             readonly property int fontPx: Math.max(10, px(5.6))
             readonly property int gap: frameScope.px(4)
@@ -1885,7 +1937,8 @@ ShellRoot {
                     }
 
                     // ── 3b. CENTER: input pill. It only looks like a text field: a click
-                    // opens the app launcher, so the bar never takes keyboard focus ──
+                    // raises the launcher drawer over it (same as Win+A), which has the
+                    // live field, so the bar itself never takes keyboard focus ──
                     Rectangle {
                         id: inputPill
                         anchors {
@@ -1965,7 +2018,7 @@ ShellRoot {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: shellRoot.runCmd(["hyde-shell", "rofilaunch", "d"])
+                            onClicked: shellRoot.launcherShow(true, frameScope.modelData.name)
                         }
                     }
 
@@ -2361,6 +2414,57 @@ ShellRoot {
                             onRightTriggered: shellRoot.runCmd(["hyde-shell", "logoutlaunch", "1"])
                         }
                     }
+                }
+            }
+
+            // ── App launcher (Win+A): the middle of the bottom edge rises into a
+            // drawer with a live search field (FrameLauncher.qml). It has its own
+            // full-screen surface, mapped only while the drawer is up, so the
+            // frame itself never takes keyboard focus. ──
+            PanelWindow {
+                id: launcherWindow
+                screen: frameScope.modelData
+                readonly property bool wanted: shellRoot.launcherOpen
+                    && shellRoot.launcherScreen === frameScope.modelData.name
+                // Stays mapped until the drawer has sunk back into the edge
+                visible: wanted || launcherFace.openness > 0.001
+
+                anchors {
+                    top: true
+                    bottom: true
+                    left: true
+                    right: true
+                }
+
+                exclusionMode: ExclusionMode.Ignore
+                color: "transparent"
+                // Above the frame, and above a fullscreen window too
+                WlrLayershell.layer: WlrLayer.Overlay
+                // On-demand keyboard: the search field takes typing while the
+                // drawer is up, nothing grabs the desktop
+                WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
+
+                onVisibleChanged: if (visible) Qt.callLater(launcherFace.focusInput)
+
+                FrameLauncher {
+                    id: launcherFace
+                    anchors.fill: parent
+                    themePalette: theme
+                    open: launcherWindow.wanted
+                    // Sized by the screen, not by the frame scale: a thin frame
+                    // still gets a launcher that can be read
+                    unit: (frameScope.modelData.height / 1080) * theme.frameLauncherScale
+                    edgeHeight: frameScope.bottomH
+                    sideInset: frameScope.sideW
+                    placeholder: theme.inputPlaceholder
+                    entries: (DesktopEntries.applications && DesktopEntries.applications.values)
+                        ? DesktopEntries.applications.values
+                        : []
+                    iconSource: function (entry) {
+                        return shellRoot.launcherIconSource(entry);
+                    }
+                    onLaunchRequested: entry => shellRoot.launcherRun(entry)
+                    onCloseRequested: shellRoot.launcherShow(false)
                 }
             }
         }
@@ -2933,6 +3037,23 @@ ShellRoot {
 
         function close(): void {
             shellRoot.anisubPanelOpen = false;
+        }
+    }
+
+    // `qs -p ~/.config/quickshell ipc call launcher toggle` (bound to Win+A)
+    IpcHandler {
+        target: "launcher"
+
+        function toggle(): void {
+            shellRoot.launcherShow(!shellRoot.launcherOpen);
+        }
+
+        function open(): void {
+            shellRoot.launcherShow(true);
+        }
+
+        function close(): void {
+            shellRoot.launcherShow(false);
         }
     }
 

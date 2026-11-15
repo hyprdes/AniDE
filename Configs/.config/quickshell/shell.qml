@@ -767,47 +767,12 @@ ShellRoot {
         }
     }
 
-    // 3. Frame layout pieces (image-1.png)
-
-    // FrameExclusion: 1px invisible layer surface that only reserves room for one
-    // frame edge. The frame is drawn by one full-screen window instead, so the
-    // order in which the compositor arranges these four surfaces never shows.
-    component FrameExclusion: PanelWindow {
-        color: "transparent"
-        implicitWidth: 1
-        implicitHeight: 1
-        mask: Region {}
-    }
-
-    // FrameLabel / FrameGlyph: small near-black sans text and Nerd Font glyphs
-    component FrameLabel: Text {
-        color: theme.frameInk
-        font.family: theme.frameFont
-        elide: Text.ElideRight
-    }
-
-    component FrameGlyph: Text {
-        color: theme.frameInk
-        font.family: theme.frameGlyphFont
-    }
-
-    component FrameSeparator: Rectangle {
-        width: 1
-        height: 12
-        color: Qt.alpha(theme.frameInk, 0.14)
-    }
-
-    // FrameButton: CircleUtilButton preset for the frame. Flat thin glyph by
-    // default; the glass icon again when the frame follows the wallpaper.
-    component FrameButton: CircleUtilButton {
-        flat: !theme.followWallpaper
-        flatPlateColor: theme.framePill
-        flatHoverColor: theme.frameHover
-        glyphFont: theme.frameGlyphFont
-        iconPlateColor: theme.framePill
-        iconInkColor: theme.frameInk
-        accentColor: theme.frameAccentA
-    }
+    // 3. Frame layout pieces (image-1.png) are written out where they are used,
+    // not declared as inline components here. Quickshell reloads this file
+    // while the previous copy is still loaded, and Qt 6.12 then rejects any
+    // inline component the previous copy did not have ("X is not a type"),
+    // so adding a `component` breaks every hot reload that delivers it.
+    // Anything reusable goes into its own .qml file instead.
 
     // 6. DesktopClockCanvas: 5x7 Rounded-Square LED Dot-Matrix Clock Renderer (exact match to image-9.png)
     component DesktopClockCanvas: Canvas {
@@ -1068,9 +1033,16 @@ ShellRoot {
                 return false;
             }
 
+            // Four 1px invisible layer surfaces that only reserve room for the
+            // frame edges; the frame itself is drawn by frameWindow below, so the
+            // order in which the compositor arranges these never shows.
             // Bar-style anchors (one edge + both neighbours): the layout every
             // compositor honours an exclusive zone for
-            FrameExclusion {
+            PanelWindow {
+                color: "transparent"
+                implicitWidth: 1
+                implicitHeight: 1
+                mask: Region {}
                 screen: frameScope.modelData
                 anchors {
                     top: true
@@ -1080,7 +1052,11 @@ ShellRoot {
                 exclusiveZone: frameScope.zoneTop
             }
 
-            FrameExclusion {
+            PanelWindow {
+                color: "transparent"
+                implicitWidth: 1
+                implicitHeight: 1
+                mask: Region {}
                 screen: frameScope.modelData
                 anchors {
                     bottom: true
@@ -1090,7 +1066,11 @@ ShellRoot {
                 exclusiveZone: frameScope.zoneBottom
             }
 
-            FrameExclusion {
+            PanelWindow {
+                color: "transparent"
+                implicitWidth: 1
+                implicitHeight: 1
+                mask: Region {}
                 screen: frameScope.modelData
                 anchors {
                     left: true
@@ -1100,7 +1080,11 @@ ShellRoot {
                 exclusiveZone: frameScope.zoneSide
             }
 
-            FrameExclusion {
+            PanelWindow {
+                color: "transparent"
+                implicitWidth: 1
+                implicitHeight: 1
+                mask: Region {}
                 screen: frameScope.modelData
                 anchors {
                     right: true
@@ -1122,7 +1106,7 @@ ShellRoot {
                 }
 
                 // Ignore: this window covers the whole output and reserves nothing
-                // itself; the four FrameExclusion surfaces above do the reserving.
+                // itself; the four 1px exclusion surfaces above do the reserving.
                 exclusionMode: ExclusionMode.Ignore
                 color: "transparent"
 
@@ -1294,7 +1278,9 @@ ShellRoot {
                                     radius: Math.round(width * 0.26)
                                     color: theme.framePill
 
-                                    FrameGlyph {
+                                    Text {
+                                        color: theme.frameInk
+                                        font.family: theme.frameGlyphFont
                                         anchors.centerIn: parent
                                         text: shellRoot.iconForClass(taskItem.modelData)
                                         font.pixelSize: Math.round(parent.width * 0.56)
@@ -1343,7 +1329,8 @@ ShellRoot {
                         width: frameScope.iconPx
                         height: frameScope.iconPx + frameScope.px(4)
 
-                        FrameGlyph {
+                        Text {
+                            font.family: theme.frameGlyphFont
                             anchors.horizontalCenter: parent.horizontalCenter
                             y: Math.round((frameScope.iconPx - height) / 2)
                             text: "󰀻"
@@ -1415,7 +1402,9 @@ ShellRoot {
                                     visible: status === Image.Ready
                                 }
 
-                                FrameGlyph {
+                                Text {
+                                    color: theme.frameInk
+                                    font.family: theme.frameGlyphFont
                                     anchors.centerIn: parent
                                     visible: activeWinIcon.status !== Image.Ready
                                     text: shellRoot.iconForClass(shellRoot.focusAppId)
@@ -1423,8 +1412,11 @@ ShellRoot {
                                 }
                             }
 
-                            FrameLabel {
+                            Text {
                                 id: activeWinTitle
+                                color: theme.frameInk
+                                font.family: theme.frameFont
+                                elide: Text.ElideRight
                                 anchors.verticalCenter: parent.verticalCenter
                                 text: shellRoot.focusTitle !== ""
                                     ? shellRoot.focusTitle
@@ -1521,7 +1513,9 @@ ShellRoot {
                                 ColorAnimation { duration: 150 }
                             }
 
-                            FrameGlyph {
+                            Text {
+                                color: theme.frameInk
+                                font.family: theme.frameGlyphFont
                                 anchors.centerIn: parent
                                 visible: !theme.followWallpaper
                                 text: "󰐕"
@@ -1612,7 +1606,9 @@ ShellRoot {
                                             GradientStop { position: 1.0; color: theme.frameAccentB }
                                         }
 
-                                        FrameLabel {
+                                        Text {
+                                            font.family: theme.frameFont
+                                            elide: Text.ElideRight
                                             anchors.centerIn: parent
                                             text: shellRoot.userInitial
                                             color: theme.frameAccentInk
@@ -1673,7 +1669,10 @@ ShellRoot {
                                     }
                                 }
 
-                                FrameLabel {
+                                Text {
+                                    color: theme.frameInk
+                                    font.family: theme.frameFont
+                                    elide: Text.ElideRight
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: "Workspace " + frameScope.activeWsId
                                     font.pixelSize: frameScope.fontPx
@@ -1751,7 +1750,10 @@ ShellRoot {
                                         iconText: "󰍛"
                                         primaryColor: shellRoot.memoryUsage >= 0.90 ? theme.errorColor : theme.frameInk
                                     }
-                                    FrameLabel {
+                                    Text {
+                                        color: theme.frameInk
+                                        font.family: theme.frameFont
+                                        elide: Text.ElideRight
                                         anchors.verticalCenter: parent.verticalCenter
                                         text: Math.round(shellRoot.memoryUsage * 100).toString() + "%"
                                         font.pixelSize: frameScope.fontPx - 1
@@ -1769,7 +1771,10 @@ ShellRoot {
                                         iconText: "󰓡"
                                         primaryColor: shellRoot.swapUsage >= 0.90 ? theme.errorColor : theme.frameInk
                                     }
-                                    FrameLabel {
+                                    Text {
+                                        color: theme.frameInk
+                                        font.family: theme.frameFont
+                                        elide: Text.ElideRight
                                         anchors.verticalCenter: parent.verticalCenter
                                         text: Math.round(shellRoot.swapUsage * 100).toString() + "%"
                                         font.pixelSize: frameScope.fontPx - 1
@@ -1787,14 +1792,19 @@ ShellRoot {
                                         iconText: "󰻠"
                                         primaryColor: shellRoot.cpuUsage >= 0.90 ? theme.errorColor : theme.frameInk
                                     }
-                                    FrameLabel {
+                                    Text {
+                                        color: theme.frameInk
+                                        font.family: theme.frameFont
+                                        elide: Text.ElideRight
                                         anchors.verticalCenter: parent.verticalCenter
                                         text: Math.round(shellRoot.cpuUsage * 100).toString() + "%"
                                         font.pixelSize: frameScope.fontPx - 1
                                     }
                                 }
 
-                                FrameSeparator {
+                                Rectangle {
+                                    width: 1
+                                    color: Qt.alpha(theme.frameInk, 0.14)
                                     anchors.verticalCenter: parent.verticalCenter
                                     height: frameScope.px(6)
                                 }
@@ -1831,14 +1841,19 @@ ShellRoot {
                                             }
                                         }
 
-                                        FrameGlyph {
+                                        Text {
+                                            color: theme.frameInk
+                                            font.family: theme.frameGlyphFont
                                             anchors.verticalCenter: parent.verticalCenter
                                             visible: text !== ""
                                             text: mediaSlot.playing ? "" : "󰎈"
                                             font.pixelSize: frameScope.fontPx + 1
                                         }
 
-                                        FrameLabel {
+                                        Text {
+                                            color: theme.frameInk
+                                            font.family: theme.frameFont
+                                            elide: Text.ElideRight
                                             anchors.verticalCenter: parent.verticalCenter
                                             text: mediaSlot.hasTrack
                                                 ? mediaSlot.activePlayer.trackTitle
@@ -1883,7 +1898,9 @@ ShellRoot {
                         radius: height / 2
                         color: theme.framePill
 
-                        FrameLabel {
+                        Text {
+                            font.family: theme.frameFont
+                            elide: Text.ElideRight
                             anchors {
                                 left: parent.left
                                 leftMargin: frameScope.px(9)
@@ -1923,14 +1940,17 @@ ShellRoot {
                                 anchors.centerIn: parent
                                 spacing: frameScope.px(2.5)
 
-                                FrameGlyph {
+                                Text {
+                                    font.family: theme.frameGlyphFont
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: "󰙴"
                                     color: theme.frameAccentInk
                                     font.pixelSize: frameScope.fontPx + 1
                                 }
 
-                                FrameLabel {
+                                Text {
+                                    font.family: theme.frameFont
+                                    elide: Text.ElideRight
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: theme.inputButtonText
                                     color: theme.frameAccentInk
@@ -1991,28 +2011,37 @@ ShellRoot {
                                         anchors.centerIn: parent
                                         spacing: frameScope.px(2.5)
 
-                                        FrameLabel {
+                                        Text {
+                                            color: theme.frameInk
+                                            font.family: theme.frameFont
+                                            elide: Text.ElideRight
                                             anchors.verticalCenter: parent.verticalCenter
                                             text: shellRoot.timeText
                                             font.pixelSize: frameScope.fontPx
                                             font.weight: Font.DemiBold
                                         }
 
-                                        FrameLabel {
+                                        Text {
+                                            font.family: theme.frameFont
+                                            elide: Text.ElideRight
                                             anchors.verticalCenter: parent.verticalCenter
                                             text: "•"
                                             color: theme.frameInkSoft
                                             font.pixelSize: frameScope.fontPx - 2
                                         }
 
-                                        FrameLabel {
+                                        Text {
+                                            font.family: theme.frameFont
+                                            elide: Text.ElideRight
                                             anchors.verticalCenter: parent.verticalCenter
                                             text: shellRoot.dateText
                                             color: theme.frameInkSoft
                                             font.pixelSize: frameScope.fontPx
                                         }
 
-                                        FrameGlyph {
+                                        Text {
+                                            color: theme.frameInk
+                                            font.family: theme.frameGlyphFont
                                             anchors.verticalCenter: parent.verticalCenter
                                             text: "󰢻"
                                             font.pixelSize: frameScope.fontPx
@@ -2038,14 +2067,17 @@ ShellRoot {
                                     }
                                 }
 
-                                FrameSeparator {
+                                Rectangle {
+                                    width: 1
+                                    color: Qt.alpha(theme.frameInk, 0.14)
                                     anchors.verticalCenter: parent.verticalCenter
                                     height: frameScope.px(6)
                                 }
 
                                 // Coffee / Caffeine toggle (`caffeineBtn`)
-                                FrameButton {
+                                CircleUtilButton {
                                     id: caffeineBtn
+                                    themePalette: theme
                                     anchors.verticalCenter: parent.verticalCenter
                                     width: frameScope.btnS
                                     height: frameScope.btnS
@@ -2068,8 +2100,9 @@ ShellRoot {
                                 }
 
                                 // Screenshot utility (left-click: region `s`, right-click: full screen `p`)
-                                FrameButton {
+                                CircleUtilButton {
                                     id: screenshotBtn
+                                    themePalette: theme
                                     anchors.verticalCenter: parent.verticalCenter
                                     width: frameScope.btnS
                                     height: frameScope.btnS
@@ -2084,8 +2117,9 @@ ShellRoot {
                                 }
 
                                 // Color Picker utility
-                                FrameButton {
+                                CircleUtilButton {
                                     id: colorPickBtn
+                                    themePalette: theme
                                     anchors.verticalCenter: parent.verticalCenter
                                     width: frameScope.btnS
                                     height: frameScope.btnS
@@ -2101,8 +2135,9 @@ ShellRoot {
                                 }
 
                                 // AniSub utility
-                                FrameButton {
+                                CircleUtilButton {
                                     id: anisubBtn
+                                    themePalette: theme
                                     anchors.verticalCenter: parent.verticalCenter
                                     width: frameScope.btnS
                                     height: frameScope.btnS
@@ -2116,7 +2151,9 @@ ShellRoot {
                                     onRightTriggered: shellRoot.runCmd(["hyde-shell", "rofi.movie"])
                                 }
 
-                                FrameSeparator {
+                                Rectangle {
+                                    width: 1
+                                    color: Qt.alpha(theme.frameInk, 0.14)
                                     anchors.verticalCenter: parent.verticalCenter
                                     height: frameScope.px(6)
                                 }
@@ -2128,7 +2165,8 @@ ShellRoot {
                                     spacing: frameScope.px(2.5)
                                     rightPadding: frameScope.px(3)
 
-                                    FrameGlyph {
+                                    Text {
+                                        font.family: theme.frameGlyphFont
                                         anchors.verticalCenter: parent.verticalCenter
                                         text: shellRoot.batteryCharging ? "󰂄" : "󰁹"
                                         color: (shellRoot.batteryLevel <= 0.20 && !shellRoot.batteryCharging)
@@ -2214,8 +2252,9 @@ ShellRoot {
                                 anchors.centerIn: parent
                                 spacing: frameScope.px(1.5)
 
-                                FrameButton {
+                                CircleUtilButton {
                                     id: bluetoothBtn
+                                    themePalette: theme
                                     width: frameScope.btnS
                                     height: frameScope.btnS
                                     iconText: shellRoot.bluetoothConnected
@@ -2230,8 +2269,9 @@ ShellRoot {
                                     onRightTriggered: shellRoot.runCmd(["blueman-manager"])
                                 }
 
-                                FrameButton {
+                                CircleUtilButton {
                                     id: wifiBtn
+                                    themePalette: theme
                                     width: frameScope.btnS
                                     height: frameScope.btnS
                                     iconText: shellRoot.networkName !== "" ? "󰤨" : "󰤭"
@@ -2245,8 +2285,9 @@ ShellRoot {
                                     onRightTriggered: shellRoot.runCmd(["nm-connection-editor"])
                                 }
 
-                                FrameButton {
+                                CircleUtilButton {
                                     id: micBtn
+                                    themePalette: theme
                                     width: frameScope.btnS
                                     height: frameScope.btnS
                                     iconText: shellRoot.micMuted ? "󰍭" : "󰍬"
@@ -2265,8 +2306,9 @@ ShellRoot {
                                     }
                                 }
 
-                                FrameButton {
+                                CircleUtilButton {
                                     id: volBtn
+                                    themePalette: theme
                                     width: frameScope.btnS
                                     height: frameScope.btnS
                                     iconText: shellRoot.volumeMuted
@@ -2288,8 +2330,9 @@ ShellRoot {
                         }
 
                         // Bell circle: last notification back from dunst history (right click: close all)
-                        FrameButton {
+                        CircleUtilButton {
                             id: bellBtn
+                            themePalette: theme
                             anchors.verticalCenter: parent.verticalCenter
                             plate: true
                             width: frameScope.circleS
@@ -2301,8 +2344,9 @@ ShellRoot {
                         }
 
                         // User circle: AniDE settings (right click: session menu)
-                        FrameButton {
+                        CircleUtilButton {
                             id: settingsBtn
+                            themePalette: theme
                             anchors.verticalCenter: parent.verticalCenter
                             plate: true
                             width: frameScope.circleS

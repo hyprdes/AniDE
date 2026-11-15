@@ -2,6 +2,7 @@
 import os
 import json
 import pathlib
+import re
 import subprocess
 import unittest
 
@@ -121,6 +122,22 @@ class QuickshellBarTest(unittest.TestCase):
             "AniSubPanelFace",
         ):
             self.assertNotIn(f"component {file_type}", shell_qml)
+        # Quickshell hot-reloads shell.qml while the previous copy is still
+        # loaded, and Qt 6.12 then fails on any inline component that copy did
+        # not have ("X is not a type" at the declaration). The set is frozen:
+        # new reusable pieces go into their own .qml file.
+        inline_components = set(
+            re.findall(r"^\s*component\s+(\w+)\s*:", shell_qml, re.MULTILINE)
+        )
+        self.assertLessEqual(
+            inline_components,
+            {
+                "DreamyMistCanvas",
+                "BarGroup",
+                "CircularResourceRing",
+                "DesktopClockCanvas",
+            },
+        )
         decl = shell_qml.index("component DreamyMistCanvas")
         use = shell_qml.index("DreamyMistCanvas {")
         self.assertLess(

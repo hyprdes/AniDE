@@ -162,6 +162,11 @@ Holding <kbd>ALT</kbd> keeps the switcher open; releasing it applies the selecti
 | <kbd>SUPER</kbd> + <kbd>SHIFT</kbd> + <kbd>slash</kbd> | web search           |
 | <kbd>SUPER</kbd> + <kbd>SHIFT</kbd> + <kbd>M</kbd>     | movies (KKPhim)      |
 
+> **SUPER + A** raises the launcher drawer of the Quickshell frame out of the
+> bottom edge: type to filter, <kbd>Up</kbd>/<kbd>Down</kbd> or <kbd>Tab</kbd> to move,
+> <kbd>Enter</kbd> to start, <kbd>Esc</kbd> or a click outside to close. If Quickshell
+> is not running it opens the Rofi application finder instead.
+>
 > **AniSub** (the KKPhim movie menu) also lives in the **SUPER + A**
 > application finder: search for `AniSub`, `phim` or `kkphim`.
 

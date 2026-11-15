@@ -61,8 +61,8 @@ QtObject {
     // of the reference hold on any resolution (image-1 is a 918x515 screen plus
     // 7px of drop shadow below it: top 23, sides 28, bottom 54). frameScale
     // shrinks or grows the whole frame, edges and contents alike: 1.0 is the
-    // reference size, the default sits a little under it, 0.6 is compact.
-    property real frameScale: 0.9
+    // reference size, 0.5 (the default and the smallest allowed) a thin frame.
+    property real frameScale: 0.5
     property real frameTopRatio: 0.045      // top edge / screen height
     property real frameSideRatio: 0.030     // side edges / screen width
     property real frameBottomRatio: 0.105   // bottom edge / screen height
@@ -74,6 +74,9 @@ QtObject {
     property var pinnedApps: []             // desktop ids always shown in the notch
     property string inputPlaceholder: "Tìm ứng dụng…"
     property string inputButtonText: "Tìm"
+    // Size of the Win+A launcher drawer. Separate from frameScale on purpose:
+    // 1.0 is a 52px row on a 1080px-high screen whatever the frame thickness.
+    property real frameLauncherScale: 1.0
 
     // Palette source arbitration: "dcol" when wallbash colors drove the last
     // update, "image" when the QML wallpaper sampler did (works without wallbash).
@@ -168,6 +171,7 @@ QtObject {
             if (d.pinnedApps instanceof Array) pinnedApps = d.pinnedApps;
             if (d.inputPlaceholder !== undefined) inputPlaceholder = String(d.inputPlaceholder);
             if (d.inputButtonText !== undefined) inputButtonText = String(d.inputButtonText);
+            if (d.launcherScale !== undefined) frameLauncherScale = Math.max(0.6, Math.min(2.0, Number(d.launcherScale) || 1.0));
             if (d.frameBg) frameBgLight = Qt.color(normHex(d.frameBg));
             if (d.pillBg) framePillLight = Qt.color(normHex(d.pillBg));
             if (d.ink) frameInkLight = Qt.color(normHex(d.ink));

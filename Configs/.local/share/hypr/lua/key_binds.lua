@@ -162,8 +162,10 @@ hl.bind(MOD .. " + X", hl.dsp.window.resize(), _F)
 _F = {description = "[Layout Management|Dwindle] toggle split"}
 hl.bind(MOD .. " + J", hl.dsp.layout("togglesplit"), _F)
 
+-- The launcher drawer of the Quickshell frame; app_launcher.sh falls back to
+-- the Rofi application finder (hyde.sh.menu.apps) when Quickshell does not answer
 _F = {description = "[Launcher|Rofi menus] application finder"}
-hl.bind(MOD .. " + A", hl.dsp.exec_cmd(hyde.sh.menu.apps()), _F)
+hl.bind(MOD .. " + A", hl.dsp.exec_cmd("hyde-shell app_launcher toggle"), _F)
 _F = {description = "[Launcher|Rofi menus] window switcher"}
 hl.bind(MOD .. " + TAB", hl.dsp.exec_cmd(hyde.sh.menu.windows()), _F)
 _F = {description = "[Launcher|Rofi menus] file finder"}

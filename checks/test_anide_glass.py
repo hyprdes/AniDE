@@ -3,7 +3,9 @@ import os
 import json
 import pathlib
 import re
+import shutil
 import subprocess
+import tempfile
 import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -28,6 +30,7 @@ class QuickshellBarTest(unittest.TestCase):
             "AniSubPanelFace.qml",
             "GlassPlate.qml",
             "FrameBump.qml",
+            "FrameLauncher.qml",
             "theme.json",
             "clock_widget.json",
             "frame.json",
@@ -120,6 +123,8 @@ class QuickshellBarTest(unittest.TestCase):
             "CircleUtilButton",
             "ClippedProgressBar",
             "AniSubPanelFace",
+            "FrameBump",
+            "FrameLauncher",
         ):
             self.assertNotIn(f"component {file_type}", shell_qml)
         # Quickshell hot-reloads shell.qml while the previous copy is still
@@ -148,7 +153,7 @@ class QuickshellBarTest(unittest.TestCase):
 
         restore_psv = (ROOT / "Scripts/restore_cfg.psv").read_text()
         self.assertIn(
-            "S|${HOME}/.config/quickshell|shell.qml Colors.qml RoundCorner.qml LisaGlassIcon.qml CircleUtilButton.qml ClippedProgressBar.qml AniSubPanelFace.qml GlassPlate.qml FrameBump.qml|hyprland",
+            "S|${HOME}/.config/quickshell|shell.qml Colors.qml RoundCorner.qml LisaGlassIcon.qml CircleUtilButton.qml ClippedProgressBar.qml AniSubPanelFace.qml GlassPlate.qml FrameBump.qml FrameLauncher.qml|hyprland",
             restore_psv,
         )
         self.assertIn("theme.json clock_widget.json|hyprland", restore_psv)
@@ -234,6 +239,63 @@ class QuickshellBarTest(unittest.TestCase):
         self.assertEqual(proc.returncode, 0, proc.stderr)
         self.assertIn("anisub_panel", proc.stdout)
 
+    def test_win_a_raises_the_quickshell_launcher(self):
+        binds = (ROOT / "Configs/.local/share/hypr/lua/key_binds.lua").read_text()
+        line = next(l for l in binds.splitlines() if l.startswith('hl.bind(MOD .. " + A"'))
+        self.assertIn('exec_cmd("hyde-shell app_launcher toggle")', line)
+
+        shell_qml = (QS_DIR / "shell.qml").read_text()
+        self.assertIn('target: "launcher"', shell_qml)
+        self.assertIn("function launcherShow(show, screenName)", shell_qml)
+        self.assertIn("FrameLauncher {", shell_qml)
+        # the bar's input pill raises the same drawer instead of opening rofi
+        pill = shell_qml[shell_qml.index("id: inputPill"):shell_qml.index("3c. RIGHT")]
+        self.assertIn("shellRoot.launcherShow(true, frameScope.modelData.name)", pill)
+        self.assertNotIn("rofilaunch", pill)
+        # the drawer is plain QtQuick; the shell hands it entries and icons
+        face_qml = (QS_DIR / "FrameLauncher.qml").read_text()
+        self.assertNotIn("import Quickshell", face_qml)
+        self.assertIn("signal launchRequested(var entry)", face_qml)
+        self.assertIn("signal closeRequested()", face_qml)
+        # its size is a setting of its own, independent of the frame scale
+        colors_qml = (QS_DIR / "Colors.qml").read_text()
+        self.assertIn("d.launcherScale", colors_qml)
+        self.assertIn("launcherScale", json.loads((QS_DIR / "frame.json").read_text()))
+
+        script = ROOT / "Configs/.local/lib/hyde/app_launcher.sh"
+        self.assertTrue(script.is_file())
+        self.assertTrue(os.access(script, os.X_OK))
+        bash = shutil.which("bash")
+        proc = subprocess.run([bash, str(script), "--help"], capture_output=True, text=True)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn("app_launcher", proc.stdout)
+
+        # Quickshell answers: IPC only. Quickshell missing or failing: toggle
+        # falls back to the Rofi application finder, close does nothing.
+        def run(action, qs_exit):
+            with tempfile.TemporaryDirectory() as tmp:
+                log = pathlib.Path(tmp) / "calls.log"
+                tools = {"hyde-shell": 0}
+                if qs_exit is not None:
+                    tools["qs"] = qs_exit
+                for name, code in tools.items():
+                    tool = pathlib.Path(tmp) / name
+                    tool.write_text(f'#!/bin/sh\necho "{name} $*" >> "{log}"\nexit {code}\n')
+                    tool.chmod(0o755)
+                env = {"PATH": tmp, "HOME": tmp, "XDG_CONFIG_HOME": f"{tmp}/cfg"}
+                done = subprocess.run([bash, str(script), action], capture_output=True, text=True, env=env)
+                self.assertEqual(done.returncode, 0, done.stderr)
+                lines = log.read_text().splitlines() if log.exists() else []
+                return [l.replace(f"{tmp}/cfg/quickshell", "{cfg}") for l in lines]
+
+        self.assertEqual(run("toggle", 0), ["qs -p {cfg} ipc call launcher toggle"])
+        self.assertEqual(
+            run("toggle", 1),
+            ["qs -p {cfg} ipc call launcher toggle", "hyde-shell rofilaunch d"],
+        )
+        self.assertEqual(run("open", None), ["hyde-shell rofilaunch d"])
+        self.assertEqual(run("close", None), [])
+
     def test_bar_palette_is_the_wallpaper_green_and_visibly_synced(self):
         theme_data = json.loads((QS_DIR / "theme.json").read_text())
         # the bar is the image-18 green glass (not the old paper/cobalt palette)
@@ -265,6 +327,7 @@ class QuickshellBarTest(unittest.TestCase):
             "AniSubPanelFace.qml",
             "GlassPlate.qml",
             "FrameBump.qml",
+            "FrameLauncher.qml",
         ):
             self.assertGreaterEqual(manifest.count(f'"{qml_file}"'), 2, qml_file)
 

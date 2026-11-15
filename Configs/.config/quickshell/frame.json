@@ -1,6 +1,6 @@
 {
   "followWallpaper": false,
-  "scale": 0.9,
+  "scale": 0.5,
   "topRatio": 0.045,
   "sideRatio": 0.03,
   "bottomRatio": 0.105,
@@ -11,6 +11,7 @@
   "pinnedApps": [],
   "inputPlaceholder": "Tìm ứng dụng…",
   "inputButtonText": "Tìm",
+  "launcherScale": 1.0,
   "frameBg": "#f2f2f2",
   "pillBg": "#ffffff",
   "ink": "#1f1f1f",

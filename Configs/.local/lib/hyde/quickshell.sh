@@ -165,7 +165,9 @@ ensure_config() {
     fi
 
     if [[ -n "${src_dir}" ]]; then
-        for qml_file in shell.qml Colors.qml RoundCorner.qml LisaGlassIcon.qml CircleUtilButton.qml ClippedProgressBar.qml AniSubPanelFace.qml GlassPlate.qml FrameBump.qml; do
+        # shell.qml goes last: a running Quickshell reloads on every file that
+        # lands here, and shell.qml must not arrive before the types it uses
+        for qml_file in Colors.qml RoundCorner.qml LisaGlassIcon.qml CircleUtilButton.qml ClippedProgressBar.qml AniSubPanelFace.qml GlassPlate.qml FrameBump.qml FrameLauncher.qml shell.qml; do
             if [[ -f "${src_dir}/${qml_file}" ]] && ! cmp -s "${src_dir}/${qml_file}" "${QS_CONFIG_DIR}/${qml_file}" 2>/dev/null; then
                 cp -f "${src_dir}/${qml_file}" "${QS_CONFIG_DIR}/${qml_file}" 2>/dev/null || true
             fi

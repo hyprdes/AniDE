@@ -74,8 +74,8 @@ P|${HOME}/.config/VSCodium/User|settings.json|vscodium
 
  Bar 
 O|${HOME}/.local/share|quickshell|hyprland
-S|${HOME}/.config/quickshell|shell.qml Colors.qml RoundCorner.qml LisaGlassIcon.qml CircleUtilButton.qml ClippedProgressBar.qml AniSubPanelFace.qml GlassPlate.qml|hyprland
-P|${HOME}/.config/quickshell|theme.json clock_widget.json|hyprland
+S|${HOME}/.config/quickshell|shell.qml Colors.qml RoundCorner.qml LisaGlassIcon.qml CircleUtilButton.qml ClippedProgressBar.qml AniSubPanelFace.qml GlassPlate.qml FrameBump.qml|hyprland
+P|${HOME}/.config/quickshell|frame.json theme.json clock_widget.json|hyprland
 
  Terminal 
 P|${HOME}/.config|lsd|lsd

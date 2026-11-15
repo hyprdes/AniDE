@@ -165,13 +165,17 @@ ensure_config() {
     fi
 
     if [[ -n "${src_dir}" ]]; then
-        for qml_file in shell.qml Colors.qml RoundCorner.qml LisaGlassIcon.qml CircleUtilButton.qml ClippedProgressBar.qml AniSubPanelFace.qml GlassPlate.qml; do
+        for qml_file in shell.qml Colors.qml RoundCorner.qml LisaGlassIcon.qml CircleUtilButton.qml ClippedProgressBar.qml AniSubPanelFace.qml GlassPlate.qml FrameBump.qml; do
             if [[ -f "${src_dir}/${qml_file}" ]] && ! cmp -s "${src_dir}/${qml_file}" "${QS_CONFIG_DIR}/${qml_file}" 2>/dev/null; then
                 cp -f "${src_dir}/${qml_file}" "${QS_CONFIG_DIR}/${qml_file}" 2>/dev/null || true
             fi
         done
         if [[ -f "${src_dir}/clock_widget.json" && ! -f "${QS_CONFIG_DIR}/clock_widget.json" ]]; then
             cp -f "${src_dir}/clock_widget.json" "${QS_CONFIG_DIR}/clock_widget.json" 2>/dev/null || true
+        fi
+        # frame.json is user-owned (frame colors, scale, pinned apps): seed it once, never overwrite
+        if [[ -f "${src_dir}/frame.json" && ! -f "${QS_CONFIG_DIR}/frame.json" ]]; then
+            cp -f "${src_dir}/frame.json" "${QS_CONFIG_DIR}/frame.json" 2>/dev/null || true
         fi
     fi
     sync_wallpaper_theme

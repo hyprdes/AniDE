@@ -26,8 +26,10 @@ class QuickshellBarTest(unittest.TestCase):
             "ClippedProgressBar.qml",
             "AniSubPanelFace.qml",
             "GlassPlate.qml",
+            "FrameBump.qml",
             "theme.json",
             "clock_widget.json",
+            "frame.json",
         ):
             file_path = QS_DIR / filename
             share_path = ROOT / "Configs/.local/share/quickshell" / filename
@@ -129,10 +131,12 @@ class QuickshellBarTest(unittest.TestCase):
 
         restore_psv = (ROOT / "Scripts/restore_cfg.psv").read_text()
         self.assertIn(
-            "S|${HOME}/.config/quickshell|shell.qml Colors.qml RoundCorner.qml LisaGlassIcon.qml CircleUtilButton.qml ClippedProgressBar.qml AniSubPanelFace.qml GlassPlate.qml|hyprland",
+            "S|${HOME}/.config/quickshell|shell.qml Colors.qml RoundCorner.qml LisaGlassIcon.qml CircleUtilButton.qml ClippedProgressBar.qml AniSubPanelFace.qml GlassPlate.qml FrameBump.qml|hyprland",
             restore_psv,
         )
         self.assertIn("theme.json clock_widget.json|hyprland", restore_psv)
+        # frame.json holds the user's frame settings: preserved, never synced over
+        self.assertIn("P|${HOME}/.config/quickshell|frame.json theme.json clock_widget.json|hyprland", restore_psv)
         self.assertIn("O|${HOME}/.local/share|quickshell|hyprland", restore_psv)
 
     def test_panel_search_is_on_the_panel_not_rofi(self):
@@ -243,6 +247,7 @@ class QuickshellBarTest(unittest.TestCase):
             "ClippedProgressBar.qml",
             "AniSubPanelFace.qml",
             "GlassPlate.qml",
+            "FrameBump.qml",
         ):
             self.assertGreaterEqual(manifest.count(f'"{qml_file}"'), 2, qml_file)
 

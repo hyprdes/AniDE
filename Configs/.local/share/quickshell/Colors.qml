@@ -29,6 +29,51 @@ QtObject {
     property int groupRadius: 17             // Stadium BarGroup radius (height 34 / 2)
     property string wallBlurPath: ""
 
+    // ── Frame layout (image-1 request): flat light frame on all four screen
+    // edges, a notch on top, a tab and white pills at the bottom ──
+    // followWallpaper = false (default): fixed light colors, the frame ignores
+    // the wallpaper palette above. true: the frame takes that palette and the
+    // glass icon / print texture skin again. Set it in frame.json (theme.json
+    // is rewritten on every wallpaper change, so the switch cannot live there).
+    property bool followWallpaper: false
+    property color frameBgLight: "#f2f2f2"        // Frame (sampled from image-1)
+    property color framePillLight: "#ffffff"      // Pills, circles, title tab
+    property color frameInkLight: "#1f1f1f"       // Near-black text & glyphs
+    property color frameInkSoftLight: "#9a9a9a"   // Placeholder / secondary text
+    property color frameIndicatorLight: "#a8a8a8" // Running dash, idle dots
+    property color frameHoverLight: "#e8e8e8"     // Hover fill
+    property color frameAccentALight: "#9acee3"   // Action button, left stop
+    property color frameAccentBLight: "#b3d9d6"   // Action button, right stop
+    property color frameAccentInkLight: "#ffffff" // Ink on the action button
+
+    readonly property color frameBg: followWallpaper ? barBg : frameBgLight
+    readonly property color framePill: followWallpaper ? surfaceBg : framePillLight
+    readonly property color frameInk: followWallpaper ? mainFg : frameInkLight
+    readonly property color frameInkSoft: followWallpaper ? subFg : frameInkSoftLight
+    readonly property color frameIndicator: followWallpaper ? secondaryFg : frameIndicatorLight
+    readonly property color frameHover: followWallpaper ? hvrBg : frameHoverLight
+    readonly property color frameAccentA: followWallpaper ? actBg : frameAccentALight
+    readonly property color frameAccentB: followWallpaper ? glowSecondary : frameAccentBLight
+    readonly property color frameAccentInk: followWallpaper ? actFg : frameAccentInkLight
+    readonly property real frameOpacity: followWallpaper ? barOpacity : 1.0
+
+    // Frame geometry. Thickness is a share of the screen, so the proportions
+    // of the reference hold on any resolution (image-1 is a 918x515 screen plus
+    // 7px of drop shadow below it: top 23, sides 28, bottom 54). frameScale
+    // shrinks or grows the whole frame (0.6 gives a compact one).
+    property real frameScale: 1.0
+    property real frameTopRatio: 0.045      // top edge / screen height
+    property real frameSideRatio: 0.030     // side edges / screen width
+    property real frameBottomRatio: 0.105   // bottom edge / screen height
+    property int framePad: 8                // gap kept between side edges and windows
+    property bool frameReserveNotch: true   // windows never go under the notch
+    property bool frameReserveTab: true     // windows never go under the title tab
+    property string frameFont: "Cantarell"  // text; Qt falls back to the system sans
+    property string frameGlyphFont: "JetBrainsMono Nerd Font"
+    property var pinnedApps: []             // desktop ids always shown in the notch
+    property string inputPlaceholder: "Tìm ứng dụng…"
+    property string inputButtonText: "Tìm"
+
     // Palette source arbitration: "dcol" when wallbash colors drove the last
     // update, "image" when the QML wallpaper sampler did (works without wallbash).
     property string wallSyncSource: "none"
@@ -101,6 +146,38 @@ QtObject {
             if (data.wallBlurPath !== undefined) wallBlurPath = data.wallBlurPath;
         } catch (e) {
             // Keep existing palette if JSON is mid-write
+        }
+    }
+
+    // frame.json: user-owned switches for the frame layout; every key is
+    // optional and a missing or malformed file keeps the defaults above.
+    function applyFrameJson(raw) {
+        if (!raw) return;
+        try {
+            var d = JSON.parse(raw);
+            if (d.followWallpaper !== undefined) followWallpaper = Boolean(d.followWallpaper);
+            if (d.scale !== undefined) frameScale = Math.max(0.5, Math.min(1.5, Number(d.scale) || 1.0));
+            if (d.topRatio !== undefined) frameTopRatio = Math.max(0.0, Math.min(0.2, Number(d.topRatio)));
+            if (d.sideRatio !== undefined) frameSideRatio = Math.max(0.0, Math.min(0.2, Number(d.sideRatio)));
+            if (d.bottomRatio !== undefined) frameBottomRatio = Math.max(0.04, Math.min(0.3, Number(d.bottomRatio)));
+            if (d.pad !== undefined) framePad = Math.max(0, Math.min(64, Math.round(Number(d.pad) || 0)));
+            if (d.reserveNotch !== undefined) frameReserveNotch = Boolean(d.reserveNotch);
+            if (d.reserveTab !== undefined) frameReserveTab = Boolean(d.reserveTab);
+            if (d.font) frameFont = String(d.font);
+            if (d.pinnedApps instanceof Array) pinnedApps = d.pinnedApps;
+            if (d.inputPlaceholder !== undefined) inputPlaceholder = String(d.inputPlaceholder);
+            if (d.inputButtonText !== undefined) inputButtonText = String(d.inputButtonText);
+            if (d.frameBg) frameBgLight = Qt.color(normHex(d.frameBg));
+            if (d.pillBg) framePillLight = Qt.color(normHex(d.pillBg));
+            if (d.ink) frameInkLight = Qt.color(normHex(d.ink));
+            if (d.inkSoft) frameInkSoftLight = Qt.color(normHex(d.inkSoft));
+            if (d.indicator) frameIndicatorLight = Qt.color(normHex(d.indicator));
+            if (d.hover) frameHoverLight = Qt.color(normHex(d.hover));
+            if (d.accentA) frameAccentALight = Qt.color(normHex(d.accentA));
+            if (d.accentB) frameAccentBLight = Qt.color(normHex(d.accentB));
+            if (d.accentInk) frameAccentInkLight = Qt.color(normHex(d.accentInk));
+        } catch (e) {
+            // Keep the current frame settings if JSON is mid-write
         }
     }
 }

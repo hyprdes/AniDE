@@ -7,6 +7,7 @@ Item {
     property real value: 0.0
     property color fill: "#2434e0"
     property color trackColor: Qt.rgba(0.14, 0.20, 0.87, 0.16)
+    property color textColor: "#ffffff"
 
     implicitWidth: 42
     implicitHeight: 12
@@ -41,8 +42,8 @@ Item {
         anchors.centerIn: parent
         text: Math.round(progressRoot.value * 100).toString() + "%"
         font.family: "JetBrainsMono Nerd Font"
-        font.pixelSize: 8
+        font.pixelSize: Math.max(8, Math.round(progressRoot.height * 0.66))
         font.bold: true
-        color: "#ffffff"
+        color: progressRoot.textColor
     }
 }

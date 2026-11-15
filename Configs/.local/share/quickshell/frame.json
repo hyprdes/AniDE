@@ -1,0 +1,23 @@
+{
+  "followWallpaper": false,
+  "scale": 1.0,
+  "topRatio": 0.045,
+  "sideRatio": 0.03,
+  "bottomRatio": 0.105,
+  "pad": 8,
+  "reserveNotch": true,
+  "reserveTab": true,
+  "font": "Cantarell",
+  "pinnedApps": [],
+  "inputPlaceholder": "Tìm ứng dụng…",
+  "inputButtonText": "Tìm",
+  "frameBg": "#f2f2f2",
+  "pillBg": "#ffffff",
+  "ink": "#1f1f1f",
+  "inkSoft": "#9a9a9a",
+  "indicator": "#a8a8a8",
+  "hover": "#e8e8e8",
+  "accentA": "#9acee3",
+  "accentB": "#b3d9d6",
+  "accentInk": "#ffffff"
+}

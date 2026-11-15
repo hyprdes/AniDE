@@ -1,4 +1,5 @@
 // CircleUtilButton: @lisa.p.ng layered duo-tone glass icon button (image-10.png error-state icon set)
+// plus a flat glyph skin for the frame layout (image-1.png), picked with `flat`.
 // File-based component (not inline): immune to QML inline-component ordering quirks ("X is not a type").
 import QtQuick
 
@@ -17,6 +18,14 @@ Item {
     property real iconSparkY: 0.14
     property real iconSparkSize: 0.11
     property real iconSparkRot: 0
+    // Flat skin (frame layout, image-1): a thin glyph, either bare inside a white
+    // pill (plate: false) or on its own white circle (plate: true).
+    // flat: false keeps the layered glass icon above.
+    property bool flat: false
+    property bool plate: false
+    property color flatPlateColor: "#ffffff"
+    property color flatHoverColor: "#e8e8e8"
+    property string glyphFont: "JetBrainsMono Nerd Font"
     signal triggered()
     signal rightTriggered()
 
@@ -26,7 +35,28 @@ Item {
     Rectangle {
         anchors.fill: parent
         radius: width / 2
-        visible: utilBtn.activeState
+        visible: utilBtn.flat && (utilBtn.plate || utilBtn.activeState || utilMouse.containsMouse)
+        color: utilBtn.activeState
+            ? Qt.alpha(utilBtn.accentColor, 0.55)
+            : (utilMouse.containsMouse ? utilBtn.flatHoverColor : utilBtn.flatPlateColor)
+
+        Behavior on color {
+            ColorAnimation { duration: 120 }
+        }
+    }
+    Text {
+        anchors.centerIn: parent
+        visible: utilBtn.flat
+        text: utilBtn.iconText
+        color: utilBtn.iconInkColor
+        font.family: utilBtn.glyphFont
+        font.pixelSize: Math.round(utilBtn.height * 0.54)
+    }
+
+    Rectangle {
+        anchors.fill: parent
+        radius: width / 2
+        visible: !utilBtn.flat && utilBtn.activeState
         color: Qt.rgba(1.0, 0.31, 0.09, 0.16)
         border.width: 1
         border.color: Qt.rgba(1.0, 0.31, 0.09, 0.50)
@@ -34,12 +64,13 @@ Item {
     Rectangle {
         anchors.fill: parent
         radius: width / 2
-        visible: !utilBtn.activeState && utilMouse.containsMouse
+        visible: !utilBtn.flat && !utilBtn.activeState && utilMouse.containsMouse
         color: Qt.rgba(0.15, 0.16, 0.24, 0.10)
     }
 
     LisaGlassIcon {
         anchors.centerIn: parent
+        visible: !utilBtn.flat
         width: utilBtn.glas ? 22 : Math.round(parent.width * 0.8)
         height: width
         glyph: utilBtn.iconText

@@ -1,5 +1,5 @@
-// AniDE Quickshell Bar & Draggable Desktop LED Dot-Matrix Clock Widget (end-4 Illogical Impulse ii bar + Liquid Glass + @lisa.p.ng image-10.png icons + image-9.png clock widget)
-// end-4 Hug Bar: launcher + 2-line ActiveWindow | center capsules (resources+media, workspaces, clock+utils+battery) | tray + status pill | Concave Screen Corners + Caffeine Toggle
+// AniDE Quickshell Frame Bar & Draggable Desktop LED Dot-Matrix Clock Widget (image-1.png flat light frame + image-9.png clock widget)
+// Frame: top edge + taskbar notch | side edges | bottom edge: launcher, workspace pill, resources+media | input pill under the title tab | clock+utils+battery, tray, status pill, bell, user
 // GPL-3.0-or-later; see CREDITS.md.
 import Quickshell
 import Quickshell.Io
@@ -60,6 +60,25 @@ ShellRoot {
     readonly property string clockConfigPath: Quickshell.env("XDG_CONFIG_HOME")
         ? (Quickshell.env("XDG_CONFIG_HOME") + "/quickshell/clock_widget.json")
         : ((Quickshell.env("HOME") || "") + "/.config/quickshell/clock_widget.json")
+
+    // ── Frame layout state (image-1.png): taskbar in the notch, title tab, avatar ──
+    readonly property string frameConfigPath: Quickshell.env("XDG_CONFIG_HOME")
+        ? (Quickshell.env("XDG_CONFIG_HOME") + "/quickshell/frame.json")
+        : ((Quickshell.env("HOME") || "") + "/.config/quickshell/frame.json")
+    property string avatarUrl: ""
+    readonly property string userInitial: String(Quickshell.env("USER") || "?").charAt(0).toUpperCase()
+
+    // The focused window comes from the compositor's toplevel list (instant);
+    // the polled hyprctl values stay as the fallback.
+    readonly property var activeToplevel: ToplevelManager.activeToplevel
+    readonly property bool hasActiveToplevel: activeToplevel ? activeToplevel.activated : false
+    readonly property string focusAppId: hasActiveToplevel ? (activeToplevel.appId || "") : activeWinClass
+    readonly property string focusTitle: hasActiveToplevel ? (activeToplevel.title || "") : activeWinTitle
+
+    // App ids shown in the notch. Kept as one string so the Repeater model only
+    // resets when the set of apps changes, not on every focus or title change.
+    readonly property string taskAppKey: buildTaskAppKey()
+    readonly property var taskAppIds: taskAppKey === "" ? [] : taskAppKey.split("\n")
 
     // ── AniSub panel (Win+Shift+M): KKPhim feed + search, drops from the top bar ──
     property bool anisubPanelOpen: false
@@ -251,10 +270,92 @@ ShellRoot {
         return "󰋜";
     }
 
-    // Default workspace slot icons matching image-8.png: Home, Check-circle, Calendar, Target, Terminal
-    function iconForWorkspaceSlot(slotIndex) {
-        var icons = ["󰋜", "󰄲", "󰃭", "󰓾", "󰆍"];
-        return icons[slotIndex % icons.length];
+    function toplevelList() {
+        var m = ToplevelManager.toplevels;
+        return (m && m.values) ? m.values : [];
+    }
+
+    // Pinned apps first (frame.json "pinnedApps"), then every running app once
+    function buildTaskAppKey() {
+        var ids = [];
+        var seen = {};
+        var pinned = theme.pinnedApps || [];
+        for (var i = 0; i < pinned.length; i++) {
+            var p = String(pinned[i] || "");
+            if (p !== "" && !seen[p.toLowerCase()]) {
+                seen[p.toLowerCase()] = true;
+                ids.push(p);
+            }
+        }
+        var list = shellRoot.toplevelList();
+        for (var j = 0; j < list.length; j++) {
+            var id = list[j] ? String(list[j].appId || "") : "";
+            if (id !== "" && !seen[id.toLowerCase()]) {
+                seen[id.toLowerCase()] = true;
+                ids.push(id);
+            }
+        }
+        return ids.join("\n");
+    }
+
+    function toplevelsFor(appId) {
+        var out = [];
+        var want = String(appId || "").toLowerCase();
+        var list = shellRoot.toplevelList();
+        for (var i = 0; i < list.length; i++) {
+            if (list[i] && String(list[i].appId || "").toLowerCase() === want) out.push(list[i]);
+        }
+        return out;
+    }
+
+    function anyActivated(wins) {
+        for (var i = 0; i < wins.length; i++) {
+            if (wins[i].activated) return true;
+        }
+        return false;
+    }
+
+    function desktopEntryFor(appId) {
+        if (!appId) return null;
+        // Reading the model length re-runs icon bindings once the .desktop scan is done
+        var apps = DesktopEntries.applications;
+        var known = (apps && apps.values) ? apps.values.length : 0;
+        var entry = DesktopEntries.heuristicLookup(appId);
+        return (known >= 0 && entry) ? entry : null;
+    }
+
+    // Themed icon for an app id; "" when the icon theme has none (callers fall back to a glyph)
+    function appIconSource(appId) {
+        if (!appId) return "";
+        var entry = shellRoot.desktopEntryFor(appId);
+        var name = (entry && entry.icon) ? String(entry.icon) : String(appId);
+        if (name.charAt(0) === "/") return "file://" + name;
+        return Quickshell.iconPath(name, true);
+    }
+
+    // Click on a taskbar icon: focus the app; click again to walk through its windows.
+    // A pinned app that is not running gets started.
+    function taskActivate(appId, wins) {
+        if (wins.length === 0) {
+            var entry = shellRoot.desktopEntryFor(appId);
+            if (entry) entry.execute();
+            return;
+        }
+        var current = -1;
+        for (var i = 0; i < wins.length; i++) {
+            if (wins[i].activated) current = i;
+        }
+        wins[(current + 1) % wins.length].activate();
+    }
+
+    // Middle click on a taskbar icon: close the app's focused window (or its first one)
+    function taskClose(wins) {
+        if (wins.length === 0) return;
+        var target = wins[0];
+        for (var i = 0; i < wins.length; i++) {
+            if (wins[i].activated) target = wins[i];
+        }
+        target.close();
     }
 
     // Wallpaper dominant-tone sampler (end-4 style): the bar palette derives
@@ -323,6 +424,32 @@ ShellRoot {
         watchChanges: false
         onLoaded: {
             shellRoot.applyClockConfigJson(text());
+        }
+    }
+
+    // Live frame.json hot-reload (user-owned frame switches: colors, scale, pinned apps)
+    FileView {
+        id: frameConfigFile
+        path: shellRoot.frameConfigPath
+        watchChanges: true
+        onFileChanged: reload()
+        onLoaded: theme.applyFrameJson(text())
+    }
+
+    // Avatar of the workspace pill: the first readable of ~/.face.icon, ~/.face
+    Process {
+        id: avatarProbe
+        running: true
+        command: [
+            "sh", "-c",
+            "for f in \"$HOME/.face.icon\" \"$HOME/.face\"; do " +
+            "if [ -r \"$f\" ]; then printf '%s\\n' \"$f\"; break; fi; done"
+        ]
+        stdout: SplitParser {
+            onRead: data => {
+                var p = data.trim();
+                if (p !== "") shellRoot.avatarUrl = "file://" + p;
+            }
         }
     }
 
@@ -564,22 +691,23 @@ ShellRoot {
         }
     }
 
-    // 1. BarGroup: Hardware-rounded Stadium Pill Capsule (height: 36, radius: 18, matching image-8.png)
+    // 1. BarGroup: flat white pill grouping related modules (image-1.png). When the
+    //    frame follows the wallpaper it gets its outline and print texture back.
     component BarGroup: Rectangle {
         id: grpRoot
         property real padding: 4
-        // plain: no capsule of its own, the island behind it carries the glass
+        // plain: no capsule of its own
         property bool plain: false
         width: implicitWidth
         height: 30
-        radius: 15
-        color: plain ? "transparent" : theme.surfaceBg
-        border.width: plain ? 0 : 2
+        radius: height / 2
+        color: plain ? "transparent" : theme.framePill
+        border.width: (plain || !theme.followWallpaper) ? 0 : 2
         border.color: theme.borderColor
 
         DreamyMistCanvas {
             anchors.fill: parent
-            visible: !grpRoot.plain
+            visible: !grpRoot.plain && theme.followWallpaper
             baseColor: theme.surfaceBg
             baseOpacity: theme.barOpacity
         }
@@ -590,8 +718,8 @@ ShellRoot {
         id: ringRoot
         property real value: 0.0 // 0.0 .. 1.0
         property string iconText: "󰍛"
-        property color primaryColor: theme.secondaryFg
-        property color trackColor: theme.accentSecondary
+        property color primaryColor: theme.frameInk
+        property color trackColor: theme.frameIndicator
         property int size: 16
 
         implicitWidth: size
@@ -635,8 +763,50 @@ ShellRoot {
             text: ringRoot.iconText
             color: ringRoot.primaryColor
             font.family: "JetBrainsMono Nerd Font"
-            font.pixelSize: 8
+            font.pixelSize: Math.max(8, Math.round(ringRoot.size * 0.5))
         }
+    }
+
+    // 3. Frame layout pieces (image-1.png)
+
+    // FrameExclusion: 1px invisible layer surface that only reserves room for one
+    // frame edge. The frame is drawn by one full-screen window instead, so the
+    // order in which the compositor arranges these four surfaces never shows.
+    component FrameExclusion: PanelWindow {
+        color: "transparent"
+        implicitWidth: 1
+        implicitHeight: 1
+        mask: Region {}
+    }
+
+    // FrameLabel / FrameGlyph: small near-black sans text and Nerd Font glyphs
+    component FrameLabel: Text {
+        color: theme.frameInk
+        font.family: theme.frameFont
+        elide: Text.ElideRight
+    }
+
+    component FrameGlyph: Text {
+        color: theme.frameInk
+        font.family: theme.frameGlyphFont
+    }
+
+    component FrameSeparator: Rectangle {
+        width: 1
+        height: 12
+        color: Qt.alpha(theme.frameInk, 0.14)
+    }
+
+    // FrameButton: CircleUtilButton preset for the frame. Flat thin glyph by
+    // default; the glass icon again when the frame follows the wallpaper.
+    component FrameButton: CircleUtilButton {
+        flat: !theme.followWallpaper
+        flatPlateColor: theme.framePill
+        flatHoverColor: theme.frameHover
+        glyphFont: theme.frameGlyphFont
+        iconPlateColor: theme.framePill
+        iconInkColor: theme.frameInk
+        accentColor: theme.frameAccentA
     }
 
     // 6. DesktopClockCanvas: 5x7 Rounded-Square LED Dot-Matrix Clock Renderer (exact match to image-9.png)
@@ -843,17 +1013,41 @@ ShellRoot {
         }
     }
 
-    // ── SINGLE TOP BAR WITH CONCAVE ROUNDED CORNERS + FROSTED SEA-GLASS STADIUM CAPSULES (image-8.png style) ──
+    // ── FRAME LAYOUT (image-1.png): flat light frame on all four screen edges ──
+    // top edge + notch (taskbar) | side edges | bottom edge: launcher "+", workspace pill,
+    // resources + media | input pill under the title tab | clock + utils + battery, tray,
+    // status pill, bell, user. Sizes derive from the screen, so the proportions of the
+    // 918x522 reference hold on any resolution (see the frame* tokens in Colors.qml).
     Variants {
         model: Quickshell.screens
 
-        PanelWindow {
-            id: barWindow
+        Scope {
+            id: frameScope
             required property var modelData
-            screen: modelData
 
-            readonly property int barHeight: 38
-            readonly property int cornerSize: theme.cornerRadius
+            // u: one reference-image pixel on this screen (2.1 px on 1920x1080)
+            readonly property real u: (modelData.height / 515) * theme.frameScale
+            readonly property int topH: Math.round(modelData.height * theme.frameTopRatio * theme.frameScale)
+            readonly property int sideW: Math.round(modelData.width * theme.frameSideRatio * theme.frameScale)
+            readonly property int bottomH: Math.round(modelData.height * theme.frameBottomRatio * theme.frameScale)
+            readonly property int radius: frameScope.px(20)       // desktop area corner radius
+            readonly property int notchDepth: frameScope.px(23)   // notch, below the top edge
+            readonly property int tabRise: frameScope.px(17)      // title tab, above the bottom edge
+            readonly property int pillH: frameScope.px(15)
+            readonly property int circleS: frameScope.px(14)      // "+", bell and user circles
+            readonly property int inputH: frameScope.px(18)
+            readonly property int inputW: frameScope.px(136)      // input pill and title pill
+            readonly property int btnS: pillH - 6      // glyph buttons inside a pill
+            readonly property int iconPx: frameScope.px(15)       // taskbar icons
+            readonly property int fontPx: Math.max(10, px(5.6))
+            readonly property int gap: frameScope.px(4)
+
+            // Space kept free for windows. The notch and the tab hang over the
+            // desktop area, so their depth is reserved too (frameReserveNotch/Tab).
+            readonly property int zoneTop: topH + (theme.frameReserveNotch ? notchDepth : 0)
+            readonly property int zoneBottom: bottomH + (theme.frameReserveTab ? tabRise : 0)
+            readonly property int zoneSide: sideW + theme.framePad
+
             readonly property int activeWsId: (Hyprland.focusedMonitor && Hyprland.focusedMonitor.activeWorkspace)
                 ? Hyprland.focusedMonitor.activeWorkspace.id
                 : 1
@@ -861,91 +1055,483 @@ ShellRoot {
             readonly property int bankOffset: activeWsIndex >= 5 ? 5 : 0
             readonly property int localOrbIndex: activeWsIndex - bankOffset
 
-            anchors {
-                top: true
-                left: true
-                right: true
-            }
-            margins {
-                top: 0
-                left: 0
-                right: 0
+            function px(n) {
+                return Math.round(n * u);
             }
 
-            exclusiveZone: barHeight
-            implicitHeight: barHeight + cornerSize
-            color: "transparent"
-
-            mask: Region {
-                item: barContent
-            }
-
-            // Main Top Bar Backdrop seamlessly connecting into Top-Left & Top-Right Concave RoundCorners
-            Rectangle {
-                id: barContent
-                anchors {
-                    top: parent.top
-                    left: parent.left
-                    right: parent.right
+            function isWsOccupied(id) {
+                if (shellRoot.wsClasses && shellRoot.wsClasses[id.toString()]) return true;
+                var list = Hyprland.workspaces ? Hyprland.workspaces.values : [];
+                for (var i = 0; i < list.length; i++) {
+                    if (list[i].id === id) return true;
                 }
-                height: barWindow.barHeight
+                return false;
+            }
+
+            // Bar-style anchors (one edge + both neighbours): the layout every
+            // compositor honours an exclusive zone for
+            FrameExclusion {
+                screen: frameScope.modelData
+                anchors {
+                    top: true
+                    left: true
+                    right: true
+                }
+                exclusiveZone: frameScope.zoneTop
+            }
+
+            FrameExclusion {
+                screen: frameScope.modelData
+                anchors {
+                    bottom: true
+                    left: true
+                    right: true
+                }
+                exclusiveZone: frameScope.zoneBottom
+            }
+
+            FrameExclusion {
+                screen: frameScope.modelData
+                anchors {
+                    left: true
+                    top: true
+                    bottom: true
+                }
+                exclusiveZone: frameScope.zoneSide
+            }
+
+            FrameExclusion {
+                screen: frameScope.modelData
+                anchors {
+                    right: true
+                    top: true
+                    bottom: true
+                }
+                exclusiveZone: frameScope.zoneSide
+            }
+
+            PanelWindow {
+                id: frameWindow
+                screen: frameScope.modelData
+
+                anchors {
+                    top: true
+                    bottom: true
+                    left: true
+                    right: true
+                }
+
+                // Ignore: this window covers the whole output and reserves nothing
+                // itself; the four FrameExclusion surfaces above do the reserving.
+                exclusionMode: ExclusionMode.Ignore
                 color: "transparent"
 
-                // ── 1. LEFT SECTION (end-4 Illogical Impulse): Launcher + 2-line ActiveWindow ──
-                MouseArea {
-                    id: leftSideArea
+                // Clicks land on the frame, the notch and the tab only; the
+                // desktop area in the middle stays click-through.
+                mask: Region {
+                    regions: [
+                        Region { item: frameTopEdge },
+                        Region { item: frameBottomEdge },
+                        Region { item: frameLeftEdge },
+                        Region { item: frameRightEdge },
+                        Region { item: middleSection },
+                        Region { item: titleTab }
+                    ]
+                }
+
+                // ── Frame body: four flat strips, no shadow, no outline ──
+                Rectangle {
+                    id: frameTopEdge
                     anchors {
                         top: parent.top
+                        left: parent.left
+                        right: parent.right
+                    }
+                    height: frameScope.topH
+                    color: Qt.alpha(theme.frameBg, theme.frameOpacity)
+                }
+
+                Rectangle {
+                    id: frameBottomEdge
+                    anchors {
                         bottom: parent.bottom
                         left: parent.left
-                        right: middleSection.left
+                        right: parent.right
                     }
-                    hoverEnabled: true
-                    acceptedButtons: Qt.NoButton
-                    onWheel: event => {
-                        if (event.angleDelta.y > 0) {
-                            shellRoot.runCmd(["brightnessctl", "set", "+5%"]);
-                        } else if (event.angleDelta.y < 0) {
-                            shellRoot.runCmd(["brightnessctl", "set", "5%-"]);
+                    height: frameScope.bottomH
+                    color: Qt.alpha(theme.frameBg, theme.frameOpacity)
+                }
+
+                Rectangle {
+                    id: frameLeftEdge
+                    anchors {
+                        top: frameTopEdge.bottom
+                        bottom: frameBottomEdge.top
+                        left: parent.left
+                    }
+                    width: frameScope.sideW
+                    color: Qt.alpha(theme.frameBg, theme.frameOpacity)
+                }
+
+                Rectangle {
+                    id: frameRightEdge
+                    anchors {
+                        top: frameTopEdge.bottom
+                        bottom: frameBottomEdge.top
+                        right: parent.right
+                    }
+                    width: frameScope.sideW
+                    color: Qt.alpha(theme.frameBg, theme.frameOpacity)
+                }
+
+                // ── Rounded desktop area: concave corner pieces in the frame color ──
+                RoundCorner {
+                    anchors {
+                        top: frameTopEdge.bottom
+                        left: frameLeftEdge.right
+                    }
+                    corner: "top-left"
+                    cornerSize: frameScope.radius
+                    fillColor: theme.frameBg
+                    fillAlpha: theme.frameOpacity
+                }
+
+                RoundCorner {
+                    anchors {
+                        top: frameTopEdge.bottom
+                        right: frameRightEdge.left
+                    }
+                    corner: "top-right"
+                    cornerSize: frameScope.radius
+                    fillColor: theme.frameBg
+                    fillAlpha: theme.frameOpacity
+                }
+
+                RoundCorner {
+                    anchors {
+                        bottom: frameBottomEdge.top
+                        left: frameLeftEdge.right
+                    }
+                    corner: "bottom-left"
+                    cornerSize: frameScope.radius
+                    fillColor: theme.frameBg
+                    fillAlpha: theme.frameOpacity
+                }
+
+                RoundCorner {
+                    anchors {
+                        bottom: frameBottomEdge.top
+                        right: frameRightEdge.left
+                    }
+                    corner: "bottom-right"
+                    cornerSize: frameScope.radius
+                    fillColor: theme.frameBg
+                    fillAlpha: theme.frameOpacity
+                }
+
+                // ── 1. NOTCH: the top edge swells down around the taskbar ──
+                FrameBump {
+                    id: middleSection
+                    pointsDown: true
+                    anchors {
+                        top: frameTopEdge.bottom
+                        horizontalCenter: parent.horizontalCenter
+                    }
+                    height: frameScope.notchDepth
+                    // long S-curve sides; the icon row sits just inside them
+                    sweep: frameScope.px(40)
+                    width: middleCenterGroup.width + 2 * frameScope.px(30)
+                    fillColor: theme.frameBg
+                    fillAlpha: theme.frameOpacity
+                }
+
+                // Taskbar: one icon per app (pinned first, then running), drawn over
+                // the top edge and the notch
+                Row {
+                    id: middleCenterGroup
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    y: frameScope.topH + frameScope.notchDepth - height - frameScope.px(2.5)
+                    spacing: frameScope.px(4)
+
+                    Repeater {
+                        model: shellRoot.taskAppIds
+
+                        Item {
+                            id: taskItem
+                            required property string modelData
+                            readonly property var wins: shellRoot.toplevelsFor(modelData)
+                            readonly property bool running: wins.length > 0
+                            readonly property bool focused: shellRoot.anyActivated(wins)
+
+                            width: frameScope.iconPx
+                            height: frameScope.iconPx + frameScope.px(4)
+
+                            Item {
+                                width: frameScope.iconPx
+                                height: frameScope.iconPx
+                                scale: taskMouse.containsMouse ? 1.12 : 1.0
+
+                                Behavior on scale {
+                                    NumberAnimation { duration: 120 }
+                                }
+
+                                Image {
+                                    id: taskIcon
+                                    anchors.fill: parent
+                                    source: shellRoot.appIconSource(taskItem.modelData)
+                                    sourceSize.width: frameScope.iconPx * 2
+                                    sourceSize.height: frameScope.iconPx * 2
+                                    asynchronous: true
+                                    smooth: true
+                                    mipmap: true
+                                    visible: status === Image.Ready
+                                }
+
+                                // No themed icon for this app: soft white square with the class glyph
+                                Rectangle {
+                                    anchors.fill: parent
+                                    visible: taskIcon.status !== Image.Ready
+                                    radius: Math.round(width * 0.26)
+                                    color: theme.framePill
+
+                                    FrameGlyph {
+                                        anchors.centerIn: parent
+                                        text: shellRoot.iconForClass(taskItem.modelData)
+                                        font.pixelSize: Math.round(parent.width * 0.56)
+                                    }
+                                }
+                            }
+
+                            // Running dash under the icon; wider and darker for the focused app
+                            Rectangle {
+                                id: activeIndicator
+                                visible: taskItem.running
+                                anchors {
+                                    bottom: parent.bottom
+                                    horizontalCenter: parent.horizontalCenter
+                                }
+                                width: frameScope.px(taskItem.focused ? 9 : 6)
+                                height: Math.max(2, frameScope.px(1.5))
+                                radius: height / 2
+                                color: taskItem.focused ? theme.frameInkSoft : theme.frameIndicator
+
+                                Behavior on width {
+                                    NumberAnimation { duration: 140; easing.type: Easing.OutSine }
+                                }
+                            }
+
+                            MouseArea {
+                                id: taskMouse
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                acceptedButtons: Qt.LeftButton | Qt.MiddleButton
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: mouse => {
+                                    if (mouse.button === Qt.MiddleButton) {
+                                        shellRoot.taskClose(taskItem.wins);
+                                    } else {
+                                        shellRoot.taskActivate(taskItem.modelData, taskItem.wins);
+                                    }
+                                }
+                            }
                         }
-                        statusProc.running = true;
                     }
 
-                    BarGroup {
-                        id: leftDockGroup
+                    // Nothing open and nothing pinned: the notch keeps one launcher tile
+                    Item {
+                        visible: shellRoot.taskAppIds.length === 0
+                        width: frameScope.iconPx
+                        height: frameScope.iconPx + frameScope.px(4)
+
+                        FrameGlyph {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            y: Math.round((frameScope.iconPx - height) / 2)
+                            text: "󰀻"
+                            color: emptyTaskMouse.containsMouse ? theme.frameInk : theme.frameInkSoft
+                            font.pixelSize: Math.round(frameScope.iconPx * 0.7)
+                        }
+
+                        MouseArea {
+                            id: emptyTaskMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: shellRoot.runCmd(["hyde-shell", "rofilaunch", "d"])
+                        }
+                    }
+                }
+
+                // ── 2. TITLE TAB: the bottom edge swells up around a white pill
+                // holding the focused window (icon + one-line title) ──
+                FrameBump {
+                    id: titleTab
+                    pointsDown: false
+                    anchors {
+                        bottom: frameBottomEdge.top
+                        horizontalCenter: parent.horizontalCenter
+                    }
+                    height: frameScope.tabRise
+                    shoulder: frameScope.px(5)
+                    bodyRadius: frameScope.px(8.5)
+                    width: titlePill.width + 2 * (shoulder + frameScope.px(1.5))
+                    fillColor: theme.frameBg
+                    fillAlpha: theme.frameOpacity
+
+                    Rectangle {
+                        id: titlePill
                         anchors {
-                            left: parent.left
-                            leftMargin: 8
-                            verticalCenter: parent.verticalCenter
+                            bottom: parent.bottom
+                            horizontalCenter: parent.horizontalCenter
                         }
-                        implicitWidth: leftDockRow.implicitWidth + 28
+                        width: frameScope.inputW
+                        height: frameScope.pillH
+                        radius: height / 2
+                        color: theme.framePill
+
+                        // One line: app icon + title (was the two-line class/title block)
+                        Row {
+                            id: activeWinColumn
+                            anchors {
+                                left: parent.left
+                                leftMargin: frameScope.px(3)
+                                verticalCenter: parent.verticalCenter
+                            }
+                            spacing: frameScope.px(3.5)
+
+                            Item {
+                                width: frameScope.px(10)
+                                height: width
+                                anchors.verticalCenter: parent.verticalCenter
+
+                                Image {
+                                    id: activeWinIcon
+                                    anchors.fill: parent
+                                    source: shellRoot.appIconSource(shellRoot.focusAppId)
+                                    sourceSize.width: width * 2
+                                    sourceSize.height: height * 2
+                                    asynchronous: true
+                                    smooth: true
+                                    mipmap: true
+                                    visible: status === Image.Ready
+                                }
+
+                                FrameGlyph {
+                                    anchors.centerIn: parent
+                                    visible: activeWinIcon.status !== Image.Ready
+                                    text: shellRoot.iconForClass(shellRoot.focusAppId)
+                                    font.pixelSize: Math.round(parent.width * 0.9)
+                                }
+                            }
+
+                            FrameLabel {
+                                id: activeWinTitle
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: shellRoot.focusTitle !== ""
+                                    ? shellRoot.focusTitle
+                                    : (shellRoot.focusAppId !== "" ? shellRoot.focusAppId : "Desktop")
+                                font.pixelSize: frameScope.fontPx
+                                font.weight: Font.Medium
+                                // long titles are cut with "…" before the end of the pill
+                                width: Math.min(implicitWidth, titlePill.width - x - frameScope.px(13))
+                            }
+                        }
+                    }
+                }
+
+                // ── 3. BOTTOM EDGE ──
+                Item {
+                    id: bottomBar
+                    anchors {
+                        left: frameLeftEdge.right
+                        right: frameRightEdge.left
+                        bottom: parent.bottom
+                    }
+                    height: frameScope.bottomH
+
+                    // image-1 keeps the row a touch above the middle of the edge
+                    readonly property int rowShift: -frameScope.px(1.5)
+                    readonly property int edgeMargin: frameScope.px(19)
+                    // room for one side cluster between the screen edge and the input pill
+                    readonly property real sideRoom: (width - inputPill.width) / 2 - edgeMargin - frameScope.px(8)
+
+                    // Scroll over the left half: brightness
+                    MouseArea {
+                        id: leftSideArea
+                        anchors {
+                            top: parent.top
+                            bottom: parent.bottom
+                            left: parent.left
+                            right: parent.horizontalCenter
+                        }
+                        acceptedButtons: Qt.NoButton
+                        onWheel: event => {
+                            if (event.angleDelta.y > 0) {
+                                shellRoot.runCmd(["brightnessctl", "set", "+5%"]);
+                            } else if (event.angleDelta.y < 0) {
+                                shellRoot.runCmd(["brightnessctl", "set", "5%-"]);
+                            }
+                            statusProc.running = true;
+                        }
                     }
 
-                    RowLayout {
+                    // Scroll over the right half: volume
+                    MouseArea {
+                        id: rightSideArea
+                        anchors {
+                            top: parent.top
+                            bottom: parent.bottom
+                            left: parent.horizontalCenter
+                            right: parent.right
+                        }
+                        acceptedButtons: Qt.NoButton
+                        onWheel: event => {
+                            if (event.angleDelta.y > 0) {
+                                shellRoot.runCmd(["pamixer", "-i", "5"]);
+                            } else if (event.angleDelta.y < 0) {
+                                shellRoot.runCmd(["pamixer", "-d", "5"]);
+                            }
+                            statusProc.running = true;
+                        }
+                    }
+
+                    // ── 3a. LEFT: "+" launcher, workspace pill, resources + media ──
+                    Row {
                         id: leftDockRow
                         anchors {
                             left: parent.left
-                            leftMargin: 22
+                            leftMargin: bottomBar.edgeMargin
                             verticalCenter: parent.verticalCenter
+                            verticalCenterOffset: bottomBar.rowShift
                         }
-                        spacing: 10
+                        spacing: frameScope.gap
+                        // Too many modules for a narrow screen: the cluster shrinks instead of overlapping the input
+                        transformOrigin: Item.Left
+                        scale: Math.min(1, bottomBar.sideRoom / Math.max(1, width))
 
-                        // end-4 launcher button with @lisa.p.ng layered glass icon
+                        // "+" circle: app launcher (right click: AniSub)
                         Rectangle {
                             id: leftSidebarBtn
-                            implicitWidth: 28
-                            implicitHeight: 28
-                            radius: 14
-                            color: leftBtnMouse.containsMouse
-                                ? Qt.rgba(0.14, 0.20, 0.87, 0.10)
-                                : "transparent"
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: frameScope.circleS
+                            height: frameScope.circleS
+                            radius: height / 2
+                            color: leftBtnMouse.containsMouse ? theme.frameHover : theme.framePill
 
                             Behavior on color {
                                 ColorAnimation { duration: 150 }
                             }
 
+                            FrameGlyph {
+                                anchors.centerIn: parent
+                                visible: !theme.followWallpaper
+                                text: "󰐕"
+                                font.pixelSize: Math.round(parent.height * 0.54)
+                            }
+
+                            // glass launcher icon of the wallpaper-synced skin
                             LisaGlassIcon {
                                 anchors.centerIn: parent
+                                visible: theme.followWallpaper
                                 width: 26
                                 height: 26
                                 glyph: "󰋜"
@@ -978,313 +1564,164 @@ ShellRoot {
                             }
                         }
 
-                        // end-4 two-line ActiveWindow (class on top, title below)
-                        Column {
-                            id: activeWinColumn
-                            spacing: 1
+                        // Workspace pill: avatar + "Workspace N" + five slots (the old switcher)
+                        BarGroup {
+                            id: workspacePill
+                            height: frameScope.pillH
+                            implicitWidth: wsRow.width + frameScope.px(2) + frameScope.px(5)
 
-                            Text {
-                                id: activeWinClass
-                                text: shellRoot.activeWinClass !== "" ? shellRoot.activeWinClass : "Desktop"
-                                color: theme.mainFg
-                                font.family: "JetBrainsMono Nerd Font"
-                                font.pixelSize: 11
-                                font.weight: Font.DemiBold
-                                elide: Text.ElideRight
-                                width: Math.min(implicitWidth, 380)
-                            }
-
-                            Text {
-                                id: activeWinTitle
-                                text: shellRoot.activeWinTitle !== ""
-                                    ? shellRoot.activeWinTitle
-                                    : ("Workspace " + barWindow.activeWsId)
-                                color: theme.subFg
-                                font.family: "JetBrainsMono Nerd Font"
-                                font.pixelSize: 9
-                                elide: Text.ElideRight
-                                width: Math.min(implicitWidth, 380)
-                            }
-                        }
-                    }
-                }
-
-                // ── 2. CENTER ISLAND (image-20): workspace capsule hanging from the top edge ──
-                Item {
-                    id: middleSection
-                    anchors {
-                        top: parent.top
-                        horizontalCenter: parent.horizontalCenter
-                    }
-                    width: middleCenterGroup.implicitWidth + 24
-                    height: barWindow.barHeight
-
-                    // Island body: wallpaper-tinted glass, rounded below, square at the top edge
-                    Rectangle {
-                        anchors.fill: parent
-                        radius: 18
-                        color: Qt.alpha(theme.barBg, theme.barOpacity)
-
-                        Behavior on color {
-                            ColorAnimation { duration: 300 }
-                        }
-                    }
-
-                    Rectangle {
-                        anchors {
-                            left: parent.left
-                            right: parent.right
-                            top: parent.top
-                        }
-                        height: 18
-                        color: Qt.alpha(theme.barBg, theme.barOpacity)
-                    }
-
-                    // LOOSE print halftone texture over the island (image-13.png)
-                    Canvas {
-                        id: barHalftone
-                        anchors.fill: parent
-                        onWidthChanged: requestPaint()
-                        onHeightChanged: requestPaint()
-                        onPaint: {
-                            var ctx = getContext("2d");
-                            ctx.reset();
-                            var step = 7;
-                            ctx.fillStyle = "rgba(20, 40, 16, 0.06)";
-                            for (var rowY = step / 2; rowY < height; rowY += step) {
-                                var xoff = (Math.round(rowY / step) % 2 === 0) ? step / 2 : 0;
-                                for (var dotX = xoff + step / 2; dotX < width; dotX += step) {
-                                    ctx.beginPath();
-                                    ctx.arc(dotX, rowY, 1.2, 0, Math.PI * 2);
-                                    ctx.fill();
-                                }
-                            }
-                        }
-                    }
-
-                    // ── 2b. end-4 Workspace switcher capsule (`middleCenterGroup` — occupied slots + liquid glass `activeIndicator`) ──
-                BarGroup {
-                    id: middleCenterGroup
-                    plain: true
-                    anchors.centerIn: parent
-                    implicitWidth: wsContainer.implicitWidth + 8
-
-                    Item {
-                        id: wsContainer
-                        anchors.centerIn: parent
-                        readonly property real pillWidth: 42
-                        readonly property real pillHeight: 24
-                        readonly property real pillPitch: 48
-                        readonly property int targetIndex: barWindow.localOrbIndex
-
-                        property real idx1: targetIndex
-                        property real idx2: targetIndex
-                        Behavior on idx1 {
-                            NumberAnimation { duration: 110; easing.type: Easing.OutSine }
-                        }
-                        Behavior on idx2 {
-                            NumberAnimation { duration: 280; easing.type: Easing.OutSine }
-                        }
-
-                        function isWsOccupied(id) {
-                            if (shellRoot.wsClasses && shellRoot.wsClasses[id.toString()]) return true;
-                            var list = Hyprland.workspaces ? Hyprland.workspaces.values : [];
-                            for (var i = 0; i < list.length; i++) {
-                                if (list[i].id === id) return true;
-                            }
-                            return false;
-                        }
-
-                        implicitWidth: pillPitch * 5 - (pillPitch - pillWidth)
-                        implicitHeight: pillHeight
-
-                        // Layer 1: Liquid Glass stretchy active pill (`activeIndicator` — frosted indigo-violet + warm orange glow + white specular arc)
-                        Item {
-                            id: activeIndicator
-                            z: 1
-                            anchors.verticalCenter: parent.verticalCenter
-                            x: Math.min(wsContainer.idx1, wsContainer.idx2) * wsContainer.pillPitch
-                            width: Math.abs(wsContainer.idx1 - wsContainer.idx2) * wsContainer.pillPitch + wsContainer.pillWidth
-                            height: wsContainer.pillHeight
-
-                            Rectangle {
-                                id: activeIndicatorGlass
+                            // Scroll anywhere on the pill: next / previous workspace
+                            MouseArea {
                                 anchors.fill: parent
-                                radius: height / 2
-                                color: Qt.alpha(theme.glowSecondary, 0.92)
-                                border.width: 1
-                                border.color: "#70ffffff"
-                            }
-                            // magenta-pink pop glow beneath the cobalt pill (image-13.png)
-                            Rectangle {
-                                width: 20
-                                height: 20
-                                radius: 10
-                                color: theme.glowColor
-                                opacity: 0.38
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                anchors.bottom: parent.bottom
-                                anchors.bottomMargin: -5
-                            }
-                            Rectangle {
-                                width: 13
-                                height: 13
-                                radius: 6.5
-                                color: theme.glowColor
-                                opacity: 0.42
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                anchors.bottom: parent.bottom
-                                anchors.bottomMargin: -3
-                            }
-                            // liquid specular top arc
-                            Rectangle {
-                                anchors.left: parent.left
-                                anchors.right: parent.right
-                                anchors.top: parent.top
-                                anchors.leftMargin: 10
-                                anchors.rightMargin: 10
-                                height: 1.5
-                                radius: 1
-                                color: "#b3ffffff"
-                            }
-                        }
-
-                        // Layer 2: 5 Workspace Slots sitting directly on the Frosted Sea-Glass Capsule (Home, Check-circle, Calendar, Target, Terminal)
-                        Repeater {
-                            model: 5
-
-                            Item {
-                                id: wsSlot
-                                z: 2
-                                required property int index
-                                readonly property int wsId: barWindow.bankOffset + index + 1
-                                readonly property bool isActive: (barWindow.localOrbIndex === index)
-                                readonly property bool isOcc: wsContainer.isWsOccupied(wsId)
-
-                                x: index * wsContainer.pillPitch
-                                width: wsContainer.pillWidth
-                                height: wsContainer.pillHeight
-
-                                Rectangle {
-                                    anchors.fill: parent
-                                    radius: height / 2
-                                    visible: wsHit.containsMouse && !wsSlot.isActive
-                                    color: Qt.rgba(0.14, 0.20, 0.87, 0.08)
-                                }
-
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: shellRoot.iconForWorkspaceSlot(wsSlot.index)
-                                    color: wsSlot.isActive ? theme.actFg : theme.secondaryFg
-                                    font.family: "JetBrainsMono Nerd Font"
-                                    font.pixelSize: wsSlot.isActive ? 15 : 14
-
-                                    Behavior on color {
-                                        ColorAnimation { duration: 180 }
+                                acceptedButtons: Qt.NoButton
+                                onWheel: event => {
+                                    if (event.angleDelta.y < 0) {
+                                        Hyprland.dispatch("workspace r+1");
+                                    } else if (event.angleDelta.y > 0) {
+                                        Hyprland.dispatch("workspace r-1");
                                     }
                                 }
+                            }
 
-                                Rectangle {
-                                    visible: wsSlot.isOcc && !wsSlot.isActive
-                                    anchors {
-                                        bottom: parent.bottom
-                                        bottomMargin: 2.5
-                                        horizontalCenter: parent.horizontalCenter
-                                    }
-                                    width: 3.5
-                                    height: 3.5
-                                    radius: 1.75
-                                    color: Qt.alpha(theme.secondaryFg, 0.72)
+                            Row {
+                                id: wsRow
+                                anchors {
+                                    left: parent.left
+                                    leftMargin: frameScope.px(2)
+                                    verticalCenter: parent.verticalCenter
                                 }
+                                spacing: frameScope.px(4)
 
-                                MouseArea {
-                                    id: wsHit
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: Hyprland.dispatch("workspace " + wsSlot.wsId)
-                                    onWheel: event => {
-                                        if (event.angleDelta.y < 0) {
-                                            Hyprland.dispatch("workspace r+1");
-                                        } else if (event.angleDelta.y > 0) {
-                                            Hyprland.dispatch("workspace r-1");
+                                // Avatar (~/.face.icon). QtQuick `clip` only cuts rectangles, so the
+                                // picture is rounded with four corner pieces in the pill color.
+                                Item {
+                                    id: wsAvatar
+                                    width: frameScope.pillH - 2 * frameScope.px(2)
+                                    height: width
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    readonly property bool hasPicture: wsAvatarImage.status === Image.Ready
+                                    readonly property int half: Math.ceil(width / 2)
+
+                                    Rectangle {
+                                        anchors.fill: parent
+                                        radius: width / 2
+                                        visible: !wsAvatar.hasPicture
+                                        gradient: Gradient {
+                                            orientation: Gradient.Horizontal
+                                            GradientStop { position: 0.0; color: theme.frameAccentA }
+                                            GradientStop { position: 1.0; color: theme.frameAccentB }
+                                        }
+
+                                        FrameLabel {
+                                            anchors.centerIn: parent
+                                            text: shellRoot.userInitial
+                                            color: theme.frameAccentInk
+                                            font.pixelSize: Math.round(parent.height * 0.52)
+                                            font.weight: Font.DemiBold
                                         }
                                     }
-                                }
-                            }
-                        }
-                    }
-                }
-                }
-
-                // ── 3. RIGHT SECTION (end-4): System Tray + @lisa.p.ng status pill ──
-                MouseArea {
-                    id: rightSideArea
-                    anchors {
-                        top: parent.top
-                        bottom: parent.bottom
-                        left: middleSection.right
-                        right: parent.right
-                    }
-                    hoverEnabled: true
-                    acceptedButtons: Qt.NoButton
-                    onWheel: event => {
-                        if (event.angleDelta.y > 0) {
-                            shellRoot.runCmd(["pamixer", "-i", "5"]);
-                        } else if (event.angleDelta.y < 0) {
-                            shellRoot.runCmd(["pamixer", "-d", "5"]);
-                        }
-                        statusProc.running = true;
-                    }
-
-                    RowLayout {
-                        id: rightSideRow
-                        anchors {
-                            right: parent.right
-                            rightMargin: 14
-                            verticalCenter: parent.verticalCenter
-                        }
-                        spacing: 8
-
-                        // System Tray icons
-                        RowLayout {
-                            id: trayRow
-                            visible: SystemTray.items && SystemTray.items.values && SystemTray.items.values.length > 0
-                            spacing: 4
-
-                            Repeater {
-                                model: SystemTray.items
-
-                                Rectangle {
-                                    id: traySlot
-                                    required property var modelData
-                                    implicitWidth: 24
-                                    implicitHeight: 24
-                                    radius: 12
-                                    color: trayMouse.containsMouse
-                                        ? Qt.rgba(0.14, 0.20, 0.87, 0.10)
-                                        : "transparent"
 
                                     Image {
-                                        anchors.centerIn: parent
-                                        width: 14
-                                        height: 14
-                                        source: traySlot.modelData.icon || ""
-                                        sourceSize.width: 14
-                                        sourceSize.height: 14
+                                        id: wsAvatarImage
+                                        anchors.fill: parent
+                                        source: shellRoot.avatarUrl
+                                        sourceSize.width: width * 2
+                                        sourceSize.height: height * 2
+                                        fillMode: Image.PreserveAspectCrop
+                                        asynchronous: true
+                                        smooth: true
+                                        mipmap: true
+                                        visible: wsAvatar.hasPicture
                                     }
 
-                                    MouseArea {
-                                        id: trayMouse
-                                        anchors.fill: parent
-                                        hoverEnabled: true
-                                        acceptedButtons: Qt.LeftButton | Qt.RightButton
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: mouse => {
-                                            if (mouse.button === Qt.RightButton) {
-                                                traySlot.modelData.secondaryActivate();
-                                            } else {
-                                                traySlot.modelData.activate();
+                                    RoundCorner {
+                                        visible: wsAvatar.hasPicture
+                                        corner: "top-left"
+                                        cornerSize: wsAvatar.half
+                                        fillColor: theme.framePill
+                                        fillAlpha: 1.0
+                                    }
+
+                                    RoundCorner {
+                                        visible: wsAvatar.hasPicture
+                                        anchors.right: parent.right
+                                        corner: "top-right"
+                                        cornerSize: wsAvatar.half
+                                        fillColor: theme.framePill
+                                        fillAlpha: 1.0
+                                    }
+
+                                    RoundCorner {
+                                        visible: wsAvatar.hasPicture
+                                        anchors.bottom: parent.bottom
+                                        corner: "bottom-left"
+                                        cornerSize: wsAvatar.half
+                                        fillColor: theme.framePill
+                                        fillAlpha: 1.0
+                                    }
+
+                                    RoundCorner {
+                                        visible: wsAvatar.hasPicture
+                                        anchors {
+                                            right: parent.right
+                                            bottom: parent.bottom
+                                        }
+                                        corner: "bottom-right"
+                                        cornerSize: wsAvatar.half
+                                        fillColor: theme.framePill
+                                        fillAlpha: 1.0
+                                    }
+                                }
+
+                                FrameLabel {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: "Workspace " + frameScope.activeWsId
+                                    font.pixelSize: frameScope.fontPx
+                                }
+
+                                // Five slots of the current bank: dark = active, grey = has windows, pale = empty
+                                Row {
+                                    anchors.verticalCenter: parent.verticalCenter
+
+                                    Repeater {
+                                        model: 5
+
+                                        Item {
+                                            id: wsSlot
+                                            required property int index
+                                            readonly property int wsId: frameScope.bankOffset + index + 1
+                                            readonly property bool isActive: (frameScope.localOrbIndex === index)
+                                            readonly property bool isOcc: frameScope.isWsOccupied(wsId)
+
+                                            width: wsDot.width + frameScope.px(3)
+                                            height: frameScope.pillH
+
+                                            Rectangle {
+                                                id: wsDot
+                                                anchors.centerIn: parent
+                                                width: frameScope.px(wsSlot.isActive ? 7 : 3)
+                                                height: frameScope.px(3)
+                                                radius: height / 2
+                                                color: wsSlot.isActive
+                                                    ? theme.frameInk
+                                                    : ((wsSlot.isOcc || wsHit.containsMouse)
+                                                        ? theme.frameIndicator
+                                                        : Qt.alpha(theme.frameInk, 0.14))
+
+                                                Behavior on width {
+                                                    NumberAnimation { duration: 160; easing.type: Easing.OutSine }
+                                                }
+                                                Behavior on color {
+                                                    ColorAnimation { duration: 160 }
+                                                }
+                                            }
+
+                                            MouseArea {
+                                                id: wsHit
+                                                anchors.fill: parent
+                                                hoverEnabled: true
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: Hyprland.dispatch("workspace " + wsSlot.wsId)
                                             }
                                         }
                                     }
@@ -1292,25 +1729,498 @@ ShellRoot {
                             }
                         }
 
-                        // @lisa.p.ng status pill: Bluetooth, Wi-Fi, Mic, Volume, Settings (image-10.png bottom-right)
+                        // Resources + media pill (`leftCenterGroup`)
+                        BarGroup {
+                            id: leftCenterGroup
+                            height: frameScope.pillH
+                            implicitWidth: resRow.width + 2 * frameScope.px(5)
+
+                            Row {
+                                id: resRow
+                                anchors.centerIn: parent
+                                spacing: frameScope.px(4.5)
+
+                                Row {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    spacing: frameScope.px(2)
+
+                                    CircularResourceRing {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        size: frameScope.px(8.5)
+                                        value: shellRoot.memoryUsage
+                                        iconText: "󰍛"
+                                        primaryColor: shellRoot.memoryUsage >= 0.90 ? theme.errorColor : theme.frameInk
+                                    }
+                                    FrameLabel {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: Math.round(shellRoot.memoryUsage * 100).toString() + "%"
+                                        font.pixelSize: frameScope.fontPx - 1
+                                    }
+                                }
+
+                                Row {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    spacing: frameScope.px(2)
+
+                                    CircularResourceRing {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        size: frameScope.px(8.5)
+                                        value: shellRoot.swapUsage
+                                        iconText: "󰓡"
+                                        primaryColor: shellRoot.swapUsage >= 0.90 ? theme.errorColor : theme.frameInk
+                                    }
+                                    FrameLabel {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: Math.round(shellRoot.swapUsage * 100).toString() + "%"
+                                        font.pixelSize: frameScope.fontPx - 1
+                                    }
+                                }
+
+                                Row {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    spacing: frameScope.px(2)
+
+                                    CircularResourceRing {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        size: frameScope.px(8.5)
+                                        value: shellRoot.cpuUsage
+                                        iconText: "󰻠"
+                                        primaryColor: shellRoot.cpuUsage >= 0.90 ? theme.errorColor : theme.frameInk
+                                    }
+                                    FrameLabel {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: Math.round(shellRoot.cpuUsage * 100).toString() + "%"
+                                        font.pixelSize: frameScope.fontPx - 1
+                                    }
+                                }
+
+                                FrameSeparator {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    height: frameScope.px(6)
+                                }
+
+                                // Media / AniSub slot
+                                Rectangle {
+                                    id: mediaSlot
+                                    readonly property var activePlayer: (Mpris.players && Mpris.players.values && Mpris.players.values.length > 0)
+                                        ? Mpris.players.values[0]
+                                        : null
+                                    readonly property bool hasTrack: activePlayer !== null && activePlayer.trackTitle !== ""
+                                    readonly property bool playing: hasTrack && activePlayer.isPlaying
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    width: mediaRow.width + 2 * frameScope.px(3)
+                                    height: frameScope.btnS
+                                    radius: height / 2
+                                    color: mediaMouse.containsMouse ? theme.frameHover : "transparent"
+
+                                    Row {
+                                        id: mediaRow
+                                        anchors.centerIn: parent
+                                        spacing: frameScope.px(2.5)
+
+                                        // Playing dot: accent while a track plays, grey otherwise
+                                        Rectangle {
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            width: frameScope.px(3.5)
+                                            height: width
+                                            radius: width / 2
+                                            color: mediaSlot.playing ? theme.frameAccentA : theme.frameIndicator
+
+                                            Behavior on color {
+                                                ColorAnimation { duration: 200 }
+                                            }
+                                        }
+
+                                        FrameGlyph {
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            visible: text !== ""
+                                            text: mediaSlot.playing ? "" : "󰎈"
+                                            font.pixelSize: frameScope.fontPx + 1
+                                        }
+
+                                        FrameLabel {
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            text: mediaSlot.hasTrack
+                                                ? mediaSlot.activePlayer.trackTitle
+                                                : "AniSub"
+                                            font.pixelSize: frameScope.fontPx
+                                            width: Math.min(implicitWidth, frameScope.px(50))
+                                        }
+                                    }
+
+                                    MouseArea {
+                                        id: mediaMouse
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: mouse => {
+                                            if (!mediaSlot.hasTrack || mouse.button === Qt.LeftButton) {
+                                                shellRoot.runCmd(["hyde-shell", "rofi.movie"]);
+                                            } else if (mouse.button === Qt.MiddleButton && mediaSlot.activePlayer) {
+                                                mediaSlot.activePlayer.togglePlaying();
+                                            } else if (mouse.button === Qt.RightButton && mediaSlot.activePlayer) {
+                                                mediaSlot.activePlayer.next();
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // ── 3b. CENTER: input pill. It only looks like a text field: a click
+                    // opens the app launcher, so the bar never takes keyboard focus ──
+                    Rectangle {
+                        id: inputPill
+                        anchors {
+                            horizontalCenter: parent.horizontalCenter
+                            verticalCenter: parent.verticalCenter
+                            verticalCenterOffset: bottomBar.rowShift
+                        }
+                        width: frameScope.inputW
+                        height: frameScope.inputH
+                        radius: height / 2
+                        color: theme.framePill
+
+                        FrameLabel {
+                            anchors {
+                                left: parent.left
+                                leftMargin: frameScope.px(9)
+                                right: inputAction.left
+                                rightMargin: frameScope.px(4)
+                                verticalCenter: parent.verticalCenter
+                            }
+                            text: theme.inputPlaceholder
+                            color: theme.frameInkSoft
+                            font.pixelSize: frameScope.fontPx
+                        }
+
+                        // Action pill inside the field (pale teal, white ink)
+                        Rectangle {
+                            id: inputAction
+                            anchors {
+                                right: parent.right
+                                rightMargin: frameScope.px(2)
+                                verticalCenter: parent.verticalCenter
+                            }
+                            width: inputActionRow.width + 2 * frameScope.px(6)
+                            height: parent.height - 2 * frameScope.px(2)
+                            radius: height / 2
+                            opacity: inputMouse.containsMouse ? 0.86 : 1.0
+                            gradient: Gradient {
+                                orientation: Gradient.Horizontal
+                                GradientStop { position: 0.0; color: theme.frameAccentA }
+                                GradientStop { position: 1.0; color: theme.frameAccentB }
+                            }
+
+                            Behavior on opacity {
+                                NumberAnimation { duration: 120 }
+                            }
+
+                            Row {
+                                id: inputActionRow
+                                anchors.centerIn: parent
+                                spacing: frameScope.px(2.5)
+
+                                FrameGlyph {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: "󰙴"
+                                    color: theme.frameAccentInk
+                                    font.pixelSize: frameScope.fontPx + 1
+                                }
+
+                                FrameLabel {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: theme.inputButtonText
+                                    color: theme.frameAccentInk
+                                    font.pixelSize: frameScope.fontPx
+                                    font.weight: Font.DemiBold
+                                }
+                            }
+                        }
+
+                        MouseArea {
+                            id: inputMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: shellRoot.runCmd(["hyde-shell", "rofilaunch", "d"])
+                        }
+                    }
+
+                    // ── 3c. RIGHT: clock + utils + battery, tray, status pill, bell, user ──
+                    Row {
+                        id: rightSideRow
+                        anchors {
+                            right: parent.right
+                            rightMargin: bottomBar.edgeMargin
+                            verticalCenter: parent.verticalCenter
+                            verticalCenterOffset: bottomBar.rowShift
+                        }
+                        spacing: frameScope.gap
+                        transformOrigin: Item.Right
+                        scale: Math.min(1, bottomBar.sideRoom / Math.max(1, width))
+
+                        // Clock + utility buttons + battery pill (`rightCenterGroup`)
+                        BarGroup {
+                            id: rightCenterGroup
+                            height: frameScope.pillH
+                            implicitWidth: rightDockRow.width + 2 * frameScope.px(4)
+
+                            Row {
+                                id: rightDockRow
+                                anchors.centerIn: parent
+                                spacing: frameScope.px(3)
+
+                                // Clock: HH:mm • date (+ settings glyph)
+                                Rectangle {
+                                    id: rightClockPill
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    width: clockPillRow.width + 2 * frameScope.px(4)
+                                    height: frameScope.btnS
+                                    radius: height / 2
+                                    color: rightClockMouse.containsMouse ? theme.frameHover : "transparent"
+
+                                    Behavior on color {
+                                        ColorAnimation { duration: 150 }
+                                    }
+
+                                    Row {
+                                        id: clockPillRow
+                                        anchors.centerIn: parent
+                                        spacing: frameScope.px(2.5)
+
+                                        FrameLabel {
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            text: shellRoot.timeText
+                                            font.pixelSize: frameScope.fontPx
+                                            font.weight: Font.DemiBold
+                                        }
+
+                                        FrameLabel {
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            text: "•"
+                                            color: theme.frameInkSoft
+                                            font.pixelSize: frameScope.fontPx - 2
+                                        }
+
+                                        FrameLabel {
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            text: shellRoot.dateText
+                                            color: theme.frameInkSoft
+                                            font.pixelSize: frameScope.fontPx
+                                        }
+
+                                        FrameGlyph {
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            text: "󰢻"
+                                            font.pixelSize: frameScope.fontPx
+                                        }
+                                    }
+
+                                    MouseArea {
+                                        id: rightClockMouse
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: mouse => {
+                                            if (mouse.button === Qt.MiddleButton) {
+                                                shellRoot.clockWidgetVisible = !shellRoot.clockWidgetVisible;
+                                                shellRoot.saveClockConfig();
+                                            } else if (mouse.button === Qt.RightButton) {
+                                                shellRoot.runCmd(["hyde-shell", "logoutlaunch", "1"]);
+                                            } else {
+                                                shellRoot.runCmd(["hyde-shell", "anide-settings"]);
+                                            }
+                                        }
+                                    }
+                                }
+
+                                FrameSeparator {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    height: frameScope.px(6)
+                                }
+
+                                // Coffee / Caffeine toggle (`caffeineBtn`)
+                                FrameButton {
+                                    id: caffeineBtn
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    width: frameScope.btnS
+                                    height: frameScope.btnS
+                                    iconText: shellRoot.caffeineActive ? "󰅶" : "󰛊"
+                                    activeState: shellRoot.caffeineActive
+                                    iconVariant: 2
+                                    iconArcStart: -205
+                                    iconArcSweep: 95
+                                    iconSparkX: 0.88
+                                    iconSparkY: 0.13
+                                    iconSparkRot: 45
+                                    onTriggered: {
+                                        shellRoot.caffeineActive = !shellRoot.caffeineActive;
+                                        shellRoot.runCmd(["hyde-shell", "caffeine", "-t"]);
+                                    }
+                                    onRightTriggered: {
+                                        shellRoot.caffeineActive = !shellRoot.caffeineActive;
+                                        shellRoot.runCmd(["hyde-shell", "caffeine", "-t"]);
+                                    }
+                                }
+
+                                // Screenshot utility (left-click: region `s`, right-click: full screen `p`)
+                                FrameButton {
+                                    id: screenshotBtn
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    width: frameScope.btnS
+                                    height: frameScope.btnS
+                                    iconText: "󰆞"
+                                    iconVariant: 0
+                                    iconArcStart: -215
+                                    iconArcSweep: 105
+                                    iconSparkX: 0.87
+                                    iconSparkY: 0.135
+                                    onTriggered: shellRoot.runCmd(["hyde-shell", "screenshot", "s"])
+                                    onRightTriggered: shellRoot.runCmd(["hyde-shell", "screenshot", "p"])
+                                }
+
+                                // Color Picker utility
+                                FrameButton {
+                                    id: colorPickBtn
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    width: frameScope.btnS
+                                    height: frameScope.btnS
+                                    iconText: "󰈊"
+                                    iconVariant: 2
+                                    iconArcStart: -230
+                                    iconArcSweep: 110
+                                    iconSparkX: 0.86
+                                    iconSparkY: 0.15
+                                    iconSparkRot: 45
+                                    onTriggered: shellRoot.runCmd(["hyprpicker", "-a"])
+                                    onRightTriggered: shellRoot.runCmd(["hyprpicker", "-a"])
+                                }
+
+                                // AniSub utility
+                                FrameButton {
+                                    id: anisubBtn
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    width: frameScope.btnS
+                                    height: frameScope.btnS
+                                    iconText: "󰐊"
+                                    iconVariant: 0
+                                    iconArcStart: -185
+                                    iconArcSweep: 85
+                                    iconSparkX: 0.88
+                                    iconSparkY: 0.12
+                                    onTriggered: shellRoot.runCmd(["hyde-shell", "rofi.movie"])
+                                    onRightTriggered: shellRoot.runCmd(["hyde-shell", "rofi.movie"])
+                                }
+
+                                FrameSeparator {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    height: frameScope.px(6)
+                                }
+
+                                // OneUI 7 ClippedProgressBar Battery pill
+                                Row {
+                                    id: batteryRow
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    spacing: frameScope.px(2.5)
+                                    rightPadding: frameScope.px(3)
+
+                                    FrameGlyph {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: shellRoot.batteryCharging ? "󰂄" : "󰁹"
+                                        color: (shellRoot.batteryLevel <= 0.20 && !shellRoot.batteryCharging)
+                                            ? theme.errorColor
+                                            : theme.frameInk
+                                        font.pixelSize: frameScope.fontPx + 1
+                                    }
+
+                                    ClippedProgressBar {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        width: frameScope.px(20)
+                                        height: frameScope.px(6.5)
+                                        value: shellRoot.batteryLevel
+                                        fill: (shellRoot.batteryLevel <= 0.20 && !shellRoot.batteryCharging)
+                                            ? theme.errorColor
+                                            : theme.frameAccentA
+                                        trackColor: Qt.alpha(theme.frameInk, 0.10)
+                                        textColor: theme.frameInk
+                                    }
+                                }
+                            }
+                        }
+
+                        // System tray pill (only while something is in the tray)
+                        BarGroup {
+                            id: trayPill
+                            visible: SystemTray.items && SystemTray.items.values && SystemTray.items.values.length > 0
+                            height: frameScope.pillH
+                            implicitWidth: trayRow.width + 2 * frameScope.px(4)
+
+                            Row {
+                                id: trayRow
+                                anchors.centerIn: parent
+                                spacing: frameScope.px(1.5)
+
+                                Repeater {
+                                    model: SystemTray.items
+
+                                    Rectangle {
+                                        id: traySlot
+                                        required property var modelData
+                                        width: frameScope.btnS
+                                        height: frameScope.btnS
+                                        radius: height / 2
+                                        color: trayMouse.containsMouse ? theme.frameHover : "transparent"
+
+                                        Image {
+                                            anchors.centerIn: parent
+                                            width: Math.round(parent.width * 0.6)
+                                            height: width
+                                            source: traySlot.modelData.icon || ""
+                                            sourceSize.width: width * 2
+                                            sourceSize.height: height * 2
+                                        }
+
+                                        MouseArea {
+                                            id: trayMouse
+                                            anchors.fill: parent
+                                            hoverEnabled: true
+                                            acceptedButtons: Qt.LeftButton | Qt.RightButton
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: mouse => {
+                                                if (mouse.button === Qt.RightButton) {
+                                                    traySlot.modelData.secondaryActivate();
+                                                } else {
+                                                    traySlot.modelData.activate();
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Status pill: Bluetooth, Wi-Fi, Mic, Volume
                         BarGroup {
                             id: rightStatusPill
-                            padding: 4
-                            implicitWidth: statusRow.implicitWidth + 14
+                            height: frameScope.pillH
+                            implicitWidth: statusRow.width + 2 * frameScope.px(4)
 
-                            RowLayout {
+                            Row {
                                 id: statusRow
                                 anchors.centerIn: parent
-                                spacing: 7
+                                spacing: frameScope.px(1.5)
 
-                                CircleUtilButton {
+                                FrameButton {
                                     id: bluetoothBtn
-                                iconPlateColor: theme.surfaceBg
-                                iconInkColor: theme.mainFg
+                                    width: frameScope.btnS
+                                    height: frameScope.btnS
                                     iconText: shellRoot.bluetoothConnected
                                         ? "󰂱"
                                         : (shellRoot.bluetoothOn ? "󰂯" : "󰂲")
-                                    accentColor: theme.glowColor
                                     iconVariant: 0
                                     iconArcStart: -225
                                     iconArcSweep: 95
@@ -1320,12 +2230,11 @@ ShellRoot {
                                     onRightTriggered: shellRoot.runCmd(["blueman-manager"])
                                 }
 
-                                CircleUtilButton {
+                                FrameButton {
                                     id: wifiBtn
-                                iconPlateColor: theme.surfaceBg
-                                iconInkColor: theme.mainFg
+                                    width: frameScope.btnS
+                                    height: frameScope.btnS
                                     iconText: shellRoot.networkName !== "" ? "󰤨" : "󰤭"
-                                    accentColor: theme.glowColor
                                     iconVariant: 1
                                     iconArcStart: -195
                                     iconArcSweep: 90
@@ -1336,12 +2245,11 @@ ShellRoot {
                                     onRightTriggered: shellRoot.runCmd(["nm-connection-editor"])
                                 }
 
-                                CircleUtilButton {
+                                FrameButton {
                                     id: micBtn
-                                iconPlateColor: theme.surfaceBg
-                                iconInkColor: theme.mainFg
+                                    width: frameScope.btnS
+                                    height: frameScope.btnS
                                     iconText: shellRoot.micMuted ? "󰍭" : "󰍬"
-                                    accentColor: theme.glowColor
                                     iconVariant: 2
                                     iconArcStart: -200
                                     iconArcSweep: 100
@@ -1357,14 +2265,13 @@ ShellRoot {
                                     }
                                 }
 
-                                CircleUtilButton {
+                                FrameButton {
                                     id: volBtn
-                                iconPlateColor: theme.surfaceBg
-                                iconInkColor: theme.mainFg
+                                    width: frameScope.btnS
+                                    height: frameScope.btnS
                                     iconText: shellRoot.volumeMuted
                                         ? "󰝟"
                                         : (shellRoot.volumeLevel < 35 ? "󰕿" : (shellRoot.volumeLevel < 70 ? "󰖀" : "󰕾"))
-                                    accentColor: theme.glowColor
                                     iconVariant: 0
                                     iconArcStart: -240
                                     iconArcSweep: 115
@@ -1377,465 +2284,40 @@ ShellRoot {
                                     }
                                     onRightTriggered: shellRoot.runCmd(["pavucontrol"])
                                 }
-
-                                CircleUtilButton {
-                                    id: settingsBtn
-                                iconPlateColor: theme.surfaceBg
-                                iconInkColor: theme.mainFg
-                                    iconText: "󰒓"
-                                    accentColor: theme.glowColor
-                                    iconVariant: 1
-                                    iconArcStart: -230
-                                    iconArcSweep: 110
-                                    iconSparkX: 0.88
-                                    iconSparkY: 0.13
-                                    onTriggered: shellRoot.runCmd(["hyde-shell", "anide-settings"])
-                                    onRightTriggered: shellRoot.runCmd(["hyde-shell", "logoutlaunch", "1"])
-                                }
                             }
+                        }
+
+                        // Bell circle: last notification back from dunst history (right click: close all)
+                        FrameButton {
+                            id: bellBtn
+                            anchors.verticalCenter: parent.verticalCenter
+                            plate: true
+                            width: frameScope.circleS
+                            height: frameScope.circleS
+                            iconText: "󰂜"
+                            iconVariant: 2
+                            onTriggered: shellRoot.runCmd(["dunstctl", "history-pop"])
+                            onRightTriggered: shellRoot.runCmd(["dunstctl", "close-all"])
+                        }
+
+                        // User circle: AniDE settings (right click: session menu)
+                        FrameButton {
+                            id: settingsBtn
+                            anchors.verticalCenter: parent.verticalCenter
+                            plate: true
+                            width: frameScope.circleS
+                            height: frameScope.circleS
+                            iconText: theme.followWallpaper ? "󰒓" : "󰀓"
+                            iconVariant: 1
+                            iconArcStart: -230
+                            iconArcSweep: 110
+                            iconSparkX: 0.88
+                            iconSparkY: 0.13
+                            onTriggered: shellRoot.runCmd(["hyde-shell", "anide-settings"])
+                            onRightTriggered: shellRoot.runCmd(["hyde-shell", "logoutlaunch", "1"])
                         }
                     }
                 }
-                    // ── 2a. Resources + Media capsule (`leftCenterGroup`) ──
-                    BarGroup {
-                        id: leftCenterGroup
-                        anchors {
-                            right: middleSection.left
-                            rightMargin: 8
-                            verticalCenter: parent.verticalCenter
-                        }
-                        padding: 4
-                        implicitWidth: resRow.implicitWidth + 14
-
-                        RowLayout {
-                            id: resRow
-                            anchors {
-                                left: parent.left
-                                leftMargin: 4
-                                verticalCenter: parent.verticalCenter
-                            }
-                            spacing: 10
-
-                            RowLayout {
-                                spacing: 4
-                                CircularResourceRing {
-                                    value: shellRoot.memoryUsage
-                                    iconText: "󰍛"
-                                    primaryColor: shellRoot.memoryUsage >= 0.90 ? theme.errorColor : theme.secondaryFg
-                                }
-                                Text {
-                                    text: Math.round(shellRoot.memoryUsage * 100).toString() + "%"
-                                    color: theme.secondaryFg
-                                    font.family: "JetBrainsMono Nerd Font"
-                                    font.pixelSize: 10
-                                }
-                            }
-
-                            RowLayout {
-                                spacing: 4
-                                CircularResourceRing {
-                                    value: shellRoot.swapUsage
-                                    iconText: "󰓡"
-                                    primaryColor: shellRoot.swapUsage >= 0.90 ? theme.errorColor : theme.secondaryFg
-                                }
-                                Text {
-                                    text: Math.round(shellRoot.swapUsage * 100).toString() + "%"
-                                    color: theme.secondaryFg
-                                    font.family: "JetBrainsMono Nerd Font"
-                                    font.pixelSize: 10
-                                }
-                            }
-
-                            RowLayout {
-                                spacing: 4
-                                CircularResourceRing {
-                                    value: shellRoot.cpuUsage
-                                    iconText: "󰻠"
-                                    primaryColor: shellRoot.cpuUsage >= 0.90 ? theme.errorColor : theme.secondaryFg
-                                }
-                                Text {
-                                    text: Math.round(shellRoot.cpuUsage * 100).toString() + "%"
-                                    color: theme.secondaryFg
-                                    font.family: "JetBrainsMono Nerd Font"
-                                    font.pixelSize: 10
-                                }
-                            }
-
-                            // Delicate 1px liquid-glass separator
-                            Rectangle {
-                                Layout.preferredWidth: 1
-                                Layout.preferredHeight: 12
-                                color: Qt.rgba(0.14, 0.20, 0.87, 0.16)
-                            }
-
-                            // Media / AniSub slot with @lisa.p.ng warm glow dot
-                            Rectangle {
-                                id: mediaSlot
-                                readonly property var activePlayer: (Mpris.players && Mpris.players.values && Mpris.players.values.length > 0)
-                                    ? Mpris.players.values[0]
-                                    : null
-                                readonly property bool hasTrack: activePlayer !== null && activePlayer.trackTitle !== ""
-                                Layout.preferredWidth: mediaRow.implicitWidth + 14
-                                Layout.preferredHeight: 24
-                                radius: 12
-                                color: mediaMouse.containsMouse
-                                    ? Qt.rgba(0.14, 0.20, 0.87, 0.09)
-                                    : "transparent"
-
-                                RowLayout {
-                                    id: mediaRow
-                                    anchors.centerIn: parent
-                                    spacing: 6
-
-                                    // Liquid-glass media indicator (playing = warm orange-coral subsurface glow)
-                                    Item {
-                                        width: 12
-                                        height: 12
-
-                                        Rectangle {
-                                            width: 24
-                                            height: 24
-                                            radius: 12
-                                            color: theme.glowColor
-                                            opacity: (mediaSlot.hasTrack && mediaSlot.activePlayer.isPlaying) ? 0.32 : 0.12
-                                            anchors.centerIn: parent
-                                            Behavior on opacity {
-                                                NumberAnimation { duration: 200 }
-                                            }
-                                        }
-                                        Rectangle {
-                                            width: 18
-                                            height: 18
-                                            radius: 9
-                                            color: theme.glowColor
-                                            opacity: (mediaSlot.hasTrack && mediaSlot.activePlayer.isPlaying) ? 0.35 : 0.14
-                                            anchors.centerIn: parent
-                                        }
-                                        Rectangle {
-                                            width: 10
-                                            height: 10
-                                            radius: 5
-                                            color: theme.actBg
-                                            border.width: 1.5
-                                            border.color: "#40ffffff"
-                                            anchors.centerIn: parent
-                                        }
-                                    }
-
-                                    Text {
-                                        text: (mediaSlot.hasTrack && mediaSlot.activePlayer.isPlaying) ? "" : "󰎈"
-                                        color: mediaMouse.containsMouse ? theme.mainFg : theme.secondaryFg
-                                        font.family: "JetBrainsMono Nerd Font"
-                                        font.pixelSize: 13
-                                    }
-
-                                    Text {
-                                        Layout.maximumWidth: 110
-                                        elide: Text.ElideRight
-                                        text: mediaSlot.hasTrack
-                                            ? mediaSlot.activePlayer.trackTitle
-                                            : "AniSub"
-                                        color: mediaMouse.containsMouse ? theme.mainFg : theme.secondaryFg
-                                        font.family: "JetBrainsMono Nerd Font"
-                                        font.pixelSize: 11
-                                    }
-                                }
-
-                                MouseArea {
-                                    id: mediaMouse
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: mouse => {
-                                        if (!mediaSlot.hasTrack || mouse.button === Qt.LeftButton) {
-                                            shellRoot.runCmd(["hyde-shell", "rofi.movie"]);
-                                        } else if (mouse.button === Qt.MiddleButton && mediaSlot.activePlayer) {
-                                            mediaSlot.activePlayer.togglePlaying();
-                                        } else if (mouse.button === Qt.RightButton && mediaSlot.activePlayer) {
-                                            mediaSlot.activePlayer.next();
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // ── 2c. Clock + Utility Buttons + OneUI Battery capsule (`rightCenterGroup`) ──
-                    BarGroup {
-                        id: rightCenterGroup
-                        anchors {
-                            left: middleSection.right
-                            leftMargin: 8
-                            verticalCenter: parent.verticalCenter
-                        }
-                        padding: 4
-                        implicitWidth: rightDockRow.implicitWidth + 14
-
-                        RowLayout {
-                            id: rightDockRow
-                            anchors {
-                                right: parent.right
-                                rightMargin: 4
-                                verticalCenter: parent.verticalCenter
-                            }
-                            spacing: 8
-
-                            // Clock pill: HH:mm • Date (+ settings glyph)
-                            Rectangle {
-                                id: rightClockPill
-                                implicitWidth: clockPillRow.implicitWidth + 20
-                                implicitHeight: 24
-                                radius: 12
-                                color: rightClockMouse.containsMouse
-                                    ? Qt.rgba(0.14, 0.20, 0.87, 0.10)
-                                    : Qt.alpha(theme.layer2Bg, 0.38)
-                                border.width: 1
-                                border.color: Qt.rgba(0.14, 0.20, 0.87, 0.12)
-
-                                Behavior on color {
-                                    ColorAnimation { duration: 150 }
-                                }
-
-                                RowLayout {
-                                    id: clockPillRow
-                                    anchors.centerIn: parent
-                                    spacing: 6
-
-                                    Text {
-                                        text: shellRoot.timeText
-                                        color: theme.mainFg
-                                        font.family: "JetBrainsMono Nerd Font"
-                                        font.pixelSize: 12
-                                        font.weight: Font.DemiBold
-                                    }
-
-                                    Text {
-                                        text: "•"
-                                        color: theme.subFg
-                                        font.family: "JetBrainsMono Nerd Font"
-                                        font.pixelSize: 10
-                                    }
-
-                                    Text {
-                                        text: shellRoot.dateText
-                                        color: theme.subFg
-                                        font.family: "JetBrainsMono Nerd Font"
-                                        font.pixelSize: 11
-                                    }
-
-                                    Text {
-                                        text: "󰒓"
-                                        color: theme.mainFg
-                                        font.family: "JetBrainsMono Nerd Font"
-                                        font.pixelSize: 12
-                                    }
-                                }
-
-                                MouseArea {
-                                    id: rightClockMouse
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: mouse => {
-                                        if (mouse.button === Qt.MiddleButton) {
-                                            shellRoot.clockWidgetVisible = !shellRoot.clockWidgetVisible;
-                                            shellRoot.saveClockConfig();
-                                        } else if (mouse.button === Qt.RightButton) {
-                                            shellRoot.runCmd(["hyde-shell", "logoutlaunch", "1"]);
-                                        } else {
-                                            shellRoot.runCmd(["hyde-shell", "anide-settings"]);
-                                        }
-                                    }
-                                }
-                            }
-
-                            // Delicate 1px liquid-glass separator
-                            Rectangle {
-                                Layout.preferredWidth: 1
-                                Layout.preferredHeight: 12
-                                color: Qt.rgba(0.14, 0.20, 0.87, 0.16)
-                            }
-
-                            // Coffee / Caffeine toggle (end-4 `caffeineBtn`) with @lisa.p.ng glass coffee icon
-                            CircleUtilButton {
-                                id: caffeineBtn
-                                iconPlateColor: theme.surfaceBg
-                                iconInkColor: theme.mainFg
-                                iconText: shellRoot.caffeineActive ? "󰅶" : "󰛋"
-                                activeState: shellRoot.caffeineActive
-                                accentColor: shellRoot.caffeineActive ? theme.glowColor : theme.glowSecondary
-                                iconVariant: 2
-                                iconArcStart: -205
-                                iconArcSweep: 95
-                                iconSparkX: 0.88
-                                iconSparkY: 0.13
-                                iconSparkRot: 45
-                                onTriggered: {
-                                    shellRoot.caffeineActive = !shellRoot.caffeineActive;
-                                    shellRoot.runCmd(["hyde-shell", "caffeine", "-t"]);
-                                }
-                                onRightTriggered: {
-                                    shellRoot.caffeineActive = !shellRoot.caffeineActive;
-                                    shellRoot.runCmd(["hyde-shell", "caffeine", "-t"]);
-                                }
-                            }
-
-                            // Screenshot utility (left-click: region `s`, right-click: full screen `p`)
-                            CircleUtilButton {
-                                id: screenshotBtn
-                                iconPlateColor: theme.surfaceBg
-                                iconInkColor: theme.mainFg
-                                iconText: "󰆞"
-                                accentColor: theme.glowColor
-                                iconVariant: 0
-                                iconArcStart: -215
-                                iconArcSweep: 105
-                                iconSparkX: 0.87
-                                iconSparkY: 0.135
-                                onTriggered: shellRoot.runCmd(["hyde-shell", "screenshot", "s"])
-                                onRightTriggered: shellRoot.runCmd(["hyde-shell", "screenshot", "p"])
-                            }
-
-                            // Color Picker utility
-                            CircleUtilButton {
-                                id: colorPickBtn
-                                iconPlateColor: theme.surfaceBg
-                                iconInkColor: theme.mainFg
-                                iconText: "󰈊"
-                                accentColor: theme.glowColor
-                                iconVariant: 2
-                                iconArcStart: -230
-                                iconArcSweep: 110
-                                iconSparkX: 0.86
-                                iconSparkY: 0.15
-                                iconSparkRot: 45
-                                onTriggered: shellRoot.runCmd(["hyprpicker", "-a"])
-                                onRightTriggered: shellRoot.runCmd(["hyprpicker", "-a"])
-                            }
-
-                            // AniSub utility
-                            CircleUtilButton {
-                                id: anisubBtn
-                                iconPlateColor: theme.surfaceBg
-                                iconInkColor: theme.mainFg
-                                iconText: "󰐊"
-                                accentColor: theme.glowColor
-                                iconVariant: 0
-                                iconArcStart: -185
-                                iconArcSweep: 85
-                                iconSparkX: 0.88
-                                iconSparkY: 0.12
-                                onTriggered: shellRoot.runCmd(["hyde-shell", "rofi.movie"])
-                                onRightTriggered: shellRoot.runCmd(["hyde-shell", "rofi.movie"])
-                            }
-
-                            // Delicate 1px liquid-glass separator
-                            Rectangle {
-                                Layout.preferredWidth: 1
-                                Layout.preferredHeight: 12
-                                color: Qt.rgba(0.14, 0.20, 0.87, 0.16)
-                            }
-
-                            // OneUI 7 ClippedProgressBar Battery pill
-                            RowLayout {
-                                id: batteryRow
-                                spacing: 5
-
-                                Text {
-                                    text: shellRoot.batteryCharging ? "󰂄" : "󰁹"
-                                    color: (shellRoot.batteryLevel <= 0.20 && !shellRoot.batteryCharging)
-                                        ? theme.errorColor
-                                        : theme.secondaryFg
-                                    font.family: "JetBrainsMono Nerd Font"
-                                    font.pixelSize: 13
-                                }
-
-                                ClippedProgressBar {
-                                    value: shellRoot.batteryLevel
-                                    fill: (shellRoot.batteryLevel <= 0.20 && !shellRoot.batteryCharging)
-                                        ? theme.errorColor
-                                        : theme.actBg
-                                }
-                            }
-                        }
-                    }
-            }
-
-            // ── Top-Left & Top-Right Concave Rounded Bar Corners ("bo góc lõm thanh bar") ──
-            RoundCorner {
-                anchors {
-                    top: barContent.bottom
-                    left: parent.left
-                }
-                corner: "top-left"
-                cornerSize: barWindow.cornerSize
-                fillColor: theme.barBg
-                fillAlpha: theme.barOpacity
-            }
-
-            RoundCorner {
-                anchors {
-                    top: barContent.bottom
-                    right: parent.right
-                }
-                corner: "top-right"
-                cornerSize: barWindow.cornerSize
-                fillColor: theme.barBg
-                fillAlpha: theme.barOpacity
-            }
-        }
-    }
-
-    // ── BOTTOM CONCAVE SCREEN CORNERS ONLY (NO bottom bar! exclusiveZone: 0, click-through mask) ──
-    Variants {
-        model: Quickshell.screens
-
-        PanelWindow {
-            id: bottomCornerWindow
-            required property var modelData
-            screen: modelData
-
-            readonly property int cornerSize: theme.cornerRadius
-
-            anchors {
-                bottom: true
-                left: true
-                right: true
-            }
-            margins {
-                bottom: 0
-                left: 0
-                right: 0
-            }
-
-            exclusiveZone: 0
-            implicitHeight: cornerSize
-            color: "transparent"
-
-            mask: Region {}
-
-            RoundCorner {
-                anchors {
-                    bottom: parent.bottom
-                    left: parent.left
-                }
-                corner: "bottom-left"
-                cornerSize: bottomCornerWindow.cornerSize
-                fillColor: theme.barBg
-                fillAlpha: theme.barOpacity
-            }
-
-            RoundCorner {
-                anchors {
-                    bottom: parent.bottom
-                    right: parent.right
-                }
-                corner: "bottom-right"
-                cornerSize: bottomCornerWindow.cornerSize
-                fillColor: theme.barBg
-                fillAlpha: theme.barOpacity
             }
         }
     }

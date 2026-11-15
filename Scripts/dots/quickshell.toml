@@ -18,6 +18,7 @@ paths = [
     "ClippedProgressBar.qml",
     "AniSubPanelFace.qml",
     "GlassPlate.qml",
+    "FrameBump.qml",
 ]
 
 [[quickshell.files]]
@@ -33,11 +34,13 @@ paths = [
     "ClippedProgressBar.qml",
     "AniSubPanelFace.qml",
     "GlassPlate.qml",
+    "FrameBump.qml",
     "theme.json",
+    "frame.json",
 ]
 
 [[quickshell.files]]
 action = "preserve"
 source_root = "Configs/.config/quickshell"
 target_root = "${XDG_CONFIG_HOME}/quickshell"
-paths = ["theme.json"]
+paths = ["theme.json", "frame.json"]

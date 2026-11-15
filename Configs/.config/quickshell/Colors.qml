@@ -60,8 +60,9 @@ QtObject {
     // Frame geometry. Thickness is a share of the screen, so the proportions
     // of the reference hold on any resolution (image-1 is a 918x515 screen plus
     // 7px of drop shadow below it: top 23, sides 28, bottom 54). frameScale
-    // shrinks or grows the whole frame (0.6 gives a compact one).
-    property real frameScale: 1.0
+    // shrinks or grows the whole frame, edges and contents alike: 1.0 is the
+    // reference size, the default sits a little under it, 0.6 is compact.
+    property real frameScale: 0.9
     property real frameTopRatio: 0.045      // top edge / screen height
     property real frameSideRatio: 0.030     // side edges / screen width
     property real frameBottomRatio: 0.105   // bottom edge / screen height

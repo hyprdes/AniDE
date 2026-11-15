@@ -568,15 +568,18 @@ ShellRoot {
     component BarGroup: Rectangle {
         id: grpRoot
         property real padding: 4
+        // plain: no capsule of its own, the island behind it carries the glass
+        property bool plain: false
         width: implicitWidth
         height: 30
         radius: 15
-        color: theme.surfaceBg
-        border.width: 2
+        color: plain ? "transparent" : theme.surfaceBg
+        border.width: plain ? 0 : 2
         border.color: theme.borderColor
 
         DreamyMistCanvas {
             anchors.fill: parent
+            visible: !grpRoot.plain
             baseColor: theme.surfaceBg
             baseOpacity: theme.barOpacity
         }
@@ -888,49 +891,6 @@ ShellRoot {
                 height: barWindow.barHeight
                 color: "transparent"
 
-                // Wallpaper tone backdrop (wall.blur / wall.set): the bar carries the
-                // wallpaper's colors underneath the pale white veil (image-11.png request)
-                Image {
-                    id: barWallBackdrop
-                    anchors.fill: parent
-                    source: shellRoot.wallBlurUrl
-                    fillMode: Image.PreserveAspectCrop
-                    asynchronous: true
-                    cache: false
-                    visible: status === Image.Ready
-                }
-
-                Rectangle {
-                    anchors.fill: parent
-                    color: Qt.alpha(theme.barBg, theme.barOpacity)
-
-                    Behavior on color {
-                        ColorAnimation { duration: 300 }
-                    }
-                }
-
-                // LOOSE print halftone texture over the paper base (image-13.png)
-                Canvas {
-                    id: barHalftone
-                    anchors.fill: parent
-                    onWidthChanged: requestPaint()
-                    onHeightChanged: requestPaint()
-                    onPaint: {
-                        var ctx = getContext("2d");
-                        ctx.reset();
-                        var step = 7;
-                        ctx.fillStyle = "rgba(20, 40, 16, 0.06)";
-                        for (var rowY = step / 2; rowY < height; rowY += step) {
-                            var xoff = (Math.round(rowY / step) % 2 === 0) ? step / 2 : 0;
-                            for (var dotX = xoff + step / 2; dotX < width; dotX += step) {
-                                ctx.beginPath();
-                                ctx.arc(dotX, rowY, 1.2, 0, Math.PI * 2);
-                                ctx.fill();
-                            }
-                        }
-                    }
-                }
-
                 // ── 1. LEFT SECTION (end-4 Illogical Impulse): Launcher + 2-line ActiveWindow ──
                 MouseArea {
                     id: leftSideArea
@@ -951,11 +911,21 @@ ShellRoot {
                         statusProc.running = true;
                     }
 
+                    BarGroup {
+                        id: leftDockGroup
+                        anchors {
+                            left: parent.left
+                            leftMargin: 8
+                            verticalCenter: parent.verticalCenter
+                        }
+                        implicitWidth: leftDockRow.implicitWidth + 28
+                    }
+
                     RowLayout {
                         id: leftDockRow
                         anchors {
                             left: parent.left
-                            leftMargin: 14
+                            leftMargin: 22
                             verticalCenter: parent.verticalCenter
                         }
                         spacing: 10
@@ -1039,19 +1009,401 @@ ShellRoot {
                     }
                 }
 
-                // ── 2. MIDDLE SECTION (end-4): three Liquid Glass BarGroup capsules ──
-                Row {
+                // ── 2. CENTER ISLAND (image-20): workspace capsule hanging from the top edge ──
+                Item {
                     id: middleSection
                     anchors {
+                        top: parent.top
                         horizontalCenter: parent.horizontalCenter
-                        verticalCenter: parent.verticalCenter
                     }
-                    height: 36
-                    spacing: 6
+                    width: middleCenterGroup.implicitWidth + 24
+                    height: barWindow.barHeight
 
+                    // Island body: wallpaper-tinted glass, rounded below, square at the top edge
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: 18
+                        color: Qt.alpha(theme.barBg, theme.barOpacity)
+
+                        Behavior on color {
+                            ColorAnimation { duration: 300 }
+                        }
+                    }
+
+                    Rectangle {
+                        anchors {
+                            left: parent.left
+                            right: parent.right
+                            top: parent.top
+                        }
+                        height: 18
+                        color: Qt.alpha(theme.barBg, theme.barOpacity)
+                    }
+
+                    // LOOSE print halftone texture over the island (image-13.png)
+                    Canvas {
+                        id: barHalftone
+                        anchors.fill: parent
+                        onWidthChanged: requestPaint()
+                        onHeightChanged: requestPaint()
+                        onPaint: {
+                            var ctx = getContext("2d");
+                            ctx.reset();
+                            var step = 7;
+                            ctx.fillStyle = "rgba(20, 40, 16, 0.06)";
+                            for (var rowY = step / 2; rowY < height; rowY += step) {
+                                var xoff = (Math.round(rowY / step) % 2 === 0) ? step / 2 : 0;
+                                for (var dotX = xoff + step / 2; dotX < width; dotX += step) {
+                                    ctx.beginPath();
+                                    ctx.arc(dotX, rowY, 1.2, 0, Math.PI * 2);
+                                    ctx.fill();
+                                }
+                            }
+                        }
+                    }
+
+                    // ── 2b. end-4 Workspace switcher capsule (`middleCenterGroup` — occupied slots + liquid glass `activeIndicator`) ──
+                BarGroup {
+                    id: middleCenterGroup
+                    plain: true
+                    anchors.centerIn: parent
+                    implicitWidth: wsContainer.implicitWidth + 8
+
+                    Item {
+                        id: wsContainer
+                        anchors.centerIn: parent
+                        readonly property real pillWidth: 42
+                        readonly property real pillHeight: 24
+                        readonly property real pillPitch: 48
+                        readonly property int targetIndex: barWindow.localOrbIndex
+
+                        property real idx1: targetIndex
+                        property real idx2: targetIndex
+                        Behavior on idx1 {
+                            NumberAnimation { duration: 110; easing.type: Easing.OutSine }
+                        }
+                        Behavior on idx2 {
+                            NumberAnimation { duration: 280; easing.type: Easing.OutSine }
+                        }
+
+                        function isWsOccupied(id) {
+                            if (shellRoot.wsClasses && shellRoot.wsClasses[id.toString()]) return true;
+                            var list = Hyprland.workspaces ? Hyprland.workspaces.values : [];
+                            for (var i = 0; i < list.length; i++) {
+                                if (list[i].id === id) return true;
+                            }
+                            return false;
+                        }
+
+                        implicitWidth: pillPitch * 5 - (pillPitch - pillWidth)
+                        implicitHeight: pillHeight
+
+                        // Layer 1: Liquid Glass stretchy active pill (`activeIndicator` — frosted indigo-violet + warm orange glow + white specular arc)
+                        Item {
+                            id: activeIndicator
+                            z: 1
+                            anchors.verticalCenter: parent.verticalCenter
+                            x: Math.min(wsContainer.idx1, wsContainer.idx2) * wsContainer.pillPitch
+                            width: Math.abs(wsContainer.idx1 - wsContainer.idx2) * wsContainer.pillPitch + wsContainer.pillWidth
+                            height: wsContainer.pillHeight
+
+                            Rectangle {
+                                id: activeIndicatorGlass
+                                anchors.fill: parent
+                                radius: height / 2
+                                color: Qt.alpha(theme.glowSecondary, 0.92)
+                                border.width: 1
+                                border.color: "#70ffffff"
+                            }
+                            // magenta-pink pop glow beneath the cobalt pill (image-13.png)
+                            Rectangle {
+                                width: 20
+                                height: 20
+                                radius: 10
+                                color: theme.glowColor
+                                opacity: 0.38
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                anchors.bottom: parent.bottom
+                                anchors.bottomMargin: -5
+                            }
+                            Rectangle {
+                                width: 13
+                                height: 13
+                                radius: 6.5
+                                color: theme.glowColor
+                                opacity: 0.42
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                anchors.bottom: parent.bottom
+                                anchors.bottomMargin: -3
+                            }
+                            // liquid specular top arc
+                            Rectangle {
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.top: parent.top
+                                anchors.leftMargin: 10
+                                anchors.rightMargin: 10
+                                height: 1.5
+                                radius: 1
+                                color: "#b3ffffff"
+                            }
+                        }
+
+                        // Layer 2: 5 Workspace Slots sitting directly on the Frosted Sea-Glass Capsule (Home, Check-circle, Calendar, Target, Terminal)
+                        Repeater {
+                            model: 5
+
+                            Item {
+                                id: wsSlot
+                                z: 2
+                                required property int index
+                                readonly property int wsId: barWindow.bankOffset + index + 1
+                                readonly property bool isActive: (barWindow.localOrbIndex === index)
+                                readonly property bool isOcc: wsContainer.isWsOccupied(wsId)
+
+                                x: index * wsContainer.pillPitch
+                                width: wsContainer.pillWidth
+                                height: wsContainer.pillHeight
+
+                                Rectangle {
+                                    anchors.fill: parent
+                                    radius: height / 2
+                                    visible: wsHit.containsMouse && !wsSlot.isActive
+                                    color: Qt.rgba(0.14, 0.20, 0.87, 0.08)
+                                }
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: shellRoot.iconForWorkspaceSlot(wsSlot.index)
+                                    color: wsSlot.isActive ? theme.actFg : theme.secondaryFg
+                                    font.family: "JetBrainsMono Nerd Font"
+                                    font.pixelSize: wsSlot.isActive ? 15 : 14
+
+                                    Behavior on color {
+                                        ColorAnimation { duration: 180 }
+                                    }
+                                }
+
+                                Rectangle {
+                                    visible: wsSlot.isOcc && !wsSlot.isActive
+                                    anchors {
+                                        bottom: parent.bottom
+                                        bottomMargin: 2.5
+                                        horizontalCenter: parent.horizontalCenter
+                                    }
+                                    width: 3.5
+                                    height: 3.5
+                                    radius: 1.75
+                                    color: Qt.alpha(theme.secondaryFg, 0.72)
+                                }
+
+                                MouseArea {
+                                    id: wsHit
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: Hyprland.dispatch("workspace " + wsSlot.wsId)
+                                    onWheel: event => {
+                                        if (event.angleDelta.y < 0) {
+                                            Hyprland.dispatch("workspace r+1");
+                                        } else if (event.angleDelta.y > 0) {
+                                            Hyprland.dispatch("workspace r-1");
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                }
+
+                // ── 3. RIGHT SECTION (end-4): System Tray + @lisa.p.ng status pill ──
+                MouseArea {
+                    id: rightSideArea
+                    anchors {
+                        top: parent.top
+                        bottom: parent.bottom
+                        left: middleSection.right
+                        right: parent.right
+                    }
+                    hoverEnabled: true
+                    acceptedButtons: Qt.NoButton
+                    onWheel: event => {
+                        if (event.angleDelta.y > 0) {
+                            shellRoot.runCmd(["pamixer", "-i", "5"]);
+                        } else if (event.angleDelta.y < 0) {
+                            shellRoot.runCmd(["pamixer", "-d", "5"]);
+                        }
+                        statusProc.running = true;
+                    }
+
+                    RowLayout {
+                        id: rightSideRow
+                        anchors {
+                            right: parent.right
+                            rightMargin: 14
+                            verticalCenter: parent.verticalCenter
+                        }
+                        spacing: 8
+
+                        // System Tray icons
+                        RowLayout {
+                            id: trayRow
+                            visible: SystemTray.items && SystemTray.items.values && SystemTray.items.values.length > 0
+                            spacing: 4
+
+                            Repeater {
+                                model: SystemTray.items
+
+                                Rectangle {
+                                    id: traySlot
+                                    required property var modelData
+                                    implicitWidth: 24
+                                    implicitHeight: 24
+                                    radius: 12
+                                    color: trayMouse.containsMouse
+                                        ? Qt.rgba(0.14, 0.20, 0.87, 0.10)
+                                        : "transparent"
+
+                                    Image {
+                                        anchors.centerIn: parent
+                                        width: 14
+                                        height: 14
+                                        source: traySlot.modelData.icon || ""
+                                        sourceSize.width: 14
+                                        sourceSize.height: 14
+                                    }
+
+                                    MouseArea {
+                                        id: trayMouse
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        acceptedButtons: Qt.LeftButton | Qt.RightButton
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: mouse => {
+                                            if (mouse.button === Qt.RightButton) {
+                                                traySlot.modelData.secondaryActivate();
+                                            } else {
+                                                traySlot.modelData.activate();
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // @lisa.p.ng status pill: Bluetooth, Wi-Fi, Mic, Volume, Settings (image-10.png bottom-right)
+                        BarGroup {
+                            id: rightStatusPill
+                            padding: 4
+                            implicitWidth: statusRow.implicitWidth + 14
+
+                            RowLayout {
+                                id: statusRow
+                                anchors.centerIn: parent
+                                spacing: 7
+
+                                CircleUtilButton {
+                                    id: bluetoothBtn
+                                iconPlateColor: theme.surfaceBg
+                                iconInkColor: theme.mainFg
+                                    iconText: shellRoot.bluetoothConnected
+                                        ? "󰂱"
+                                        : (shellRoot.bluetoothOn ? "󰂯" : "󰂲")
+                                    accentColor: theme.glowColor
+                                    iconVariant: 0
+                                    iconArcStart: -225
+                                    iconArcSweep: 95
+                                    iconSparkX: 0.87
+                                    iconSparkY: 0.13
+                                    onTriggered: shellRoot.runCmd(["blueman-manager"])
+                                    onRightTriggered: shellRoot.runCmd(["blueman-manager"])
+                                }
+
+                                CircleUtilButton {
+                                    id: wifiBtn
+                                iconPlateColor: theme.surfaceBg
+                                iconInkColor: theme.mainFg
+                                    iconText: shellRoot.networkName !== "" ? "󰤨" : "󰤭"
+                                    accentColor: theme.glowColor
+                                    iconVariant: 1
+                                    iconArcStart: -195
+                                    iconArcSweep: 90
+                                    iconSparkX: 0.88
+                                    iconSparkY: 0.135
+                                    iconSparkRot: 45
+                                    onTriggered: shellRoot.runCmd(["nm-connection-editor"])
+                                    onRightTriggered: shellRoot.runCmd(["nm-connection-editor"])
+                                }
+
+                                CircleUtilButton {
+                                    id: micBtn
+                                iconPlateColor: theme.surfaceBg
+                                iconInkColor: theme.mainFg
+                                    iconText: shellRoot.micMuted ? "󰍭" : "󰍬"
+                                    accentColor: theme.glowColor
+                                    iconVariant: 2
+                                    iconArcStart: -200
+                                    iconArcSweep: 100
+                                    iconSparkX: 0.86
+                                    iconSparkY: 0.14
+                                    onTriggered: {
+                                        shellRoot.runCmd(["pamixer", "--default-source", "-t"]);
+                                        statusProc.running = true;
+                                    }
+                                    onRightTriggered: {
+                                        shellRoot.runCmd(["pamixer", "--default-source", "-t"]);
+                                        statusProc.running = true;
+                                    }
+                                }
+
+                                CircleUtilButton {
+                                    id: volBtn
+                                iconPlateColor: theme.surfaceBg
+                                iconInkColor: theme.mainFg
+                                    iconText: shellRoot.volumeMuted
+                                        ? "󰝟"
+                                        : (shellRoot.volumeLevel < 35 ? "󰕿" : (shellRoot.volumeLevel < 70 ? "󰖀" : "󰕾"))
+                                    accentColor: theme.glowColor
+                                    iconVariant: 0
+                                    iconArcStart: -240
+                                    iconArcSweep: 115
+                                    iconSparkX: 0.86
+                                    iconSparkY: 0.145
+                                    iconSparkRot: 45
+                                    onTriggered: {
+                                        shellRoot.runCmd(["pamixer", "-t"]);
+                                        statusProc.running = true;
+                                    }
+                                    onRightTriggered: shellRoot.runCmd(["pavucontrol"])
+                                }
+
+                                CircleUtilButton {
+                                    id: settingsBtn
+                                iconPlateColor: theme.surfaceBg
+                                iconInkColor: theme.mainFg
+                                    iconText: "󰒓"
+                                    accentColor: theme.glowColor
+                                    iconVariant: 1
+                                    iconArcStart: -230
+                                    iconArcSweep: 110
+                                    iconSparkX: 0.88
+                                    iconSparkY: 0.13
+                                    onTriggered: shellRoot.runCmd(["hyde-shell", "anide-settings"])
+                                    onRightTriggered: shellRoot.runCmd(["hyde-shell", "logoutlaunch", "1"])
+                                }
+                            }
+                        }
+                    }
+                }
                     // ── 2a. Resources + Media capsule (`leftCenterGroup`) ──
                     BarGroup {
                         id: leftCenterGroup
+                        anchors {
+                            right: middleSection.left
+                            rightMargin: 8
+                            verticalCenter: parent.verticalCenter
+                        }
                         padding: 4
                         implicitWidth: resRow.implicitWidth + 14
 
@@ -1209,161 +1561,14 @@ ShellRoot {
                         }
                     }
 
-                    // ── 2b. end-4 Workspace switcher capsule (`middleCenterGroup` — occupied slots + liquid glass `activeIndicator`) ──
-                BarGroup {
-                    id: middleCenterGroup
-                    implicitWidth: wsContainer.implicitWidth + 8
-
-                    Item {
-                        id: wsContainer
-                        anchors.centerIn: parent
-                        readonly property real pillWidth: 42
-                        readonly property real pillHeight: 24
-                        readonly property real pillPitch: 48
-                        readonly property int targetIndex: barWindow.localOrbIndex
-
-                        property real idx1: targetIndex
-                        property real idx2: targetIndex
-                        Behavior on idx1 {
-                            NumberAnimation { duration: 110; easing.type: Easing.OutSine }
-                        }
-                        Behavior on idx2 {
-                            NumberAnimation { duration: 280; easing.type: Easing.OutSine }
-                        }
-
-                        function isWsOccupied(id) {
-                            if (shellRoot.wsClasses && shellRoot.wsClasses[id.toString()]) return true;
-                            var list = Hyprland.workspaces ? Hyprland.workspaces.values : [];
-                            for (var i = 0; i < list.length; i++) {
-                                if (list[i].id === id) return true;
-                            }
-                            return false;
-                        }
-
-                        implicitWidth: pillPitch * 5 - (pillPitch - pillWidth)
-                        implicitHeight: pillHeight
-
-                        // Layer 1: Liquid Glass stretchy active pill (`activeIndicator` — frosted indigo-violet + warm orange glow + white specular arc)
-                        Item {
-                            id: activeIndicator
-                            z: 1
-                            anchors.verticalCenter: parent.verticalCenter
-                            x: Math.min(wsContainer.idx1, wsContainer.idx2) * wsContainer.pillPitch
-                            width: Math.abs(wsContainer.idx1 - wsContainer.idx2) * wsContainer.pillPitch + wsContainer.pillWidth
-                            height: wsContainer.pillHeight
-
-                            Rectangle {
-                                id: activeIndicatorGlass
-                                anchors.fill: parent
-                                radius: height / 2
-                                color: Qt.alpha(theme.glowSecondary, 0.92)
-                                border.width: 1
-                                border.color: "#70ffffff"
-                            }
-                            // magenta-pink pop glow beneath the cobalt pill (image-13.png)
-                            Rectangle {
-                                width: 20
-                                height: 20
-                                radius: 10
-                                color: theme.glowColor
-                                opacity: 0.38
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                anchors.bottom: parent.bottom
-                                anchors.bottomMargin: -5
-                            }
-                            Rectangle {
-                                width: 13
-                                height: 13
-                                radius: 6.5
-                                color: theme.glowColor
-                                opacity: 0.42
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                anchors.bottom: parent.bottom
-                                anchors.bottomMargin: -3
-                            }
-                            // liquid specular top arc
-                            Rectangle {
-                                anchors.left: parent.left
-                                anchors.right: parent.right
-                                anchors.top: parent.top
-                                anchors.leftMargin: 10
-                                anchors.rightMargin: 10
-                                height: 1.5
-                                radius: 1
-                                color: "#b3ffffff"
-                            }
-                        }
-
-                        // Layer 2: 5 Workspace Slots sitting directly on the Frosted Sea-Glass Capsule (Home, Check-circle, Calendar, Target, Terminal)
-                        Repeater {
-                            model: 5
-
-                            Item {
-                                id: wsSlot
-                                z: 2
-                                required property int index
-                                readonly property int wsId: barWindow.bankOffset + index + 1
-                                readonly property bool isActive: (barWindow.localOrbIndex === index)
-                                readonly property bool isOcc: wsContainer.isWsOccupied(wsId)
-
-                                x: index * wsContainer.pillPitch
-                                width: wsContainer.pillWidth
-                                height: wsContainer.pillHeight
-
-                                Rectangle {
-                                    anchors.fill: parent
-                                    radius: height / 2
-                                    visible: wsHit.containsMouse && !wsSlot.isActive
-                                    color: Qt.rgba(0.14, 0.20, 0.87, 0.08)
-                                }
-
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: shellRoot.iconForWorkspaceSlot(wsSlot.index)
-                                    color: wsSlot.isActive ? theme.actFg : theme.secondaryFg
-                                    font.family: "JetBrainsMono Nerd Font"
-                                    font.pixelSize: wsSlot.isActive ? 15 : 14
-
-                                    Behavior on color {
-                                        ColorAnimation { duration: 180 }
-                                    }
-                                }
-
-                                Rectangle {
-                                    visible: wsSlot.isOcc && !wsSlot.isActive
-                                    anchors {
-                                        bottom: parent.bottom
-                                        bottomMargin: 2.5
-                                        horizontalCenter: parent.horizontalCenter
-                                    }
-                                    width: 3.5
-                                    height: 3.5
-                                    radius: 1.75
-                                    color: Qt.alpha(theme.secondaryFg, 0.72)
-                                }
-
-                                MouseArea {
-                                    id: wsHit
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: Hyprland.dispatch("workspace " + wsSlot.wsId)
-                                    onWheel: event => {
-                                        if (event.angleDelta.y < 0) {
-                                            Hyprland.dispatch("workspace r+1");
-                                        } else if (event.angleDelta.y > 0) {
-                                            Hyprland.dispatch("workspace r-1");
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
                     // ── 2c. Clock + Utility Buttons + OneUI Battery capsule (`rightCenterGroup`) ──
                     BarGroup {
                         id: rightCenterGroup
+                        anchors {
+                            left: middleSection.right
+                            leftMargin: 8
+                            verticalCenter: parent.verticalCenter
+                        }
                         padding: 4
                         implicitWidth: rightDockRow.implicitWidth + 14
 
@@ -1556,187 +1761,6 @@ ShellRoot {
                             }
                         }
                     }
-                }
-
-                // ── 3. RIGHT SECTION (end-4): System Tray + @lisa.p.ng status pill ──
-                MouseArea {
-                    id: rightSideArea
-                    anchors {
-                        top: parent.top
-                        bottom: parent.bottom
-                        left: middleSection.right
-                        right: parent.right
-                    }
-                    hoverEnabled: true
-                    acceptedButtons: Qt.NoButton
-                    onWheel: event => {
-                        if (event.angleDelta.y > 0) {
-                            shellRoot.runCmd(["pamixer", "-i", "5"]);
-                        } else if (event.angleDelta.y < 0) {
-                            shellRoot.runCmd(["pamixer", "-d", "5"]);
-                        }
-                        statusProc.running = true;
-                    }
-
-                    RowLayout {
-                        id: rightSideRow
-                        anchors {
-                            right: parent.right
-                            rightMargin: 14
-                            verticalCenter: parent.verticalCenter
-                        }
-                        spacing: 8
-
-                        // System Tray icons
-                        RowLayout {
-                            id: trayRow
-                            visible: SystemTray.items && SystemTray.items.values && SystemTray.items.values.length > 0
-                            spacing: 4
-
-                            Repeater {
-                                model: SystemTray.items
-
-                                Rectangle {
-                                    id: traySlot
-                                    required property var modelData
-                                    implicitWidth: 24
-                                    implicitHeight: 24
-                                    radius: 12
-                                    color: trayMouse.containsMouse
-                                        ? Qt.rgba(0.14, 0.20, 0.87, 0.10)
-                                        : "transparent"
-
-                                    Image {
-                                        anchors.centerIn: parent
-                                        width: 14
-                                        height: 14
-                                        source: traySlot.modelData.icon || ""
-                                        sourceSize.width: 14
-                                        sourceSize.height: 14
-                                    }
-
-                                    MouseArea {
-                                        id: trayMouse
-                                        anchors.fill: parent
-                                        hoverEnabled: true
-                                        acceptedButtons: Qt.LeftButton | Qt.RightButton
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: mouse => {
-                                            if (mouse.button === Qt.RightButton) {
-                                                traySlot.modelData.secondaryActivate();
-                                            } else {
-                                                traySlot.modelData.activate();
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        // @lisa.p.ng status pill: Bluetooth, Wi-Fi, Mic, Volume, Settings (image-10.png bottom-right)
-                        BarGroup {
-                            id: rightStatusPill
-                            padding: 4
-                            implicitWidth: statusRow.implicitWidth + 14
-
-                            RowLayout {
-                                id: statusRow
-                                anchors.centerIn: parent
-                                spacing: 7
-
-                                CircleUtilButton {
-                                    id: bluetoothBtn
-                                iconPlateColor: theme.surfaceBg
-                                iconInkColor: theme.mainFg
-                                    iconText: shellRoot.bluetoothConnected
-                                        ? "󰂱"
-                                        : (shellRoot.bluetoothOn ? "󰂯" : "󰂲")
-                                    accentColor: theme.glowColor
-                                    iconVariant: 0
-                                    iconArcStart: -225
-                                    iconArcSweep: 95
-                                    iconSparkX: 0.87
-                                    iconSparkY: 0.13
-                                    onTriggered: shellRoot.runCmd(["blueman-manager"])
-                                    onRightTriggered: shellRoot.runCmd(["blueman-manager"])
-                                }
-
-                                CircleUtilButton {
-                                    id: wifiBtn
-                                iconPlateColor: theme.surfaceBg
-                                iconInkColor: theme.mainFg
-                                    iconText: shellRoot.networkName !== "" ? "󰤨" : "󰤭"
-                                    accentColor: theme.glowColor
-                                    iconVariant: 1
-                                    iconArcStart: -195
-                                    iconArcSweep: 90
-                                    iconSparkX: 0.88
-                                    iconSparkY: 0.135
-                                    iconSparkRot: 45
-                                    onTriggered: shellRoot.runCmd(["nm-connection-editor"])
-                                    onRightTriggered: shellRoot.runCmd(["nm-connection-editor"])
-                                }
-
-                                CircleUtilButton {
-                                    id: micBtn
-                                iconPlateColor: theme.surfaceBg
-                                iconInkColor: theme.mainFg
-                                    iconText: shellRoot.micMuted ? "󰍭" : "󰍬"
-                                    accentColor: theme.glowColor
-                                    iconVariant: 2
-                                    iconArcStart: -200
-                                    iconArcSweep: 100
-                                    iconSparkX: 0.86
-                                    iconSparkY: 0.14
-                                    onTriggered: {
-                                        shellRoot.runCmd(["pamixer", "--default-source", "-t"]);
-                                        statusProc.running = true;
-                                    }
-                                    onRightTriggered: {
-                                        shellRoot.runCmd(["pamixer", "--default-source", "-t"]);
-                                        statusProc.running = true;
-                                    }
-                                }
-
-                                CircleUtilButton {
-                                    id: volBtn
-                                iconPlateColor: theme.surfaceBg
-                                iconInkColor: theme.mainFg
-                                    iconText: shellRoot.volumeMuted
-                                        ? "󰝟"
-                                        : (shellRoot.volumeLevel < 35 ? "󰕿" : (shellRoot.volumeLevel < 70 ? "󰖀" : "󰕾"))
-                                    accentColor: theme.glowColor
-                                    iconVariant: 0
-                                    iconArcStart: -240
-                                    iconArcSweep: 115
-                                    iconSparkX: 0.86
-                                    iconSparkY: 0.145
-                                    iconSparkRot: 45
-                                    onTriggered: {
-                                        shellRoot.runCmd(["pamixer", "-t"]);
-                                        statusProc.running = true;
-                                    }
-                                    onRightTriggered: shellRoot.runCmd(["pavucontrol"])
-                                }
-
-                                CircleUtilButton {
-                                    id: settingsBtn
-                                iconPlateColor: theme.surfaceBg
-                                iconInkColor: theme.mainFg
-                                    iconText: "󰒓"
-                                    accentColor: theme.glowColor
-                                    iconVariant: 1
-                                    iconArcStart: -230
-                                    iconArcSweep: 110
-                                    iconSparkX: 0.88
-                                    iconSparkY: 0.13
-                                    onTriggered: shellRoot.runCmd(["hyde-shell", "anide-settings"])
-                                    onRightTriggered: shellRoot.runCmd(["hyde-shell", "logoutlaunch", "1"])
-                                }
-                            }
-                        }
-                    }
-                }
             }
 
             // ── Top-Left & Top-Right Concave Rounded Bar Corners ("bo góc lõm thanh bar") ──

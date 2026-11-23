@@ -117,6 +117,13 @@ For NixOS support there is a separate project being maintained @ [Hydenix](https
 > [!TIP]
 > BigLinux / Manjaro users may want to take a snapshot with Timeshift before running the installer, especially when HyDE is being installed alongside an existing desktop environment. On older NVIDIA cards, review the legacy driver list in [`Scripts/nvidia-db/`](./Scripts/nvidia-db/) before continuing.
 
+Before applying changes, `bash Scripts/install.sh --plan` prints a read-only,
+high-level preview; select individual operations with e.g. `--plan -r`.
+It does not inspect the machine or produce an exact file/package diff. The
+legacy `-t`/`--test` mode is **not guaranteed read-only**; do not use it as a
+safe preview. `-r` redeploys configuration, not a backup restore. Take and
+verify a system backup before installation. See [installer safety](docs/INSTALLER-SAFETY.md).
+
 To install, execute the following commands:
 
 ```shell

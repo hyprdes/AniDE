@@ -1,5 +1,17 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2154
+# A plan must return before sourcing installer helpers: those helpers and the
+# legacy -t path are not guaranteed to be read-only.
+for arg in "$@"; do
+	if [[ "$arg" == --plan ]]; then
+		plan_dir=${BASH_SOURCE[0]%/*}
+		[[ "$plan_dir" == "${BASH_SOURCE[0]}" ]] && plan_dir=.
+		# shellcheck source=Scripts/install_plan.sh
+		source "${plan_dir}/install_plan.sh"
+		exit $?
+	fi
+done
+
 #|---/ /+--------------------------+---/ /|#
 #|--/ /-| Main installation script |--/ /-|#
 #|-/ /--| Prasanth Rangan          |-/ /--|#
@@ -45,28 +57,29 @@ Usage: $0 [OPTIONS]
 Options:
     -i, --install          Install packages only
     -d, --defaults         Install packages with defaults (noconfirm)
-    -r, --restore          Restore configs and dotfiles
+    -r, --restore          Deploy configs and dotfiles (not a backup restore)
     -s, --services         Enable system services
-    -p, --pre              Run pre-install only (Python environment setup)
+    -p, --pre              Run pre-install only (may modify system config)
     -n, --no-nvidia        Ignore nvidia actions
     -h, --shell            Re-evaluate shell configuration
     -m, --no-theme         Skip theme installation
-    -t, --test             Test run (dry-run)
+    -t, --test             Legacy test mode (not guaranteed read-only)
+    --plan                 Read-only, high-level operation preview
     --help                 Show this help message
 
 Common combinations:
     ./install.sh              # Full installation (default)
     ./install.sh -p           # Pre-install only (run first if restore fails)
     ./install.sh -r           # Restore configs and dotfiles only
-    ./install.sh -irs         # Install, restore, and services
-    ./install.sh -irsn       # Full install without nvidia
+    ./install.sh -i -r -s    # Install, deploy configs, and services
+    ./install.sh -i -r -s -n # Full install without nvidia actions
 
 NOTE:
     If restore fails with "deez-dots not found", run: ./install.sh -p
     The -p flag sets up Python environment and deez-dots
 
 EOF
-	exit 0
+	exit "${1:-0}"
 }
 
 operations=()
@@ -119,8 +132,8 @@ while [[ $# -gt 0 ]]; do
 		show_help
 		;;
 	*)
-		echo "Unknown option: $1"
-		show_help
+		echo "Unknown option: $1" >&2
+		show_help 2
 		;;
 	esac
 done
@@ -136,7 +149,7 @@ HYDE_LOG="$(date +'%y%m%d_%Hh%Mm%Ss')"
 export HYDE_LOG
 
 if [ $dry_run -eq 1 ]; then
-	print_log -n "[test-run] " -b "enabled :: " "Testing without executing"
+	print_log -n "[test-run] " -b "enabled :: " "Legacy test mode; may write logs or temporary files. Use --plan for a read-only overview."
 fi
 
 #--------------------#
@@ -160,8 +173,13 @@ if has_operation "pre"; then
 
 EOF
 
-	"${installDir}/install_pre.sh"
-	exit 0
+	if "${installDir}/install_pre.sh"; then
+		exit 0
+	else
+		status=$?
+		print_log -err "[pre-install]" "Pre-install failed (exit ${status})"
+		exit "$status"
+	fi
 fi
 
 # Both branches below run out of the Python environment, and the revisions they
@@ -471,7 +489,9 @@ EOF
 		# real end-of-restore run below just finds nothing new pending here.
 		migrationDir="${installDir}/migrations"
 		migrationStateFile="${XDG_STATE_HOME:-${HOME}/.local/state}/hyde/migration/applied"
-		run_pending_migrations "${migrationDir}" "${migrationStateFile}"
+		if ! run_pending_migrations "${migrationDir}" "${migrationStateFile}"; then
+			print_log -warn "Migration" "Some pre-deploy migrations failed; they will be retried after deployment"
+		fi
 
 		# Puts HyDE's template in place of Hyprland's generated example before
 		# the deploy, which then adopts it (preserve action) (#2132). The swap
@@ -580,7 +600,10 @@ if has_operation "restore"; then
 
 	migrationStateFile="${XDG_STATE_HOME:-${HOME}/.local/state}/hyde/migration/applied"
 
-	run_pending_migrations "${migrationDir}" "${migrationStateFile}"
+	if ! run_pending_migrations "${migrationDir}" "${migrationStateFile}"; then
+		print_log -err "Migration" "Migrations remain incomplete; inspect the errors and retry"
+		migration_failed=1
+	fi
 
 fi
 
@@ -608,6 +631,11 @@ if [ "${deploy_failed:-0}" -ne 0 ]; then
 	exit 1
 fi
 
+if [ "${migration_failed:-0}" -ne 0 ]; then
+	print_log -err "Migration" "Installation did not complete all migrations."
+	exit 1
+fi
+
 if [ "${theme_failed:-0}" -ne 0 ]; then
 	print_log -err "[theme] " -crit "ERROR" "The theme state is incomplete, so the session would start without colours. Deal with the failures reported above and run the restore again."
 	print_log -b "Log" " :: " -y "View logs at ${cacheDir}/logs/${HYDE_LOG}"
@@ -619,10 +647,8 @@ if has_operation "install"; then
 	print_log -g "Installation" " :: " "COMPLETED!"
 fi
 print_log -b "Log" " :: " -y "View logs at ${cacheDir}/logs/${HYDE_LOG}"
-if has_operation "install" ||
-	has_operation "restore" ||
-	has_operation "services" &&
-	[ $dry_run -ne 1 ]; then
+if { has_operation "install" || has_operation "restore" || has_operation "services"; } &&
+	[ "$dry_run" -ne 1 ]; then
 
 	if [[ -z "${HYPRLAND_CONFIG:-}" ]] || [[ ! -f "${HYPRLAND_CONFIG}" ]]; then
 		print_log -warn "Hyprland config not found! Might be a new install or upgrade."

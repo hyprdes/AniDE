@@ -277,12 +277,22 @@ run_pending_migrations() {
     local migrationFile
     local applied=0
     local pending=0
+    local failed=0
+
+    # Migrations can move or rewrite user files. The legacy test path must
+    # never execute them or create a migration record.
+    if [ "${flg_DryRun:-0}" -eq 1 ]; then
+        echo "[dry-run] Would check and run pending migrations in ${migrationDir}"
+        return 0
+    fi
 
     [ -d "${migrationDir}" ] || return 0
     find "${migrationDir}" -maxdepth 1 -type f | grep -q . || return 0
 
-    mkdir -p "$(dirname "${stateFile}")"
-    [ -f "${stateFile}" ] || : >"${stateFile}"
+    mkdir -p "$(dirname "${stateFile}")" || return 1
+    if [ ! -f "${stateFile}" ]; then
+        : >"${stateFile}" || return 1
+    fi
 
     while read -r migrationFile; do
         [ -n "${migrationFile}" ] || continue
@@ -292,13 +302,17 @@ run_pending_migrations() {
         # stdin is closed for the migration: inheriting the loop's stdin let one
         # that reads input swallow the names of every migration after it.
         if sh "${migrationDir}/${migrationFile}" </dev/null; then
-            printf '%s\n' "${migrationFile}" >>"${stateFile}"
+            if ! printf '%s\n' "${migrationFile}" >>"${stateFile}"; then
+                print_log -err "Migration" "Could not record ${migrationFile}; it may run again"
+                return 1
+            fi
             applied=$((applied + 1))
         else
             print_log -warn "Migration" "Failed to execute ${migrationFile}"
+            failed=1
         fi
     done < <(find "${migrationDir}" -maxdepth 1 -type f -printf '%f\n' | sort -V)
 
     [ "${pending}" -gt 0 ] || echo "No outstanding migrations in ${migrationDir}."
-    return 0
+    return "${failed}"
 }

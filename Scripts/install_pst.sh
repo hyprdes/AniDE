@@ -37,14 +37,22 @@ if pkg_installed sddm; then
             sudo cp /usr/share/sddm/themes/${sddmtheme}/the_hyde_project.conf /etc/sddm.conf.d/
         fi
 
-        print_log -g "[DISPLAYMANAGER] " -b " :: " "sddm configured with ${sddmtheme} theme..."
+        if [ "${flg_DryRun}" -eq 1 ]; then
+            print_log -y "[DISPLAYMANAGER] " -b "dry-run :: " "Would configure sddm with ${sddmtheme} theme"
+        else
+            print_log -g "[DISPLAYMANAGER] " -b " :: " "sddm configured with ${sddmtheme} theme..."
+        fi
     else
         print_log -y "[DISPLAYMANAGER] " -b " :: " "sddm is already configured..."
     fi
 
     if [ ! -f "/usr/share/sddm/faces/${USER}.face.icon" ] && [ -f "${cloneDir}/Source/misc/${USER}.face.icon" ]; then
-        sudo cp "${cloneDir}/Source/misc/${USER}.face.icon" /usr/share/sddm/faces/
-        print_log -g "[DISPLAYMANAGER] " -b " :: " "avatar set for ${USER}..."
+        if [ "${flg_DryRun}" -eq 1 ]; then
+            print_log -y "[DISPLAYMANAGER] " -b "dry-run :: " "Would set avatar for ${USER}"
+        else
+            sudo cp "${cloneDir}/Source/misc/${USER}.face.icon" /usr/share/sddm/faces/
+            print_log -g "[DISPLAYMANAGER] " -b " :: " "avatar set for ${USER}..."
+        fi
     fi
 
 else
@@ -54,8 +62,12 @@ fi
 # dolphin
 if pkg_installed dolphin && pkg_installed xdg-utils; then
     print_log -c "[FILEMANAGER] " -b "detected :: " "dolphin"
-    xdg-mime default org.kde.dolphin.desktop inode/directory
-    print_log -g "[FILEMANAGER] " -b " :: " "setting $(xdg-mime query default "inode/directory") as default file explorer..."
+    if [ "${flg_DryRun}" -eq 1 ]; then
+        print_log -y "[FILEMANAGER] " -b "dry-run :: " "Would set Dolphin as default file explorer"
+    else
+        xdg-mime default org.kde.dolphin.desktop inode/directory
+        print_log -g "[FILEMANAGER] " -b " :: " "setting $(xdg-mime query default "inode/directory") as default file explorer..."
+    fi
 
 else
     print_log -y "[FILEMANAGER]" -b " :: " "dolphin is not installed..."

@@ -62,8 +62,13 @@ Just follow the README.md or use the install script:
             n : ignore/[n]o [n]vidia actions
             h : re-evaluate S[h]ell
             m : no the[m]e reinstallations
-            t : [t]est run without executing (-irst to dry run all)
+            t : legacy [t]est mode (may write logs and temporary files)
+            --plan : read-only high-level preview; not an exact diff
    ```
+
+   Pass short options separately (for example `-i -r -s`). `-r` deploys
+   dotfiles; it does not restore a backup. Use `--plan` for a read-only
+   overview, and see [installer safety](docs/INSTALLER-SAFETY.md).
 
 ## Testing the Release Candidate (RC) Branch
 

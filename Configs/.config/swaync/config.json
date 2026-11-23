@@ -24,6 +24,12 @@
   "hide-on-clear": false,
   "hide-on-action": true,
   "notification-visibility": {
+    "app2unit-error": {
+      "state": "enabled",
+      "app-name": "^app2unit$",
+      "urgency": "Critical",
+      "override-urgency": "normal"
+    },
     "example-name": {
       "state": "muted",
       "urgency": "Low",

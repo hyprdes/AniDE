@@ -13,6 +13,68 @@ else
 	USE_RSYNC=0
 fi
 
+# Legacy manifests are data, never shell code. The documented expansion is
+# ${HOME} (and the older $HOME spelling); absolute paths under HOME also work.
+manifest_path() {
+	local raw="$1" home="${HOME%/}" part
+	local -a parts
+	[[ "$home" == /* && -n "$home" ]] || return 1
+	case "$raw" in
+		'${HOME}'*) pth="$home${raw:7}" ;;
+		'$HOME'*) pth="$home${raw:5}" ;;
+		*) pth="$raw" ;;
+	esac
+	[[ "$pth" == "$home" || "$pth" == "$home/"* ]] || return 1
+	# Refuse further shell expansions and ambiguous path components.
+	[[ "$pth" != *'$'* && "$pth" != *'`'* && "$pth" != *$'\n'* && "$pth" != *$'\r'* ]] || return 1
+	[[ "$pth" != *'//'* ]] || return 1
+	IFS='/' read -r -a parts <<< "${pth#"$home"}"
+	for part in "${parts[@]}"; do
+		[[ "$part" != . && "$part" != .. ]] || return 1
+	done
+}
+
+manifest_names() {
+	local names="$1" name
+	local -a items
+	# xargs is used below; reject its quoting syntax instead of interpreting it.
+	[[ "$names" != *"'"* && "$names" != *'"'* && "$names" != *'\'* ]] || return 1
+	read -r -a items <<< "$names"
+	(( ${#items[@]} > 0 )) || return 1
+	for name in "${items[@]}"; do
+		[[ "$name" != . && "$name" != .. && "$name" != */* && "$name" != -* ]] || return 1
+	done
+}
+
+# Validate every actionable row before creating backups or deploying anything.
+validate_manifest() {
+	local file="$1" extension="$2" line count path_col name_col flag row=0
+	local raw_path raw_names
+	case "$extension" in
+		lst) count=5; path_col=3; name_col=4 ;;
+		psv) count=4; path_col=2; name_col=3 ;;
+		*) return 0 ;;
+	esac
+	# Match the deploy loops' leading/trailing IFS trimming exactly.
+	while read -r line || [[ -n "$line" ]]; do
+		((row += 1))
+		[[ "$line" =~ ^[[:space:]]*# ]] && continue
+		[[ "$(awk -F '|' '{print NF}' <<< "$line")" -eq "$count" ]] || continue
+		flag=$(awk -F '|' '{print $1}' <<< "$line")
+		if [[ "$extension" == psv ]]; then
+			case "$flag" in P|S|O|B|T|I) ;; *) continue ;; esac
+		else
+			case "$flag" in Y|N) ;; *) continue ;; esac
+		fi
+		raw_path=$(awk -F '|' -v col="$path_col" '{print $col}' <<< "$line")
+		raw_names=$(awk -F '|' -v col="$name_col" '{print $col}' <<< "$line")
+		if ! manifest_path "$raw_path" || ! manifest_names "$raw_names"; then
+			printf 'Unsafe path or target name in manifest at line %s; aborting before deployment.\n' "$row" >&2
+			return 1
+		fi
+	done < "$file"
+}
+
 deploy_list() {
 
 	while read -r lst; do
@@ -26,9 +88,10 @@ deploy_list() {
 		fi
 
 		ovrWrte=$(awk -F '|' '{print $1}' <<<"${lst}")
+		case "$ovrWrte" in Y|N) ;; *) continue ;; esac
 		bkpFlag=$(awk -F '|' '{print $2}' <<<"${lst}")
 		pth=$(awk -F '|' '{print $3}' <<<"${lst}")
-		pth=$(eval echo "${pth}")
+		manifest_path "$pth" || return 1
 		cfg=$(awk -F '|' '{print $4}' <<<"${lst}")
 		pkg=$(awk -F '|' '{print $5}' <<<"${lst}")
 
@@ -41,7 +104,7 @@ deploy_list() {
 
 		echo "${cfg}" | xargs -n 1 | while read -r cfg_chk; do
 			if [[ -z "${pth}" ]]; then continue; fi
-			tgt="${pth/#$HOME/}"
+			tgt="${pth#"${HOME%/}"}"
 
 			if { [ -d "${pth}/${cfg_chk}" ] || [ -f "${pth}/${cfg_chk}" ]; } && [ "${bkpFlag}" == "Y" ]; then
 
@@ -94,15 +157,16 @@ deploy_psv() {
 		fi
 
 		ctlFlag=$(awk -F '|' '{print $1}' <<<"${lst}")
+		case "$ctlFlag" in P|S|O|B|T|I) ;; *) continue ;; esac
 		pth=$(awk -F '|' '{print $2}' <<<"${lst}")
-		pth=$(eval "echo ${pth}")
+		manifest_path "$pth" || return 1
 		cfg=$(awk -F '|' '{print $3}' <<<"${lst}")
 		pkg=$(awk -F '|' '{print $4}' <<<"${lst}")
 
 		# Check if ctlFlag is not one of the values 'O', 'R', 'B', 'S', or 'P'
 		if [[ "${ctlFlag}" = "I" ]]; then
 			print_log -r "[ignore] :: " "${pth}/${cfg}"
-			continue 2
+			continue
 		fi
 
 		# Start a loop that reads each line from the output of the command enclosed within the process substitution '< <(...)'
@@ -126,7 +190,7 @@ deploy_psv() {
 			if [[ -z "${pth}" ]]; then continue; fi
 
 			# Remove the HOME directory from the beginning of the path stored in pth and store the result in tgt
-			tgt="${pth//${HOME}/}"
+			tgt="${pth#"${HOME%/}"}"
 			crnt_cfg="${pth}/${cfg_chk}"
 
 			# Handle Trash Cleanup
@@ -201,28 +265,17 @@ deploy_psv() {
 					fi
 					print_log -g "[copy to backup]" " > " -y "[sync]" -b " :: " "${pth}" -r " <--  " "${CfgDir}${tgt}/${cfg_chk}"
 					;;
-				"P") # Preserve
-					if [ "${flg_DryRun}" -ne 1 ]; then
-						if [ "$USE_RSYNC" -eq 1 ]; then
-							rsync -a "${pth}/${cfg_chk}" "${BkpDir}${tgt}"
-							rsync -a --ignore-existing "${CfgDir}${tgt}/${cfg_chk}" "${pth}" 2>/dev/null
-						else
-							cp -r "${pth}/${cfg_chk}" "${BkpDir}${tgt}"
-							cp -rn "${CfgDir}${tgt}/${cfg_chk}" "${pth}" 2>/dev/null
-						fi
-					fi
-					if [ "$USE_RSYNC" -eq 1 ]; then
-						if [ $? -eq 0 ]; then
-							print_log -g "[copy to backup]" " > " -y "[populate]" -b " :: " "${pth}${tgt}/${cfg_chk}"
-						else
-							print_log -g "[copy to backup]" " > " -y "[preserved]" -b " :: " "${pth}" + 208 " <--  " "${CfgDir}${tgt}/${cfg_chk}"
-						fi
+				"P") # Preserve existing files and populate missing ones once.
+					if [ "${flg_DryRun}" -eq 1 ]; then
+						print_log -y "[dry-run]" -b " :: " "Would back up and populate missing files in ${pth}/${cfg_chk}"
+					elif [ "$USE_RSYNC" -eq 1 ]; then
+						rsync -a "${pth}/${cfg_chk}" "${BkpDir}${tgt}"
+						rsync -a --ignore-existing "${CfgDir}${tgt}/${cfg_chk}" "${pth}"
+						print_log -g "[copy to backup]" " > " -y "[populate]" -b " :: " "${pth}/${cfg_chk}"
 					else
-						if ! [ "${flg_DryRun}" -ne 1 ] && cp -rn "${CfgDir}${tgt}/${cfg_chk}" "${pth}" 2>/dev/null; then
-							print_log -g "[copy to backup]" " > " -y "[populate]" -b " :: " "${pth}${tgt}/${cfg_chk}"
-						else
-							print_log -g "[copy to backup]" " > " -y "[preserved]" -b " :: " "${pth}" + 208 " <--  " "${CfgDir}${tgt}/${cfg_chk}"
-						fi
+						cp -r "${pth}/${cfg_chk}" "${BkpDir}${tgt}"
+						cp -rn "${CfgDir}${tgt}/${cfg_chk}" "${pth}"
+						print_log -g "[copy to backup]" " > " -y "[populate]" -b " :: " "${pth}/${cfg_chk}"
 					fi
 					;;
 				esac
@@ -244,6 +297,10 @@ ensure_hyq() {
 		return 0
 	fi
 
+	if [ "${flg_DryRun:-0}" -eq 1 ]; then
+		print_log -y "[hook] " -b "dry-run :: " "hyq unavailable; would install it before checking Hyprland"
+		return 1
+	fi
 	print_log -y "[hook] " -b "hyprland :: " "'hyq' not found in PATH, trying package install..."
 
 	# Try pm.sh or pacmanCmd if available
@@ -270,7 +327,9 @@ hyprland_hook() {
 	hyq_exec="$(command -v hyq 2>/dev/null || true)"
 
 	if ! "${hyq_exec}" "${hyprland_default_config}" --query "\$HYDE_HYPRLAND"; then
-		mkdir -p "$(dirname "${hyprland_default_config}")" "${BkpDir}/.config/hypr"
+		if [ "${flg_DryRun}" -ne 1 ]; then
+			mkdir -p "$(dirname "${hyprland_default_config}")" "${BkpDir}/.config/hypr"
+		fi
 		print_log -g "[hook] " -b "hyprland :: " "No HYDE_HYPRLAND variable found in ${hyprland_default_config}, restoring default HyDE marker..."
 
 		if [[ ${flg_DryRun} -ne 1 && -f "${hyprland_default_config}" ]]; then
@@ -329,6 +388,9 @@ if [ ! -f "${CfgLst}" ] || [ ! -d "${CfgDir}" ]; then
 	exit 1
 fi
 
+file_extension="${CfgLst##*.}"
+validate_manifest "${CfgLst}" "${file_extension}" || exit 1
+
 BkpDir="${HOME}/.config/cfg_backups/$(date +'%y%m%d_%Hh%Mm%Ss')${ThemeOverride}"
 
 if [ -d "${BkpDir}" ]; then
@@ -338,7 +400,6 @@ else
 	[[ ${flg_DryRun} -ne 1 ]] && mkdir -p "${BkpDir}"
 fi
 
-file_extension="${CfgLst##*.}"
 echo ""
 print_log -g "[file extension]" -b " :: " "${file_extension}"
 case "${file_extension}" in
@@ -353,6 +414,12 @@ json)
 	;;
 esac
 echo ""
+
+if [ "${flg_DryRun}" -eq 1 ]; then
+	hyprland_hook || print_log -y "[hook]" -b "dry-run :: " "Hyprland check skipped"
+	print_log -y "[dry-run]" -b " :: " "Would check uv, rebuild Python environment and cache version information"
+	exit 0
+fi
 
 hyprland_hook
 

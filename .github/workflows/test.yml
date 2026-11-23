@@ -100,6 +100,24 @@ jobs:
           rm -f tests/test_waybar_actions.sh tests/test_waybar_watch_includes.sh
           sh tests/run.sh
 
+  anide-checks:
+    name: AniDE checks (including headless Qt)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-pyqt6 jq
+      - name: Run AniDE checks
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          /usr/bin/python3 -c "from PyQt6 import QtCore, QtWidgets"
+          /usr/bin/python3 -m unittest discover -s checks -v
+
   coverage:
     name: Shell coverage
     runs-on: ubuntu-24.04

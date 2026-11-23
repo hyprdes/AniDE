@@ -69,7 +69,7 @@ if [ "${flg_Grub}" -eq 1 ] && pkg_installed grub && [ -f /boot/grub/grub.cfg ]; 
 fi
 
 # systemd-boot
-if pkg_installed systemd && nvidia_detect && [ "$(bootctl status 2>/dev/null | awk '{if ($1 == "Product:") print $2}')" == "systemd-boot" ]; then
+if [ "${flg_Nvidia}" -eq 1 ] && pkg_installed systemd && nvidia_detect && [ "$(bootctl status 2>/dev/null | awk '{if ($1 == "Product:") print $2}')" == "systemd-boot" ]; then
     print_log -sec "bootloader" -stat "detected" "systemd-boot"
 
     if [ "$(find /boot/loader/entries/ -type f -name '*.conf.hyde.bkp' 2>/dev/null | wc -l)" -ne "$(find /boot/loader/entries/ -type f -name '*.conf' 2>/dev/null | wc -l)" ]; then

@@ -64,7 +64,7 @@ pacmanCmd="$CLONE_DIR/bin/package-install"
 
     def test_preserve_mode_dry_run_never_copies_missing_files(self):
         # Test the real deploy_psv function in isolation; no legacy hooks run.
-        script = (ROOT / "Scripts/restore_cfg.sh").read_text().split("\nensure_hyq() {", 1)[0]
+        script = (ROOT / "Scripts/restore_cfg.sh").read_text().split("\n# The managed HyDE entry point", 1)[0]
         functions = self.root / "functions.sh"
         functions.write_text(script)
         dest = self.home / ".config/example"
@@ -142,7 +142,7 @@ deploy_psv "$CfgLst"
                     self.assertFalse((self.home / ".config").exists())
 
     def test_bundled_manifests_validate_and_spaces_in_home_work(self):
-        script = (ROOT / "Scripts/restore_cfg.sh").read_text().split("\nensure_hyq() {", 1)[0]
+        script = (ROOT / "Scripts/restore_cfg.sh").read_text().split("\n# The managed HyDE entry point", 1)[0]
         functions = self.root / "functions.sh"
         functions.write_text(script)
         harness = self.root / "validate.sh"
@@ -158,6 +158,65 @@ printf '%s\\n' "$pth"
         result = self.run_script(harness, functions, ROOT / "Scripts/restore_cfg.psv", ROOT / "Scripts/restore_cfg.lst")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout.strip(), f"{spaced_home}/.config/Code - OSS/User")
+
+    def test_legacy_restore_leaves_hyprland_configs_untouched(self):
+        shutil.copy(ROOT / "Scripts/restore_cfg.sh", self.scripts)
+        (self.scripts / "version.sh").write_text("#!/bin/bash\nexit 0\n")
+        (self.scripts / "version.sh").chmod(0o755)
+        config = self.root / "Configs"
+        config.mkdir()
+        manifest = self.root / "empty.psv"
+        manifest.write_text("# empty\n")
+        self.executable("hyq", 'echo hyq >> "$COMMAND_LOG"; exit 1')
+        self.executable("package-install", 'echo install >> "$COMMAND_LOG"; exit 1')
+        self.executable("git", "exit 1")
+        self.executable("uv", "exit 0")
+        self.executable("hyde-shell", "exit 0")
+        for case in ("missing", "legacy_conf", "lua", "dangling_lua"):
+            with self.subTest(case=case):
+                base = self.root / case
+                home = base / "home"
+                config_home = base / "custom config"
+                data_home = base / "custom data"
+                state_home = base / "state"
+                (home / "HyDE").mkdir(parents=True)
+                (home / "HyDE/CHANGELOG.md").write_text("test")
+                (state_home / "hyde").mkdir(parents=True)
+                hypr = config_home / "hypr"
+                hypr.mkdir(parents=True)
+                (data_home / "hypr").mkdir(parents=True)
+                (data_home / "hypr/hyde.lua").write_text("managed")
+                user_conf = hypr / "hyprland.conf"
+                user_lua = hypr / "hyprland.lua"
+                if case == "legacy_conf":
+                    user_conf.write_text("user legacy config")
+                if case == "lua":
+                    user_lua.write_text("user Lua config")
+                if case == "dangling_lua":
+                    user_lua.symlink_to("missing-target")
+                self.env.update(HOME=str(home), XDG_CONFIG_HOME=str(config_home),
+                                XDG_DATA_HOME=str(data_home), XDG_STATE_HOME=str(state_home))
+                result = self.run_script(self.scripts / "restore_cfg.sh", manifest, config, dry=0)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertNotIn("cannot stat", result.stderr)
+                self.assertFalse(self.log.exists())
+                if case == "legacy_conf":
+                    self.assertEqual(user_conf.read_text(), "user legacy config")
+                else:
+                    self.assertFalse(user_conf.exists())
+                if case == "lua":
+                    self.assertEqual(user_lua.read_text(), "user Lua config")
+                    self.assertNotIn("No user Lua entry point", result.stdout)
+                elif case == "dangling_lua":
+                    self.assertTrue(user_lua.is_symlink())
+                    self.assertEqual(os.readlink(user_lua), "missing-target")
+                    self.assertIn("No user Lua entry point", result.stdout)
+                else:
+                    self.assertFalse(user_lua.exists())
+                    self.assertIn("No user Lua entry point", result.stdout)
+                self.assertEqual((data_home / "hypr/hyde.lua").read_text(), "managed")
+                if case != "lua":
+                    self.assertIn("./install.sh -r", result.stdout)
 
     def test_no_nvidia_skips_systemd_boot_detection(self):
         shutil.copy(ROOT / "Scripts/install_pre.sh", self.scripts)
@@ -178,7 +237,7 @@ prompt_timer() { PROMPT_INPUT=n; }
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("bootctl", self.log.read_text())
 
-    def test_missing_hyq_does_not_install_in_dry_run(self):
+    def test_missing_lua_reports_safe_next_step_in_dry_run(self):
         shutil.copy(ROOT / "Scripts/restore_cfg.sh", self.scripts)
         config = self.root / "Configs"
         config.mkdir()
@@ -188,7 +247,8 @@ prompt_timer() { PROMPT_INPUT=n; }
         result = self.run_script(self.scripts / "restore_cfg.sh", manifest, config)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertFalse(self.log.exists())
-        self.assertIn("hyq unavailable", result.stdout)
+        self.assertIn("No user Lua entry point", result.stdout)
+        self.assertIn("./install.sh -r", result.stdout)
 
 
 if __name__ == "__main__":

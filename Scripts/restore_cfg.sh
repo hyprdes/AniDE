@@ -291,57 +291,24 @@ deploy_psv() {
 	done <"${1}"
 }
 
-ensure_hyq() {
-	# Check if hyq is already available
-	if command -v hyq >/dev/null 2>&1 && [ -x "$(command -v hyq)" ]; then
-		return 0
-	fi
-
-	if [ "${flg_DryRun:-0}" -eq 1 ]; then
-		print_log -y "[hook] " -b "dry-run :: " "hyq unavailable; would install it before checking Hyprland"
-		return 1
-	fi
-	print_log -y "[hook] " -b "hyprland :: " "'hyq' not found in PATH, trying package install..."
-
-	# Try pm.sh or pacmanCmd if available
-	if [[ -x "${pacmanCmd}" ]]; then
-		"${pacmanCmd}" install --no-confirm hyprquery || "${pacmanCmd}" install --no-confirm hyprquery-git
-	fi
-
-	# Check again if hyq is now available
-	if command -v hyq >/dev/null 2>&1 && [ -x "$(command -v hyq)" ]; then
-		return 0
-	fi
-
-	print_log -r "[error] :: " "Required executable 'hyq' is not available. Install 'hyprquery-git' (or 'hyprquery')."
-	return 1
-}
-
+# The managed HyDE entry point and user overrides use Lua, not the removed
+# hyprland.conf template. This legacy deployer does not own or migrate either
+# user entry point; in particular, creating a Lua file can make Hyprland ignore
+# an existing hyprland.conf. Warn instead of replacing the user's configuration.
 hyprland_hook() {
+	local config_home="${XDG_CONFIG_HOME:-${HOME}/.config}"
+	local data_home="${XDG_DATA_HOME:-${HOME}/.local/share}"
+	local user_config="${config_home}/hypr/hyprland.lua"
+	local managed_config="${data_home}/hypr/hyde.lua"
 
-	local hyde_config="${cloneDir}/Configs/.config/hypr/hyprland.conf"
-	local hyprland_default_config="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/hyprland.conf"
-	local hyq_exec
-
-	ensure_hyq || return 1
-	hyq_exec="$(command -v hyq 2>/dev/null || true)"
-
-	if ! "${hyq_exec}" "${hyprland_default_config}" --query "\$HYDE_HYPRLAND"; then
-		if [ "${flg_DryRun}" -ne 1 ]; then
-			mkdir -p "$(dirname "${hyprland_default_config}")" "${BkpDir}/.config/hypr"
-		fi
-		print_log -g "[hook] " -b "hyprland :: " "No HYDE_HYPRLAND variable found in ${hyprland_default_config}, restoring default HyDE marker..."
-
-		if [[ ${flg_DryRun} -ne 1 && -f "${hyprland_default_config}" ]]; then
-			cp -f "${hyprland_default_config}" "${BkpDir}/.config/hypr/hyprland.conf"
-		fi
-
-		print_log -r "[backup] :: " "${hyprland_default_config} to ${BkpDir}/.config/hypr/hyprland.conf"
-		[[ ${flg_DryRun} -ne 1 ]] && cp -f "${hyde_config}" "${hyprland_default_config}"
-		print_log -g "[restore] :: " "${hyde_config} to ${hyprland_default_config}"
+	if [ ! -f "${user_config}" ]; then
+		print_log -warn "[hyprland]" "No user Lua entry point at ${user_config}; existing configuration was not changed. To deploy AniDE's Lua configuration, review the installer and back up your configuration before running ./install.sh -r from Scripts."
 	fi
+	if [ ! -f "${managed_config}" ]; then
+		print_log -warn "[hyprland]" "Managed Lua entry point not found at ${managed_config}; the legacy deploy may not have installed the complete HyDE configuration."
+	fi
+	return 0
 }
-
 
 uv_hook() {
 	print_log -g "[uv]" -b " :: " "Checking uv availability..."
@@ -416,7 +383,7 @@ esac
 echo ""
 
 if [ "${flg_DryRun}" -eq 1 ]; then
-	hyprland_hook || print_log -y "[hook]" -b "dry-run :: " "Hyprland check skipped"
+	hyprland_hook
 	print_log -y "[dry-run]" -b " :: " "Would check uv, rebuild Python environment and cache version information"
 	exit 0
 fi

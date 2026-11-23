@@ -53,3 +53,20 @@ installer then exits nonzero before a reboot prompt. These are not transactional
 operations: individual migrations can make changes before failing. Inspect the
 logs and verify backups before retrying. This does not make the rest of `--test`
 read-only.
+
+### Hyprland Lua configuration
+
+`restore_cfg.sh` is a legacy deployer. It no longer queries or replaces
+`hyprland.conf` using the removed HyDE template or installs `hyprquery` for
+that check. It leaves existing user `.conf` and `.lua` configurations untouched
+by the hook. If the user Lua entry point (`$XDG_CONFIG_HOME/hypr/hyprland.lua`)
+or managed entry point (`$XDG_DATA_HOME/hypr/hyde.lua`) is missing, it warns;
+the hook does not create either file. XDG directories default to `~/.config`
+and `~/.local/share` when unset or empty.
+
+The supported full dotfile deployment is `bash Scripts/install.sh -r` from the
+repository root. Review its plan and back up your configuration first: it is a
+deployment, not a backup restore, and may change user configuration. Hyprland
+prefers `hyprland.lua` over `hyprland.conf`, so review how this affects an
+existing custom configuration before deploying or migrating it. The warning
+alone does not prove a complete or working Hyprland installation.

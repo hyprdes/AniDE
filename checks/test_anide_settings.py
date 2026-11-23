@@ -38,6 +38,23 @@ class PackagingTest(unittest.TestCase):
                 self.assertNotIn(command[0], ("sh", "bash"))
                 self.assertNotEqual(command[:2], ("hyde-shell", "animations"))
 
+    def test_xdg_config_home_without_qt(self):
+        # The XDG helper is pure Python, so exercise it even where Qt cannot load.
+        tree = ast.parse(SCRIPT.read_text())
+        helper = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == "xdg_config_home")
+        code = ast.fix_missing_locations(ast.Module(body=[helper], type_ignores=[]))
+        namespace = {"os": os, "Path": Path}
+        exec(compile(code, str(SCRIPT), "exec"), namespace)
+        resolve = namespace["xdg_config_home"]
+        for value in ("relative", "", "./relative"):
+            with self.subTest(value=value), mock.patch.dict(os.environ, {"XDG_CONFIG_HOME": value}):
+                self.assertEqual(resolve(), Path.home() / ".config")
+        with mock.patch.dict(os.environ, {"XDG_CONFIG_HOME": "/tmp/example"}):
+            self.assertEqual(resolve(), Path("/tmp/example"))
+        with mock.patch.dict(os.environ):
+            os.environ.pop("XDG_CONFIG_HOME", None)
+            self.assertEqual(resolve(), Path.home() / ".config")
+
     def test_launcher_syntax(self):
         launcher = ROOT / "Configs/.local/lib/hyde/anide-settings.sh"
         subprocess.run(["bash", "-n", str(launcher)], check=True)

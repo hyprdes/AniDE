@@ -94,5 +94,16 @@ MANDATORY
 
 mkdir -p "${cacheDir}/wallbash"
 envsubst <"${cacheDir}/wallbash/dunst.conf" >>"${dunstDir}/dunstrc"
+
+# Apply this after the critical defaults and theme fragments. Other critical
+# notifications remain sticky; only app2unit launch errors expire.
+cat <<'RULE' >>"${dunstDir}/dunstrc"
+
+[app2unit_error]
+appname = "^app2unit$"
+msg_urgency = critical
+timeout = 10
+RULE
+
 killall dunst
 dunst &

@@ -53,6 +53,14 @@ SECTIONS = (
 )
 
 
+def xdg_config_home():
+    """Use XDG_CONFIG_HOME only when it is an absolute path, per XDG."""
+    configured = os.environ.get("XDG_CONFIG_HOME", "")
+    if configured and Path(configured).is_absolute():
+        return Path(configured)
+    return Path.home() / ".config"
+
+
 def theme_colors(path):
     """Read only simple hex colors; never execute or interpolate theme contents."""
     colors = {}
@@ -112,8 +120,8 @@ def wallpaper_tint():
                                      QtCore.Qt.TransformationMode.SmoothTransformation)
                 candidates.append(tiny.toImage().pixelColor(0, 0))
     try:
-        text = (Path(os.environ.get("XDG_CONFIG_HOME", "") or Path.home() / ".config")
-                / "quickshell" / "theme.json").read_text(encoding="utf-8", errors="replace")
+        text = (xdg_config_home() / "quickshell" / "theme.json").read_text(
+            encoding="utf-8", errors="replace")
         match = re.search(r'"barBg"\s*:\s*"(#[0-9a-fA-F]{6})"', text)
         if match:
             candidates.append(QtGui.QColor(match.group(1)))

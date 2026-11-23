@@ -127,3 +127,9 @@ dmenu = /usr/bin/rofi -config notification -dmenu -p dunst:
     frame_color = "#3A4A6B03"
     icon = "/home/khing/.local/share/icons/Wallbash-Icon/hyprdots.svg"
     timeout = 5
+
+# Allow app2unit launch errors to expire without changing other critical alerts.
+[app2unit_error]
+appname = "^app2unit$"
+msg_urgency = critical
+timeout = 10

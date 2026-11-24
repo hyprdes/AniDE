@@ -16,7 +16,7 @@ include = [
     "Scripts/dots/hyde.toml",
     "Scripts/dots/hyprland.toml",
     "Scripts/dots/wallbash.toml",
-    "Scripts/dots/waybar.toml",
+    "Scripts/dots/quickshell.toml",
     "Scripts/dots/lsd.toml",
     "Scripts/dots/rofi.toml",
     "Scripts/dots/libinput-gestures.toml",

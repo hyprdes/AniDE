@@ -37,6 +37,46 @@ is_qs_running() {
         pgrep -u "${USER:-$(id -un)}" -x qs >/dev/null 2>&1
 }
 
+qs_log() {
+    # Best-effort diagnostic line in the bar log; never fails the caller.
+    local msg="$1"
+    mkdir -p "$(dirname "${QS_LOG_FILE}")" 2>/dev/null || true
+    printf '[%s] %s\n' "$(date '+%F %T' 2>/dev/null || printf 'unknown-time')" "${msg}" >>"${QS_LOG_FILE}" 2>/dev/null || true
+}
+
+# The bar is started from Hyprland's `hyprland.start` event, which can fire
+# before the Wayland socket exists. Quickshell exits at once when it cannot
+# connect, so wait briefly for the socket instead of racing the compositor.
+wait_for_wayland() {
+    local tries=50
+    local sock=""
+    while [[ ${tries} -gt 0 ]]; do
+        if [[ -n "${WAYLAND_DISPLAY:-}" ]]; then
+            for sock in "${XDG_RUNTIME_DIR:-/tmp}/${WAYLAND_DISPLAY}" "/run/user/$(id -u 2>/dev/null || printf '0')/${WAYLAND_DISPLAY}"; do
+                if [[ -S "${sock}" ]]; then
+                    return 0
+                fi
+            done
+        fi
+        tries=$((tries - 1))
+        sleep 0.1
+    done
+    return 1
+}
+
+# True while the launched PID is a live process (not exited, not a zombie).
+pid_alive() {
+    local pid="$1"
+    [[ -n "${pid}" ]] || return 1
+    if [[ -r "/proc/${pid}/stat" ]]; then
+        local state
+        state="$(awk '{print $3}' "/proc/${pid}/stat" 2>/dev/null || printf '')"
+        [[ -n "${state}" && "${state}" != "Z" ]]
+        return $?
+    fi
+    kill -0 "${pid}" 2>/dev/null
+}
+
 stop_waybar() {
     if pgrep -u "${USER:-$(id -un)}" -x waybar >/dev/null 2>&1; then
         if command -v systemctl >/dev/null 2>&1; then
@@ -190,13 +230,40 @@ start_qs() {
     local qs_bin
     if ! qs_bin=$(find_qs_bin); then
         printf 'Quickshell binary (quickshell / qs) not found on PATH.\n' >&2
-        return 0
+        qs_log "start failed: quickshell binary not found on PATH"
+        return 1
+    fi
+    if ! wait_for_wayland; then
+        qs_log "warning: Wayland socket not ready after 5s; starting anyway"
     fi
     if is_qs_running; then
         return 0
     fi
-    nohup "${qs_bin}" -p "${QS_CONFIG_DIR}" >>"${QS_LOG_FILE}" 2>&1 &
-    disown || true
+    mkdir -p "$(dirname "${QS_LOG_FILE}")" 2>/dev/null || true
+    # Launch detached so the bar outlives this script and the systemd scope
+    # that started it, then verify it actually stayed up. A Quickshell that
+    # exits at once (Wayland race, bad config) used to vanish silently; now
+    # the failure is logged and retried once.
+    local attempt pid
+    for attempt in 1 2; do
+        if command -v setsid >/dev/null 2>&1; then
+            setsid nohup "${qs_bin}" -p "${QS_CONFIG_DIR}" >>"${QS_LOG_FILE}" 2>&1 &
+        else
+            nohup "${qs_bin}" -p "${QS_CONFIG_DIR}" >>"${QS_LOG_FILE}" 2>&1 &
+        fi
+        pid="$!"
+        disown 2>/dev/null || true
+        sleep 0.5
+        if pid_alive "${pid}" || is_qs_running; then
+            qs_log "started ${qs_bin} (pid ${pid})"
+            return 0
+        fi
+        qs_log "attempt ${attempt}: ${qs_bin} exited immediately; see ${QS_LOG_FILE}"
+        kill_qs
+        sleep 0.5
+    done
+    printf 'Quickshell failed to stay up; see %s\n' "${QS_LOG_FILE}" >&2
+    return 1
 }
 
 kill_qs() {

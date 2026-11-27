@@ -10,7 +10,9 @@ local systemd_env = {
     "QT_QPA_PLATFORMTHEME",
     "GTK_IM_MODULE",
     "QT_IM_MODULE",
-    "XMODIFIERS"
+    "XMODIFIERS",
+    "GLFW_IM_MODULE",
+    "SDL_IM_MODULE"
 }
 local systemd_env_str = table.concat(systemd_env, " ")
 
@@ -39,6 +41,7 @@ hyde.env("PATH", os.getenv("PATH") or "")
 -- environment applies the same policy before Hyprland starts.
 local input_method = os.getenv("ANIDE_INPUT_METHOD") or "auto"
 local gtk_im, qt_im, xim = os.getenv("GTK_IM_MODULE"), os.getenv("QT_IM_MODULE"), os.getenv("XMODIFIERS")
+local glfw_im, sdl_im = os.getenv("GLFW_IM_MODULE"), os.getenv("SDL_IM_MODULE")
 local function compatible(value, expected)
     return value == nil or value == "" or value == expected
 end
@@ -55,10 +58,13 @@ local function has_ibus()
     return false
 end
 if (input_method == "auto" or input_method == "ibus") and has_ibus()
-    and compatible(gtk_im, "ibus") and compatible(qt_im, "ibus") and compatible(xim, "@im=ibus") then
+    and compatible(gtk_im, "ibus") and compatible(qt_im, "ibus") and compatible(xim, "@im=ibus")
+    and compatible(glfw_im, "ibus") and compatible(sdl_im, "ibus") then
     hyde.env("GTK_IM_MODULE", "ibus")
     hyde.env("QT_IM_MODULE", "ibus")
     hyde.env("XMODIFIERS", "@im=ibus")
+    hyde.env("GLFW_IM_MODULE", "ibus")
+    hyde.env("SDL_IM_MODULE", "ibus")
 end
 
 local hc = hyde.config

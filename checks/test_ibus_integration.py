@@ -434,17 +434,12 @@ class IbusIntegrationTest(unittest.TestCase):
             self.assertIn("Unknown option", unknown.stderr)
             self.assertIn("--status", unknown.stderr)
 
-    def test_wayland_session_uses_ibus_start_wayland(self):
-        """On Wayland, `ibus start --type wayland` enables text-input-v3 for native apps."""
+    def test_wayland_session_uses_ibus_daemon_xim(self):
+        """Hyprland implements zwp_input_method_v2 (not v1), so ibus-daemon --xim is required."""
         with tempfile.TemporaryDirectory() as tmp:
             sandbox = IbusSandbox(tmp)
             write_executable(sandbox.bin / "ibus", DAEMON_MOCK)
             sandbox.run(WAYLAND_DISPLAY="wayland-1")
-            self.assertEqual(sandbox.log_text(), "start --type wayland\n")
-        with tempfile.TemporaryDirectory() as tmp:
-            sandbox = IbusSandbox(tmp)
-            write_executable(sandbox.bin / "ibus", DAEMON_MOCK)
-            sandbox.run(WAYLAND_DISPLAY="")
             self.assertEqual(sandbox.log_text(), "--daemonize --xim\n")
 
     def test_notification_reports_the_result(self):
@@ -464,12 +459,13 @@ class IbusIntegrationTest(unittest.TestCase):
             self.assertIn("ibus-unikey", entry[helper])
         variables = (ROOT / "Configs/.local/share/hypr/lua/variables.lua").read_text()
         self.assertIn('hc.start.input_method = "hyde-shell ibus-start"', variables)
+        self.assertIn('hyde.env("QT_IM_MODULES", "ibus")', variables)
         self.assertIn('hyde.env("GLFW_IM_MODULE", "ibus")', variables)
         self.assertIn('hyde.env("SDL_IM_MODULE", "ibus")', variables)
+        self.assertIn('hyde.env("ELECTRON_OZONE_PLATFORM_HINT", "x11")', variables)
         for flags_name in ("electron-flags.conf", "code-flags.conf", "codium-flags.conf", "spotify-flags.conf"):
             flags = (ROOT / "Configs/.config" / flags_name).read_text()
-            self.assertIn("--enable-wayland-ime", flags, flags_name)
-            self.assertIn("--wayland-text-input-version=3", flags, flags_name)
+            self.assertIn("--ozone-platform=x11", flags, flags_name)
         self.assertIn('check_exec(hs.input_method)', (ROOT / "Configs/.local/share/hypr/lua/start_up.lua").read_text())
         self.assertIn('"ibus-start", "--seed", "--force"',
                       (ROOT / "Configs/.local/lib/hyde/pygui/anide_settings.py").read_text())

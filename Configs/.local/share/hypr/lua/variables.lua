@@ -10,9 +10,11 @@ local systemd_env = {
     "QT_QPA_PLATFORMTHEME",
     "GTK_IM_MODULE",
     "QT_IM_MODULE",
+    "QT_IM_MODULES",
     "XMODIFIERS",
     "GLFW_IM_MODULE",
-    "SDL_IM_MODULE"
+    "SDL_IM_MODULE",
+    "ELECTRON_OZONE_PLATFORM_HINT"
 }
 local systemd_env_str = table.concat(systemd_env, " ")
 
@@ -62,9 +64,14 @@ if (input_method == "auto" or input_method == "ibus") and has_ibus()
     and compatible(glfw_im, "ibus") and compatible(sdl_im, "ibus") then
     hyde.env("GTK_IM_MODULE", "ibus")
     hyde.env("QT_IM_MODULE", "ibus")
+    hyde.env("QT_IM_MODULES", "ibus")
     hyde.env("XMODIFIERS", "@im=ibus")
     hyde.env("GLFW_IM_MODULE", "ibus")
     hyde.env("SDL_IM_MODULE", "ibus")
+    -- IBus does not implement Hyprland's zwp_input_method_v2 protocol, so
+    -- Electron/Chromium apps running in native Wayland mode ignore IBus.
+    -- Use XWayland so Electron apps receive IBus input via XIM/GTK.
+    hyde.env("ELECTRON_OZONE_PLATFORM_HINT", "x11")
 end
 
 local hc = hyde.config

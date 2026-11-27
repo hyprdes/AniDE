@@ -9,7 +9,7 @@ case ${ANIDE_INPUT_METHOD:-auto} in
            { [ -z "${XMODIFIERS:-}" ] || [ "$XMODIFIERS" = '@im=ibus' ]; } &&
            { [ -z "${GLFW_IM_MODULE:-}" ] || [ "$GLFW_IM_MODULE" = ibus ]; } &&
            { [ -z "${SDL_IM_MODULE:-}" ] || [ "$SDL_IM_MODULE" = ibus ]; }; then
-            export GTK_IM_MODULE=ibus QT_IM_MODULE=ibus XMODIFIERS='@im=ibus' GLFW_IM_MODULE=ibus SDL_IM_MODULE=ibus
+            export GTK_IM_MODULE=ibus QT_IM_MODULE=ibus QT_IM_MODULES=ibus XMODIFIERS='@im=ibus' GLFW_IM_MODULE=ibus SDL_IM_MODULE=ibus ELECTRON_OZONE_PLATFORM_HINT=x11
         fi
         ;;
 esac

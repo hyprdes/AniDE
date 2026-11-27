@@ -459,6 +459,8 @@ status() {
     printf '  GTK_IM_MODULE        : %s\n' "${GTK_IM_MODULE:-<unset>}"
     printf '  QT_IM_MODULE         : %s\n' "${QT_IM_MODULE:-<unset>}"
     printf '  XMODIFIERS           : %s\n' "${XMODIFIERS:-<unset>}"
+    printf '  GLFW_IM_MODULE       : %s\n' "${GLFW_IM_MODULE:-<unset>}"
+    printf '  SDL_IM_MODULE        : %s\n' "${SDL_IM_MODULE:-<unset>}"
     printf '  ibus-daemon          : %s\n' "${daemonPath:-<not installed>}"
     if have pgrep && pgrep -u "$(id -u)" -x ibus-daemon >/dev/null 2>&1; then
         printf '  daemon running       : yes\n'
@@ -542,6 +544,13 @@ fi
 
 if [[ ${flg_SeedOnly} -eq 1 ]]; then
     exit 0
+fi
+
+# On Wayland, `ibus start --type wayland` connects IBus to the compositor's
+# input-method-v2 / text-input-v3 protocol (so native Wayland apps receive
+# input) while keeping XIM active for XWayland apps such as Zalo.
+if [[ -n ${WAYLAND_DISPLAY:-} ]] && have ibus; then
+    exec ibus start --type wayland
 fi
 
 have ibus-daemon || exit 0

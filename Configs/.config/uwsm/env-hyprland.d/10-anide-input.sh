@@ -6,8 +6,10 @@ case ${ANIDE_INPUT_METHOD:-auto} in
         if command -v ibus-daemon >/dev/null 2>&1 &&
            { [ -z "${GTK_IM_MODULE:-}" ] || [ "$GTK_IM_MODULE" = ibus ]; } &&
            { [ -z "${QT_IM_MODULE:-}" ] || [ "$QT_IM_MODULE" = ibus ]; } &&
-           { [ -z "${XMODIFIERS:-}" ] || [ "$XMODIFIERS" = '@im=ibus' ]; }; then
-            export GTK_IM_MODULE=ibus QT_IM_MODULE=ibus XMODIFIERS='@im=ibus'
+           { [ -z "${XMODIFIERS:-}" ] || [ "$XMODIFIERS" = '@im=ibus' ]; } &&
+           { [ -z "${GLFW_IM_MODULE:-}" ] || [ "$GLFW_IM_MODULE" = ibus ]; } &&
+           { [ -z "${SDL_IM_MODULE:-}" ] || [ "$SDL_IM_MODULE" = ibus ]; }; then
+            export GTK_IM_MODULE=ibus QT_IM_MODULE=ibus XMODIFIERS='@im=ibus' GLFW_IM_MODULE=ibus SDL_IM_MODULE=ibus
         fi
         ;;
 esac
